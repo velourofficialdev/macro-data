@@ -3,217 +3,240 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<title>Macro Dashboard</title>
+<meta name="color-scheme" content="dark light">
+<title>Velour Macro Dashboard</title>
 <script>
   try { var t = localStorage.getItem("macro-theme"); if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
 </script>
 <style>
-  /* Velour theme. Brand #42070E for titles and accents; surfaces stay soft. Chart colors --s1..--s4 passed a colorblind/contrast check. */
+  /* Velour. Burgundy base #42070E. Dark is the default look; light keeps the same burgundy header.
+     Chart colors --s1..--s4 pass a colorblind / contrast check against the tile color of each theme. */
   :root {
     --brand: #42070E;
-    --bg: #f3eeeb; --panel: #fbf8f6; --head: #ebe3e0; --tint: #efe8e5;
-    --ink: #3b2b2e; --muted: #7b6b6e; --line: #e2d8d5; --accent: #42070E; --rule: #7a3340;
-    --warn-bg: #f0dcdf; --warn-ink: #6b1e2a; --neutral-bg: #ebe4e1; --neutral-ink: #66575a;
-    --up: #0b7a80; --down: #b3374f;
-    --s1: #9b424d; --s2: #008e96; --s3: #ad8522; --s4: #635dab;
-    color-scheme: light;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #12131a; --panel: #1b1d27; --head: #161820; --tint: #232634;
-      --ink: #e6e8f2; --muted: #9aa0b8; --line: #2c3042; --accent: #f0a3b5; --rule: #c4506c;
-      --warn-bg: #3a2030; --warn-ink: #ffb3c3; --neutral-bg: #252838; --neutral-ink: #c3c8dc;
-      --up: #3ec7cf; --down: #ff7f9c;
-      --s1: #e0587a; --s2: #1ea3ac; --s3: #bf8a1c; --s4: #8478ec;
-      color-scheme: dark;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #12131a; --panel: #1b1d27; --head: #161820; --tint: #232634;
-    --ink: #e6e8f2; --muted: #9aa0b8; --line: #2c3042; --accent: #f0a3b5; --rule: #c4506c;
-    --warn-bg: #3a2030; --warn-ink: #ffb3c3; --neutral-bg: #252838; --neutral-ink: #c3c8dc;
-    --up: #3ec7cf; --down: #ff7f9c;
+    --grad: linear-gradient(135deg, #2a0409 0%, #42070E 38%, #7a1424 72%, #a52a3f 100%);
+    --grad-soft: linear-gradient(135deg, #42070E, #8c1c30);
+    --page: radial-gradient(1100px 520px at 0% -8%, rgba(122, 20, 36, .55), transparent 62%),
+            radial-gradient(900px 480px at 100% 0%, rgba(66, 7, 14, .65), transparent 60%),
+            linear-gradient(180deg, #1a0508 0%, #120306 100%);
+    --bg: #140407; --tile: #22080e; --tile2: #2b0b12; --tint: #351019; --head: #2a0a11;
+    --ink: #f5e9eb; --muted: #c09aa1; --line: rgba(255, 214, 222, .09); --line2: rgba(255, 214, 222, .16);
+    --accent: #f4a9b7; --rule: #b8324a; --onacc: #fff;
+    --warn-bg: rgba(224, 88, 122, .18); --warn-ink: #ffb8c6; --neutral-bg: rgba(255, 214, 222, .08); --neutral-ink: #dcc1c6;
+    --up: #3fc6ce; --down: #ff8aa2;
     --s1: #e0587a; --s2: #1ea3ac; --s3: #bf8a1c; --s4: #8478ec;
+    --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 10px 30px rgba(0, 0, 0, .25);
     color-scheme: dark;
   }
+  :root[data-theme="light"] {
+    --page: radial-gradient(1100px 520px at 0% -8%, rgba(165, 42, 63, .10), transparent 62%), linear-gradient(180deg, #f8f0ef 0%, #f3e8e7 100%);
+    --bg: #f5ecea; --tile: #fffaf9; --tile2: #fbf3f2; --tint: #f4e6e6; --head: #f1e2e2;
+    --ink: #2c0f14; --muted: #7d5a60; --line: #eddcdd; --line2: #e2cbcd;
+    --accent: #6e1020; --rule: #8c1c30;
+    --warn-bg: #f6dde2; --warn-ink: #7a1424; --neutral-bg: #f1e5e5; --neutral-ink: #6d5156;
+    --up: #007c85; --down: #b02a46;
+    --s1: #a8304a; --s2: #008f99; --s3: #9a7414; --s4: #5f55b5;
+    --shadow: 0 1px 2px rgba(66, 7, 14, .06), 0 8px 24px rgba(66, 7, 14, .06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+      --page: radial-gradient(1100px 520px at 0% -8%, rgba(165, 42, 63, .10), transparent 62%), linear-gradient(180deg, #f8f0ef 0%, #f3e8e7 100%);
+      --bg: #f5ecea; --tile: #fffaf9; --tile2: #fbf3f2; --tint: #f4e6e6; --head: #f1e2e2;
+      --ink: #2c0f14; --muted: #7d5a60; --line: #eddcdd; --line2: #e2cbcd;
+      --accent: #6e1020; --rule: #8c1c30;
+      --warn-bg: #f6dde2; --warn-ink: #7a1424; --neutral-bg: #f1e5e5; --neutral-ink: #6d5156;
+      --up: #007c85; --down: #b02a46;
+      --s1: #a8304a; --s2: #008f99; --s3: #9a7414; --s4: #5f55b5;
+      --shadow: 0 1px 2px rgba(66, 7, 14, .06), 0 8px 24px rgba(66, 7, 14, .06);
+      color-scheme: light;
+    }
+  }
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; background: var(--bg); }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { margin: 0; background: var(--page); background-attachment: fixed; color: var(--ink); font: 14px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-height: 100vh; }
   .up { color: var(--up); } .down { color: var(--down); }
   .muted-text { color: var(--muted); }
-  .num, td, .tv { font-variant-numeric: tabular-nums; }
+  td, .kv, .tv { font-variant-numeric: tabular-nums; }
+  .serif { font-family: Georgia, "Times New Roman", serif; }
 
-  .top { background: var(--head); border-bottom: 1px solid var(--line); }
-  .top .in { max-width: none; margin: 0; padding: 12px 10px 10px; }
-  .top h1 { margin: 0; font: 600 26px/1.2 Georgia, "Times New Roman", serif; color: var(--accent); }
-  .top p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
-  .top strong { color: var(--ink); font-weight: 600; }
-  .top a.dl { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; margin-left: 6px; white-space: nowrap; }
-  .wrap { max-width: none; margin: 0; padding: 0 10px 40px; }
-
-  nav { position: sticky; top: 0; z-index: 6; background: var(--bg); padding: 8px 0; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--line); }
-  nav a { color: var(--muted); text-decoration: none; padding: 5px 12px; border-radius: 999px; font-size: 13px; }
-  nav a:hover { background: var(--tint); color: var(--ink); }
-  nav a.active { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
-  section { scroll-margin-top: 56px; }
+  /* ---------- header: burgundy gradient band + sticky nav ---------- */
+  .hero { background: var(--grad); color: #fff; position: relative; overflow: hidden; }
+  .hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(600px 200px at 85% 0%, rgba(255, 255, 255, .12), transparent 70%); pointer-events: none; }
+  .hero .in { position: relative; z-index: 1; padding: 18px 12px 14px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .brand h1 { margin: 0; font: 600 26px/1.1 Georgia, serif; letter-spacing: .01em; }
+  .brand .tag { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; opacity: .75; }
+  .meta { font-size: 12px; opacity: .85; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .meta b { font-weight: 600; }
+  .meta a.dl { color: #fff; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .25); padding: 4px 12px; border-radius: 999px; text-decoration: none; }
+  .meta a.dl:hover { background: rgba(255, 255, 255, .22); }
+  nav { position: sticky; top: 0; z-index: 8; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 7px 12px;
+        background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  nav a { color: var(--muted); text-decoration: none; padding: 5px 13px; border-radius: 999px; font-size: 13px; }
+  nav a:hover { color: var(--ink); background: var(--tint); }
+  nav a.active { color: #fff; background: var(--grad-soft); box-shadow: 0 2px 10px rgba(122, 20, 36, .35); }
   .themes { margin-left: auto; display: inline-flex; background: var(--tint); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
   .themes button { font: inherit; font-size: 12px; border: 0; background: transparent; color: var(--muted); padding: 3px 11px; border-radius: 999px; cursor: pointer; }
-  .themes button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
-  button:focus-visible, nav a:focus-visible, summary:focus-visible, tr.row:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  .themes button[aria-pressed="true"] { background: var(--tile); color: var(--ink); box-shadow: 0 0 0 1px var(--line2); }
+  button:focus-visible, nav a:focus-visible, summary:focus-visible, tr.row:focus-visible, tr.grp:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  h2 { margin: 22px 0 4px; font: 600 20px/1.25 Georgia, "Times New Roman", serif; color: var(--accent); }
-  h2::after { content: ""; display: block; width: 32px; height: 2px; background: var(--rule); margin-top: 6px; border-radius: 2px; opacity: .8; }
-  h3.sub { margin: 22px 0 8px; font-size: 15px; font-weight: 600; }
-  .lede { margin: 6px 0 10px; color: var(--muted); max-width: none; }
-  .lede.small { font-size: 13px; margin: 2px 0 10px; }
+  /* ---------- bento: tiles that fit together like puzzle pieces ---------- */
+  main { padding: 10px 10px 30px; }
+  section { scroll-margin-top: 52px; margin-bottom: 10px; }
+  .sec { display: flex; align-items: baseline; gap: 10px; margin: 16px 2px 8px; }
+  .sec h2 { margin: 0; font: 600 18px/1.2 Georgia, serif; color: var(--accent); }
+  .sec span { color: var(--muted); font-size: 12px; }
+  .bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; grid-auto-flow: row dense; }
+  .t { grid-column: span var(--w, 12); grid-row: span var(--h, 1); background: linear-gradient(165deg, var(--tile2), var(--tile)); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .t.accent { background: var(--grad); color: #fff; border-color: transparent; }
+  .th { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 11px 14px 6px; }
+  .th h3 { margin: 0; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; display: flex; align-items: center; gap: 8px; }
+  .th h3::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: var(--grad-soft); box-shadow: 0 0 0 2px color-mix(in srgb, var(--rule) 25%, transparent); }
+  .tb { padding: 4px 14px 14px; flex: 1; min-height: 0; }
+  .tb.flush { padding: 0; }
+  .note { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
+  @media (max-width: 1180px) { .bento > .t { grid-column: span min(var(--w, 12), 6); } .bento > .t.wide { grid-column: span 12; } }
+  @media (max-width: 720px) { .bento > .t { grid-column: span 12 !important; grid-row: auto !important; } }
 
-  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
-  .pad { padding: 14px; }
-
-  /* market tiles */
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
-  .tile { position: relative; background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--rule); border-radius: 10px; padding: 10px 12px 8px; overflow: hidden; }
-  .tl { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
-  .tv { font: 600 21px/1.25 Georgia, "Times New Roman", serif; margin-top: 2px; }
-  .tc { font-size: 12px; color: var(--muted); }
-  .tc.up { color: var(--up); } .tc.down { color: var(--down); }
+  /* KPI strip */
+  .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; }
+  .kpi { padding: 12px 14px 10px; border-right: 1px solid var(--line); min-width: 0; }
+  .kpi:last-child { border-right: 0; }
+  .kl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kv { font: 600 24px/1.2 Georgia, serif; margin-top: 2px; }
+  .kv small { font: 500 12px system-ui, sans-serif; color: var(--muted); margin-left: 3px; }
+  .kc { font-size: 12px; color: var(--muted); } .kc span { opacity: .7; margin-left: 2px; }
+  .kc.up { color: var(--up); } .kc.down { color: var(--down); }
+  @media (max-width: 1180px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } .kpi:nth-child(3n) { border-right: 0; } .kpi:nth-child(-n+3) { border-bottom: 1px solid var(--line); } }
+  @media (max-width: 520px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpi { border-right: 1px solid var(--line) !important; border-bottom: 1px solid var(--line); } .kpi:nth-child(2n) { border-right: 0 !important; } }
   .spark { display: block; width: 100%; height: 26px; margin-top: 4px; }
   .spark.up { color: var(--up); } .spark.down { color: var(--down); } .spark.flat { color: var(--muted); }
+
+  /* market tiles (S&P, oil, VIX, BTC, FX spot) */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .tile { background: var(--tint); border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px 7px; min-width: 0; }
+  .tl { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; gap: 6px; }
+  .tv { font: 600 19px/1.25 Georgia, serif; margin-top: 2px; }
+  .tc { font-size: 12px; color: var(--muted); } .tc.up { color: var(--up); } .tc.down { color: var(--down); }
   .tag { font-size: 10px; padding: 1px 7px; border-radius: 999px; background: var(--neutral-bg); color: var(--neutral-ink); letter-spacing: .04em; }
   .tag.up { background: color-mix(in srgb, var(--up) 18%, transparent); color: var(--up); }
   .tag.down { background: color-mix(in srgb, var(--down) 18%, transparent); color: var(--down); }
 
+  .tiles.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .quick { list-style: none; margin: 0 0 10px; padding: 0; }
+  .quick li { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "l v" "b b"; gap: 0 8px; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, .14); }
+  .quick li:last-child { border-bottom: 0; }
+  .ql { grid-area: l; font-size: 12px; opacity: .85; } .qv { grid-area: v; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .qb { grid-area: b; font-size: 12px; font-weight: 600; color: #ffd6de; }
+  .quiet { margin: 4px 0 0; font-size: 12px; opacity: .8; }
+  .t.accent .signals li { background: rgba(255, 255, 255, .1); border-left-color: #fff; } .t.accent .signals span { color: rgba(255, 255, 255, .8); }
   .signals { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-  .signals li { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--rule); border-radius: 8px; padding: 10px 14px; }
+  .signals li { background: var(--tint); border-left: 3px solid var(--rule); border-radius: 10px; padding: 9px 12px; }
   .signals span { display: block; color: var(--muted); font-size: 13px; }
+  .t.accent .muted-text { color: rgba(255, 255, 255, .8); }
 
-  /* terminal layout */
-  .term { display: grid; grid-template-columns: minmax(400px, 36%) minmax(0, 1fr); gap: 8px; align-items: start; }
-  @media (max-width: 900px) { .term { grid-template-columns: minmax(0, 1fr); } }
+  /* watchlist */
+  .tools { display: flex; flex-wrap: wrap; gap: 2px; }
+  .tools button, .ranges button { font: inherit; font-size: 12px; border: 0; background: transparent; color: var(--muted); padding: 3px 9px; border-radius: 7px; cursor: pointer; }
+  .tools button:hover, .ranges button:hover { background: var(--tint); color: var(--ink); }
+  .tools button[aria-pressed="true"], .tools button[aria-expanded="true"] { background: var(--tint); color: var(--ink); }
+  .ranges { display: flex; flex-wrap: wrap; gap: 2px; }
+  .ranges button[aria-pressed="true"] { background: var(--grad-soft); color: #fff; }
+  .colmenu { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 14px 8px; font-size: 12px; color: var(--muted); }
+  .colmenu[hidden] { display: none; }
+  .filter { padding: 0 14px 8px; }
+  .filter input { width: 100%; font: inherit; font-size: 13px; padding: 6px 11px; border: 1px solid var(--line2); border-radius: 9px; background: var(--bg); color: var(--ink); }
   .scroll { overflow-x: auto; }
+  .wl { max-height: calc(100vh - 150px); min-height: 460px; overflow: auto; border-top: 1px solid var(--line); flex: 1; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
-  thead th { background: var(--tint); color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; position: sticky; top: 0; }
-  table.watch th, table.watch td { padding: 6px 7px; }
+  thead th { background: var(--head); color: var(--muted); font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; position: sticky; top: 0; z-index: 1; }
+  table.watch th, table.watch td { padding: 6px 8px; }
   table.watch td, table.watch thead th:not(:first-child) { text-align: right; }
   table.watch th[scope=row] { font-weight: 500; }
-  table.watch tr.grp th { background: var(--tint); color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; padding: 5px 10px; }
+  table.watch tr.grp th { background: var(--tint); color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; padding: 6px 10px; cursor: pointer; }
+  table.watch tr.grp th small { color: var(--muted); font-weight: 400; margin-left: 4px; }
+  table.watch.hide-c-tk .c-tk, table.watch.hide-c-d5 .c-d5, table.watch.hide-c-d20 .c-d20, table.watch.hide-c-z .c-z { display: none; }
+  table.watch .tk { color: var(--muted); font-size: 11px; text-align: left; }
+  table.watch thead th.c-tk { text-align: left; }
+  .car { display: inline-block; width: 0; height: 0; border: 4px solid transparent; border-left-color: var(--accent); margin-right: 7px; transform: rotate(90deg); transition: transform .12s; }
+  tr.grp[aria-expanded="false"] .car { transform: none; }
+  tbody.closed tr.row, tr.row.hidden { display: none; }
   tr.row { cursor: pointer; }
   tr.row:hover { background: var(--tint); }
-  tr.row.on { background: color-mix(in srgb, var(--rule) 10%, transparent); }
+  tr.row.on { background: color-mix(in srgb, var(--rule) 16%, transparent); }
   .pick { display: inline-block; width: 12px; height: 12px; border: 1.5px solid var(--muted); border-radius: 3px; margin-right: 8px; vertical-align: -2px; }
-  tr.row.on .pick { background: var(--c, var(--s1)); border-color: var(--c, var(--s1)); box-shadow: inset 0 0 0 2px var(--panel); }
+  tr.row.on .pick { background: var(--c, var(--s1)); border-color: var(--c, var(--s1)); box-shadow: inset 0 0 0 2px var(--tile); }
   tr.row[data-family=""] .pick { border-radius: 50%; border-style: dotted; }
   tr.row.dim { opacity: .45; }
 
-  .chead { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 10px 14px 0; }
-  .chead h4 { margin: 0; font: 600 15px Georgia, serif; color: var(--accent); }
-  .ranges { display: flex; flex-wrap: wrap; gap: 2px; }
-  .ranges button { font: inherit; font-size: 12px; border: 0; background: transparent; color: var(--muted); padding: 3px 9px; border-radius: 6px; cursor: pointer; }
-  .ranges button:hover { background: var(--tint); }
-  .ranges button[aria-pressed="true"] { background: var(--rule); color: #fff; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 14px 0; min-height: 34px; }
-  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--tint); border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 12px; }
+  /* chart */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px; min-height: 30px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line2); background: var(--tint); border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 12px; }
   .chip i { width: 9px; height: 9px; border-radius: 50%; }
   .chip button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 5px; border-radius: 50%; }
-  .chip button:hover { color: var(--ink); background: var(--line); }
-  .cv { position: relative; height: clamp(340px, calc(100vh - 430px), 640px); margin: 4px 6px 0; }
-  .cv.sm { height: 230px; }
+  .chip button:hover { color: var(--ink); background: var(--line2); }
+  .cv { position: relative; height: clamp(320px, calc(100vh - 420px), 620px); margin: 4px 6px 6px; }
+  .cv.sm { height: 220px; } .cv.xs { height: 190px; } .cv.fill { flex: 1; height: auto; min-height: 220px; }
   .cv svg { display: block; width: 100%; height: 100%; overflow: visible; touch-action: pan-y; }
-  .tip { position: absolute; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12px; line-height: 1.45; box-shadow: 0 4px 14px rgba(0,0,0,.18); white-space: nowrap; z-index: 3; display: none; }
+  .tip { position: absolute; pointer-events: none; background: var(--tile); color: var(--ink); border: 1px solid var(--line2); border-radius: 9px; padding: 6px 9px; font-size: 12px; line-height: 1.45; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); white-space: nowrap; z-index: 3; display: none; }
   .tip b { display: block; margin-bottom: 2px; }
-  .tip span { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+  .tip span { display: flex; align-items: center; gap: 6px; }
   .tip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
   .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); padding: 0 14px; min-height: 18px; }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .legend i { width: 14px; height: 0; border-top: 2.5px solid; border-radius: 2px; }
-
-  .reading { border-top: 1px solid var(--line); padding: 12px 14px 14px; margin-top: 8px; }
-  .reading h5 { margin: 0 0 4px; font-size: 14px; }
-  .reading p { margin: 4px 0; font-size: 13px; }
+  .reading h5 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .reading p { margin: 5px 0; font-size: 13px; }
   .reading .so { color: var(--muted); }
-  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; white-space: nowrap; background: var(--neutral-bg); color: var(--neutral-ink); }
+  .badge, .pill { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 2px 10px; border-radius: 999px; white-space: nowrap; background: var(--neutral-bg); color: var(--neutral-ink); }
   .badge.warn { background: var(--warn-bg); color: var(--warn-ink); }
+  .pill.up { background: color-mix(in srgb, var(--up) 16%, transparent); color: var(--up); }
+  .pill.down { background: color-mix(in srgb, var(--down) 16%, transparent); color: var(--down); }
+  details { margin-top: 8px; font-size: 13px; color: var(--muted); } summary { cursor: pointer; }
 
-  /* spreads matrix */
-  table.matrix { border: 0; font-variant-numeric: tabular-nums; }
-  table.matrix td { text-align: right; padding: 7px 12px; }
-  table.matrix thead th:not(:first-child) { text-align: right; }
-  table.matrix td small { color: var(--muted); margin-left: 3px; font-size: 10px; }
-  table.matrix td.heat { --c: var(--s2); background: color-mix(in srgb, var(--c) calc(var(--i) * .55%), transparent); }
+  /* matrices */
+  table.matrix td { text-align: right; padding: 8px 12px; }
+  table.matrix thead th { text-align: right; } table.matrix thead th:first-child { text-align: left; }
+  table.matrix td.heat { --c: var(--s2); background: color-mix(in srgb, var(--c) calc(var(--i) * .6%), transparent); }
   table.matrix td.heat.neg { --c: var(--down); }
   table.matrix td.zc { color: var(--muted); border-left: 1px solid var(--line); }
   table.matrix td.na { color: var(--muted); text-align: center; }
-  table.matrix tbody th { font-weight: 600; position: sticky; left: 0; background: var(--panel); }
+  table.matrix tbody th { font-weight: 600; position: sticky; left: 0; background: var(--tile); }
 
-
-  .phead { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 10px 12px 6px; }
-  .phead h4 { margin: 0; font: 600 15px Georgia, serif; color: var(--accent); }
-  .tools { display: flex; flex-wrap: wrap; gap: 2px; }
-  .tools button, .mhead .ranges button { font: inherit; font-size: 12px; border: 0; background: transparent; color: var(--muted); padding: 3px 8px; border-radius: 6px; cursor: pointer; }
-  .tools button:hover { background: var(--tint); color: var(--ink); }
-  .tools button[aria-pressed="true"], .tools button[aria-expanded="true"] { background: var(--tint); color: var(--ink); }
-  .colmenu { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 4px 12px 8px; font-size: 12px; color: var(--muted); }
-  .colmenu[hidden] { display: none; }
-  .filter { padding: 0 12px 8px; }
-  .filter input { width: 100%; font: inherit; font-size: 13px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
-  .wl { max-height: calc(100vh - 190px); min-height: 420px; overflow: auto; border-top: 1px solid var(--line); }
-  table.watch { min-width: 100%; }
-  table.watch.hide-c-tk .c-tk, table.watch.hide-c-d5 .c-d5, table.watch.hide-c-d20 .c-d20, table.watch.hide-c-z .c-z { display: none; }
-  table.watch .tk { color: var(--muted); font-size: 11px; text-align: left; letter-spacing: .02em; }
-  table.watch thead th.c-tk { text-align: left; }
-  table.watch tr.grp { cursor: pointer; }
-  table.watch tr.grp th small { color: var(--muted); font-weight: 400; margin-left: 4px; }
-  .car { display: inline-block; width: 0; height: 0; border: 4px solid transparent; border-left-color: var(--muted); margin-right: 7px; transform: rotate(90deg); transition: transform .12s; }
-  tr.grp[aria-expanded="false"] .car { transform: none; }
-  tbody.closed tr.row { display: none; }
-  tr.row.hidden { display: none; }
-  .mhead { margin: -4px 0 8px; }
-  .mhead .ranges button[aria-pressed="true"] { background: var(--rule); color: #fff; }
-  table.matrix thead th { text-align: right; }
-  table.matrix thead th:first-child { text-align: left; }
-  table.matrix tbody td.heat.pos { --c: var(--s2); }
-
-  /* positioning */
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--rule); border-radius: 10px; padding: 14px; }
-  .card.muted { color: var(--muted); }
-  .card h3 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
-  .big { font: 600 26px/1.2 Georgia, serif; }
+  /* COT */
+  .card h3 { display: none; }
+  .big { font: 600 30px/1.15 Georgia, serif; }
   .big .sub { font: 400 12px system-ui, sans-serif; color: var(--muted); margin-left: 6px; }
-  dl { display: grid; gap: 2px; margin: 10px 0; font-size: 13px; }
-  dl div { display: flex; justify-content: space-between; gap: 12px; }
+  dl { display: grid; gap: 3px; margin: 10px 0; font-size: 13px; }
+  dl div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dashed var(--line); padding-bottom: 3px; }
   dt { color: var(--muted); } dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
-  .reading-line { margin: 8px 0 4px; } .meaning { margin: 6px 0; } .sowhat { margin: 6px 0; color: var(--muted); font-size: 13px; }
-  details { margin-top: 8px; font-size: 13px; color: var(--muted); } summary { cursor: pointer; }
-  .gauge { position: relative; height: 6px; margin: 12px 0 3px; border-radius: 3px; background: linear-gradient(90deg, var(--s2), var(--neutral-bg) 50%, var(--s1)); opacity: .9; }
-  .gauge i { position: absolute; top: -5px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 2px var(--panel); }
+  .reading-line, .card .reading { margin: 8px 0 4px; } .meaning { margin: 6px 0; } .sowhat { margin: 6px 0; color: var(--muted); font-size: 13px; }
+  .gauge { position: relative; height: 7px; margin: 12px 0 3px; border-radius: 4px; background: linear-gradient(90deg, var(--s2), var(--neutral-bg) 50%, var(--s1)); }
+  .gauge i { position: absolute; top: -5px; width: 4px; height: 17px; margin-left: -2px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 2px var(--tile); }
   .gaugelabels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
-  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; margin-top: 12px; }
-  .chartbox { min-width: 0; }
-  .chartbox h4 { margin: 0; padding: 12px 14px 4px; font-size: 14px; }
-  .stack { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
-  .scroll.tall { max-height: 460px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; margin: 0 14px 14px; }
-  table.weekly { font-variant-numeric: tabular-nums; min-width: 1040px; }
+  .scroll.tall { max-height: 520px; overflow: auto; }
+  table.weekly { min-width: 1180px; }
   table.weekly th, table.weekly td { padding: 5px 10px; text-align: right; }
-  table.weekly tbody th { text-align: left; font-weight: 600; background: var(--panel); position: sticky; left: 0; }
-  table.weekly tfoot th, table.weekly tfoot td { background: var(--tint); border-top: 1px solid var(--line); font-weight: 600; }
+  table.weekly tbody th { text-align: left; font-weight: 600; background: var(--tile); position: sticky; left: 0; }
+  table.weekly tfoot th, table.weekly tfoot td { background: var(--tint); font-weight: 600; }
+  table.weekly tfoot tr:first-child th, table.weekly tfoot tr:first-child td { border-top: 2px solid var(--rule); }
   table.weekly tfoot th { text-align: left; position: sticky; left: 0; }
   table.weekly thead th:first-child { text-align: left; left: 0; z-index: 2; }
+  table.weekly td.lefttd { text-align: left; }
+  table.weekly tr.readrow td { padding: 6px 6px; }
 
-  /* FX */
-  .confgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; margin-top: 12px; }
-  .conf { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  /* FX confluence */
+  .confgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)); gap: 8px; }
+  .conf { background: var(--tint); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
   .conf .ctop { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
-  .conf .chead { padding: 8px 0; justify-content: flex-start; gap: 14px; }
-  .conf h5 { margin: 10px 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .conf .chead { display: flex; align-items: center; gap: 14px; padding: 8px 0; }
+  .conf h5 { margin: 10px 0 4px; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
   .ring { position: relative; width: 60px; height: 60px; flex: none; }
   .ring svg { transform: rotate(-90deg); }
   .ring circle { fill: none; stroke-width: 5; }
-  .ring .rt { stroke: var(--line); }
-  .ring .rf { stroke: var(--muted); stroke-linecap: round; }
+  .ring .rt { stroke: var(--line2); } .ring .rf { stroke: var(--muted); stroke-linecap: round; }
   .ring.up .rf { stroke: var(--up); } .ring.down .rf { stroke: var(--down); }
   .ring .rn { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1; }
   .ring .rn b { font-size: 16px; } .ring small { font-size: 9px; color: var(--muted); }
@@ -222,120 +245,115 @@
   .sig { display: grid; grid-template-columns: 10px 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; padding: 2px 0; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
   .dot.up { background: var(--up); } .dot.down { background: var(--down); }
-  .st { color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+  .st { color: var(--muted); font-size: 10px; border: 1px solid var(--line2); border-radius: 4px; padding: 0 5px; }
   .sv { font-variant-numeric: tabular-nums; }
   .sr { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 2px 0; font-variant-numeric: tabular-nums; }
   .sr .ss { color: var(--muted); } .sr.above .sd { color: var(--up); } .sr.below .sd { color: var(--down); }
-  .econgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
-  .econ { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .econgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .econ { background: var(--tint); border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px; }
   .econ .ed { font-size: 11px; color: var(--muted); }
-  ul.news { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-  ul.news li { display: flex; gap: 12px; background: var(--panel); padding: 9px 14px; }
-  ul.news .src { flex: none; width: 74px; font-size: 11px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding-top: 2px; }
+  ul.news { list-style: none; margin: 0; padding: 0; }
+  ul.news li { display: flex; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+  ul.news li:last-child { border-bottom: 0; }
+  ul.news .src { flex: none; width: 70px; font-size: 10.5px; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding-top: 2px; }
   ul.news a { color: var(--ink); text-decoration: none; } ul.news a:hover { text-decoration: underline; }
   ul.news small { display: block; color: var(--muted); }
-  .err { color: var(--muted); font-size: 12px; display: block; }
-  table.plain { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-  footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
-  @media (max-width: 480px) { .cv { height: 280px; } .top h1 { font-size: 22px; } .themes { margin-left: 0; } .tv { font-size: 19px; } }
+  .newsbox { max-height: 520px; overflow: auto; }
+
+  footer { margin: 18px 12px 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+  @media (max-width: 520px) { .brand h1 { font-size: 21px; } .themes { margin-left: 0; } .cv { height: 280px; } }
 </style>
 </head>
 <body>
-<header class="top"><div class="in">
-  <h1>Macro Dashboard</h1>
-  <p>Treasury curve and spreads, dollar, gold, positioning and FX confluence. Latest data point: <strong>__ASOF__</strong>. Built __BUILT__. <a class="dl" href="Macro_Dashboard.xlsx" download>Download as Excel</a></p>
+<header class="hero"><div class="in">
+  <div class="brand"><h1>Velour Macro</h1><span class="tag">Rates · Dollar · Gold · Positioning · FX</span></div>
+  <div class="meta"><span>Latest data <b>__ASOF__</b></span><span>Built __BUILT__</span><a class="dl" href="Macro_Dashboard.xlsx" download>Download Excel</a></div>
 </div></header>
+<nav>
+  <a href="#overview">Overview</a><a href="#rates">Rates</a><a href="#positioning">Positioning</a><a href="#fx">FX</a><a href="#economy">Economy and news</a>
+  <span class="themes" role="group" aria-label="Color theme">
+    <button type="button" data-theme-btn="auto" aria-pressed="true">Auto</button>
+    <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+    <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+  </span>
+</nav>
 
-<div class="wrap">
-  <nav>
-    <a href="#overview">Overview</a><a href="#markets">Markets</a><a href="#positioning">Positioning</a><a href="#fx">FX confluence</a><a href="#economy">Economy and news</a><a href="#status">Data status</a>
-    <span class="themes" role="group" aria-label="Color theme">
-      <button type="button" data-theme-btn="auto" aria-pressed="true">Auto</button>
-      <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
-      <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
-    </span>
-  </nav>
-
+<main>
   <section id="overview">
-    <h2>Overview</h2>
-    <p class="lede">Daily moves for the main markets, plus any cross-indicator signals that are true right now.</p>
-    <div class="tiles">__TILES__</div>
-    <h3 class="sub">Active signals</h3>
-    __SIGNALS__
+    <div class="bento">
+      <div class="t" style="--w:12"><div class="kpis">__KPIS__</div></div>
+      <div class="t" style="--w:5"><div class="th"><h3>Yield curve</h3></div><div class="legend" data-for="curve"></div><div class="cv fill" id="ch-curve"></div></div>
+      <div class="t" style="--w:4"><div class="th"><h3>Risk and commodities</h3></div><div class="tb"><div class="tiles two">__TILES__</div></div></div>
+      <div class="t accent" style="--w:3"><div class="th"><h3 style="color:#fff">Quick read</h3></div><div class="tb">__SIGNALS__</div></div>
+    </div>
   </section>
 
-  <section id="markets">
-    <h2>Markets</h2>
-    <p class="lede">Click rows on the left to plot them. You can overlay up to four of the same kind (any mix of countries' spreads, US yields, DXY or gold). Click a section title to collapse it. The panel under the chart explains the row you clicked last. Changes: spreads and yields in percentage points, DXY and gold in percent. Z compares today with the past 252 trading days.</p>
-    <div class="term">
-      <div class="box">
-        <div class="phead"><h4>Yield spreads</h4>
+  <section id="rates">
+    <div class="sec"><h2>Rates</h2><span>Click rows to plot up to four of the same kind. Changes in percentage points; Z vs the past 252 trading days.</span></div>
+    <div class="bento">
+      <div class="t" style="--w:4;--h:2">
+        <div class="th"><h3>Yield spreads</h3>
           <div class="tools">
             <button type="button" id="t-cols" aria-expanded="false">Columns</button>
-            <button type="button" id="t-save" title="Remember the rows you have selected in this browser">Save as watchlist</button>
+            <button type="button" id="t-save" title="Remember the selected rows in this browser">Save</button>
             <button type="button" id="t-group" aria-pressed="true">Group</button>
             <button type="button" id="t-dl">Download</button>
           </div></div>
         <div class="colmenu" id="colmenu" hidden>
           <label><input type="checkbox" data-col="c-tk" checked> Ticker</label><label><input type="checkbox" data-col="c-d5" checked> 5D</label>
           <label><input type="checkbox" data-col="c-d20" checked> 20D</label><label><input type="checkbox" data-col="c-z" checked> Z</label></div>
-        <div class="filter"><input id="t-filter" type="search" placeholder="Filter (e.g. Japan, 10Y, DXY)" aria-label="Filter watchlist"></div>
+        <div class="filter"><input id="t-filter" type="search" placeholder="Filter: Japan, 10Y, DXY…" aria-label="Filter watchlist"></div>
         <div class="scroll wl">__WATCHLIST__</div>
       </div>
-      <div class="box">
-        <div class="chead"><h4 id="ctitle">Historical yields</h4>
-          <div class="ranges" id="ranges" role="group" aria-label="Date range"></div></div>
+      <div class="t" style="--w:8">
+        <div class="th"><h3 id="ctitle">Historical</h3><div class="ranges" id="ranges" role="group" aria-label="Date range"></div></div>
         <div class="chips" id="chips"></div>
         <div class="cv" id="ch-main"></div>
-        <div class="reading" id="reading"></div>
       </div>
+      <div class="t" style="--w:8"><div class="th"><h3>Reading</h3></div><div class="tb reading" id="reading"></div></div>
+      <div class="t wide" style="--w:7">
+        <div class="th"><h3>Yield spreads matrix (bp)</h3><div class="ranges" id="hz" role="group" aria-label="Matrix date"></div></div>
+        <div class="scroll"><table class="matrix" id="cmx"></table></div>
+        <p class="note" style="padding:8px 14px 0">Dash = maturity not published. Rose = inverted, teal = positive; darker = larger.</p>
+      </div>
+      <div class="t wide" style="--w:5"><div class="th"><h3>US spreads across time (bp)</h3></div>__MATRIX__</div>
     </div>
-    <h3 class="sub">Yield spreads matrix</h3>
-    <div class="mhead"><div class="ranges" id="hz" role="group" aria-label="Matrix date"></div></div>
-    <p class="lede small">Spreads in basis points (long yield minus short yield) by country. Pick a date to see how they stood then. A dash means that country does not publish one of the two maturities. Rose marks inverted (negative) spreads, teal positive ones; darker means larger.</p>
-    <div class="box"><div class="scroll"><table class="matrix" id="cmx"></table></div></div>
-    <h3 class="sub">United States across time horizons</h3>
-    <div class="box">__MATRIX__</div>
   </section>
 
   <section id="positioning">
-    <h2>Positioning (CFTC Commitments of Traders)</h2>
-    <p class="lede">CFTC Legacy Futures Only report, Non-Commercial (speculator) group, for COMEX Gold and the ICE US Dollar Index. Reports describe Tuesday positions and are published Friday. Price is the Friday close of the same week.</p>
-    <div class="grid">__COT_CARDS__</div>
-    <div class="charts">
-      <div class="box chartbox"><h4>COT Index, last 52 reports (0 = most short, 100 = most long)</h4><div class="legend" data-for="cot"></div><div class="cv sm" id="ch-cot"></div></div>
-      <div class="box chartbox"><h4>Speculator net as % of open interest</h4><div class="legend" data-for="cotoi"></div><div class="cv sm" id="ch-cotoi"></div></div>
-      <div class="box chartbox"><h4>Weekly price change at Friday close (%)</h4><div class="legend" data-for="cotpx"></div><div class="cv sm" id="ch-cotpx"></div></div>
+    <div class="sec"><h2>Positioning</h2><span>CFTC Legacy Futures Only, Non-Commercial. Tuesday positions, published Friday; price = Friday close of the same week.</span></div>
+    <div class="bento">
+      <div class="t" style="--w:3"><div class="th"><h3>Gold COT</h3></div><div class="tb">__COT_GOLD_CARD__</div></div>
+      <div class="t" style="--w:3"><div class="th"><h3>USD Index COT</h3></div><div class="tb">__COT_USD_CARD__</div></div>
+      <div class="t" style="--w:6"><div class="th"><h3>COT Index, 52 reports</h3></div><div class="legend" data-for="cot"></div><div class="cv sm" id="ch-cot"></div></div>
+      <div class="t" style="--w:6"><div class="th"><h3>Speculator net, % of open interest</h3></div><div class="legend" data-for="cotoi"></div><div class="cv sm" id="ch-cotoi"></div></div>
+      <div class="t" style="--w:6"><div class="th"><h3>Weekly price change at Friday close (%)</h3></div><div class="legend" data-for="cotpx"></div><div class="cv sm" id="ch-cotpx"></div></div>
+      <div class="t" style="--w:12"><div class="th"><h3>Gold (COMEX 088691): last 52 reports</h3><span class="note" style="margin:0">OI normalized net = net ÷ open interest. Stats and readings cover these 52 reports.</span></div><div class="tb flush">__COT_GOLD_TABLE__</div></div>
+      <div class="t" style="--w:12"><div class="th"><h3>USD Index (ICE 098662): last 52 reports</h3></div><div class="tb flush">__COT_USD_TABLE__</div></div>
     </div>
-    <h3 class="sub">Weekly detail, last 52 reports</h3>
-    <div class="stack">__COT_TABLES__</div>
   </section>
 
   <section id="fx">
-    <h2>FX confluence</h2>
-    <p class="lede">Spot FX pairs with a confluence score that combines momentum, RSI, trend and statistical signals. Updated __FXUPD__.</p>
-    __FX_CARDS__
-    __CONFLUENCE__
+    <div class="sec"><h2>FX confluence</h2><span>Momentum, RSI, trend and Z-score signals per pair. Updated __FXUPD__.</span></div>
+    <div class="bento">
+      <div class="t" style="--w:12"><div class="th"><h3>Spot</h3></div><div class="tb">__FX_CARDS__</div></div>
+      <div class="t" style="--w:12"><div class="th"><h3>Confluence</h3></div><div class="tb">__CONFLUENCE__</div></div>
+    </div>
   </section>
 
   <section id="economy">
-    <h2>Economy and news</h2>
-    <p class="lede">Latest readings of key economic indicators, and market headlines.</p>
-    __ECON__
-    <h3 class="sub">Headlines</h3>
-    __NEWS__
-  </section>
-
-  <section id="status">
-    <h2>Data status</h2>
-    <div class="scroll">__STATUS__</div>
+    <div class="sec"><h2>Economy and news</h2></div>
+    <div class="bento">
+      <div class="t" style="--w:7"><div class="th"><h3>US economic indicators</h3></div><div class="tb">__ECON__</div></div>
+      <div class="t" style="--w:5"><div class="th"><h3>Headlines</h3></div><div class="newsbox">__NEWS__</div></div>
+    </div>
   </section>
 
   <footer>
     <p>__DISCLAIMER__</p>
-    <p>Sources: FRED (Treasury yields, TIPS), CFTC public reporting API, Yahoo Finance (DXY, gold futures), plus the FX confluence feed. Z-scores use 252 trading days for daily series and 52 weekly reports for COT.</p>
+    <p>Sources: FRED, Bank of Canada, Bundesbank, Japan MoF, RBA (yields); CFTC (COT); Yahoo Finance (DXY, gold futures); fx-macro-confluence feed (FX, economy, news).</p>
   </footer>
-</div>
+</main>
 
 <script>
 const P = __PAYLOAD__;
@@ -404,14 +422,14 @@ function draw(host, spec) {
   const maxLabels = Math.max(2, Math.floor(iw / 70)), every = Math.max(1, Math.ceil(n / maxLabels));
   let lastX = -99;
   spec.labels.forEach((lab, i) => {
-    if (i % every !== 0) return;
-    if (x(i) - lastX < 60) return; lastX = x(i);
-    el("text", { x: x(i), y: H - 6, "text-anchor": i === 0 ? "start" : "middle", fill: "var(--muted)", "font-size": 11 }, svg).textContent = (spec.shortX || (s => s))(lab);
+    if (!spec.allLabels) { if (i % every !== 0) return; if (x(i) - lastX < 60) return; lastX = x(i); }
+    el("text", { x: x(i), y: H - 6, "text-anchor": i === 0 && !spec.allLabels ? "start" : "middle", fill: "var(--muted)", "font-size": 11 }, svg).textContent = (spec.shortX || (s => s))(lab);
   });
   spec.sets.forEach(s => {
     let d = "", pen = false;
     s.data.forEach((v, i) => { if (v === null || v === undefined) { return; } d += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1); pen = true; });
-    el("path", { d, fill: "none", stroke: s.color, "stroke-width": 1.8, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    el("path", { d, fill: "none", stroke: s.color, "stroke-width": 1.8, "stroke-linejoin": "round", "stroke-linecap": "round", "stroke-dasharray": s.dash || "" }, svg);
+    if (spec.markers) s.data.forEach((v, i) => { if (v !== null && v !== undefined) el("circle", { cx: x(i), cy: y(v), r: 3.5, fill: s.color, stroke: "var(--tile)", "stroke-width": 1.5 }, svg); });
   });
   if (spec.endLabels) {
     const ends = spec.sets.map(s => { let i = s.data.length - 1; while (i >= 0 && (s.data[i] === null || s.data[i] === undefined)) i--; return i < 0 ? null : { s, v: s.data[i], y: y(s.data[i]) }; }).filter(Boolean).sort((a, b) => a.y - b.y);
@@ -422,7 +440,7 @@ function draw(host, spec) {
     });
   }
   const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: "var(--muted)", opacity: 0 }, svg);
-  const dots = spec.sets.map(s => el("circle", { r: 4, fill: s.color, stroke: "var(--panel)", "stroke-width": 2, opacity: 0 }, svg));
+  const dots = spec.sets.map(s => el("circle", { r: 4, fill: s.color, stroke: "var(--tile)", "stroke-width": 2, opacity: 0 }, svg));
   const tip = document.createElement("div"); tip.className = "tip"; host.appendChild(tip);
   const hit = el("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent" }, svg);
   const hide = () => { cross.setAttribute("opacity", 0); dots.forEach(c => c.setAttribute("opacity", 0)); tip.style.display = "none"; };
@@ -553,7 +571,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
   });
   const sv = document.getElementById("t-save");
   sv.addEventListener("click", () => {
-    try { localStorage.setItem("macro-watchlist", JSON.stringify(window.__getSel())); sv.textContent = "Saved"; setTimeout(() => sv.textContent = "Save as watchlist", 1500); } catch (e) { sv.textContent = "Not saved"; }
+    try { localStorage.setItem("macro-watchlist", JSON.stringify(window.__getSel())); sv.textContent = "Saved"; setTimeout(() => sv.textContent = "Save", 1500); } catch (e) { sv.textContent = "Not saved"; }
   });
 })();
 
@@ -581,6 +599,20 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
   paint();
 })();
 
+/* Overview: yield curve now vs 1M vs 1Y */
+(function () {
+  const C = P.curve, host = document.getElementById("ch-curve"); if (!host) return;
+  if (!C) { host.closest(".t").style.display = "none"; return; }
+  const dashes = ["", "5 4", "2 4"];
+  function render() {
+    const sets = C.sets.map((s, k) => ({ name: s.name, data: s.data, color: colorOf(k === 0 ? 0 : k === 1 ? 2 : 3), dash: dashes[k] }));
+    const lg = document.querySelector('.legend[data-for="curve"]');
+    lg.innerHTML = sets.map(s => `<span><i style="border-color:${s.color};border-top-style:${s.dash ? "dashed" : "solid"}"></i>${esc(s.name)}</span>`).join("");
+    draw(host, { labels: C.labels, sets, dec: 2, axDec: 1, unit: "%", markers: true, allLabels: true, title: "Yield curve" });
+  }
+  render(); let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(render, 120); });
+})();
+
 /* Positioning charts */
 (function () {
   const defs = { cot: { yMin: 0, yMax: 100, dec: 1, axDec: 0 }, cotoi: { dec: 1, axDec: 0, unit: "%" }, cotpx: { dec: 2, axDec: 1, unit: "%" } };
@@ -588,7 +620,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
     Object.keys(defs).forEach(key => {
       const host = document.getElementById("ch-" + key); if (!host) return;
       const c = P.cot[key];
-      if (!c) { host.closest(".chartbox").style.display = "none"; return; }
+      if (!c) { host.closest(".t").style.display = "none"; return; }
       const sets = c.sets.map((s, k) => ({ name: s.name, data: s.data, color: colorOf(k) }));
       const lg = document.querySelector(`.legend[data-for="${key}"]`);
       if (lg) lg.innerHTML = sets.length < 2 ? "" : sets.map(s => `<span><i style="border-color:${s.color}"></i>${esc(s.name)}</span>`).join("");

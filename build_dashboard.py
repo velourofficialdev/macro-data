@@ -569,7 +569,7 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
     out = {"tiles": "", "fx": empty, "conf": empty, "econ": empty, "news": empty, "upd": "n/a"}
     tiles = []
     # our own, correctly labelled DXY and gold futures
-    for series, label, dec in ((data.get("dxy"), "DXY (ICE)", 2), (data.get("gold_px"), "Gold futures", 2)):
+    for series, label, dec in ():  # DXY and gold now live in the overview KPI strip
         if series is not None and len(series) > 30:
             ch = delta(series, 1, True)
             tiles.append(tile(label, fmt(series.iloc[-1], dec), ch, [round(x, 4) for x in series.tail(30)], series.index[-1].strftime("%m-%d")))
@@ -641,7 +641,7 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
     return out
 
 
-def build_cot_cards(playbook: dict, metrics: dict) -> str:
+def build_cot_cards(playbook: dict, metrics: dict, split: bool = False):
     cards = []
     for key in ("gold", "usd_index"):
         spec = playbook["cot"][key]
@@ -652,8 +652,8 @@ def build_cot_cards(playbook: dict, metrics: dict) -> str:
         band = pick_band(spec["bands"], m["index"])
         cards.append(card(spec["title"], fmt(m["net"], 0, True), f' net contracts · {m["date"]}', band,
                           [("COT Index (0-100, 52w)", fmt(m["index"], 1)), ("Z-score (52w)", fmt(m["z"], 2, True)),
-                           ("Spec net % of OI", fmt(m["net_pct"], 1) + "%")], spec["what"], gauge_html=gauge(m["index"])))
-    return "".join(cards)
+                           ("Spec net % of OI", fmt(m["net_pct"], 1) + "%"), ("Weekly change", fmt(m["wchg"], 0, True))], spec["what"], gauge_html=gauge(m["index"])))
+    return cards if split else "".join(cards)
 
 
 def build_cot_charts(data: dict) -> dict:
@@ -673,57 +673,115 @@ def build_cot_charts(data: dict) -> dict:
 
 
 def cot_view(c: dict) -> pd.DataFrame:
-    """The columns shown for each COT instrument (same set as the user's Excel sheet), oldest first."""
+    """The columns of the user's Excel COT sheet, oldest first."""
     frac = c["net_oi"] / 100
     return pd.DataFrame({
-        "Net pos": c["net"], "Spec WoW change": c["wchg"], "Open interest": c["oi"], "OI change": c["oi_chg"],
+        "Open interest": c["oi"], "Long": c["long"], "Short": c["short"],
+        "Net pos": c["net"], "Spec WoW change": c["wchg"], "OI change": c["oi_chg"],
         "OI normalized net": frac, "Normalized WoW change": frac.diff(), "Spec net % of OI": c["net_oi"],
         "Friday close": c["price"], "Price chg %": c["price_chg"],
     })
 
 
-def build_cot_tables(data: dict) -> str:
-    """One scrollable 52-week table per instrument, newest first, with the stats block under it."""
-    dec = {"Net pos": (0, True), "Spec WoW change": (0, True), "Open interest": (0, False), "OI change": (0, True),
-           "OI normalized net": (3, False), "Normalized WoW change": (3, True), "Spec net % of OI": (1, False),
+COT_DEC = {"Open interest": (0, False), "Long": (0, False), "Short": (0, False), "Net pos": (0, True), "Spec WoW change": (0, True),
+           "OI change": (0, True), "OI normalized net": (3, False), "Normalized WoW change": (3, True), "Spec net % of OI": (1, False),
            "Friday close": (2, False), "Price chg %": (2, True)}
-    out = []
-    for key, name, pname in (("gold", "Gold (Legacy, Non-Commercial)", "Gold futures"), ("usd_index", "USD Index (Non-Commercial)", "DXY")):
+COT_READ = ["Net pos", "Spec WoW change", "OI change", "OI normalized net", "Normalized WoW change", "Spec net % of OI", "Price chg %"]
+
+
+def z_band(z) -> tuple[str, str]:
+    """Same wording as the Excel sheet: neutral / mild / (plain) / extreme, bullish or bearish."""
+    if z is None or (isinstance(z, float) and math.isnan(z)):
+        return "", ""
+    side = "bullish" if z > 0 else "bearish"
+    a = abs(z)
+    if a < 0.5:
+        return "Neutral", "flat"
+    tone = "up" if z > 0 else "down"
+    if a < 1:
+        return f"Mild {side}", tone
+    if a < 2:
+        return side.capitalize(), tone
+    return f"Extreme {side}", tone
+
+
+def build_cot_tables(data: dict) -> dict[str, str]:
+    """One 52-week table per instrument (newest first) with the Excel-style statistics block under it."""
+    out: dict[str, str] = {}
+    for key in ("gold", "usd_index"):
         c = data["cot"].get(key)
         if c is None:
+            out[key] = '<p class="muted-text pad">No data yet.</p>'
             continue
-        n = COT_WINDOW
-        v = cot_view(c).tail(n)
+        v = cot_view(c).tail(COT_WINDOW)
         rows = []
         for d, row in v.iloc[::-1].iterrows():
-            tds = "".join(f"<td>{esc(fmt(row[col], *dec[col]))}</td>" for col in v.columns)
+            tds = ""
+            for col in v.columns:
+                nd, sg = COT_DEC[col]
+                txt = fmt(num(row[col]), nd, sg)
+                cls = chg_class(txt) if sg else ""
+                tds += f'<td class="{cls}">{esc(txt)}</td>'
             rows.append(f'<tr><th scope="row">{d.strftime("%Y-%m-%d")}</th>{tds}</tr>')
-        def stat_row(label, fn, nd_override=None):
+
+        def zval(s_):
+            s_ = s_.dropna()
+            sd = s_.std(ddof=1)
+            return num((s_.iloc[-1] - s_.mean()) / sd) if len(s_) > 2 and sd else None
+
+        def stat_row(label, fn, nd=None, sign=False):
             cells = ""
             for col in v.columns:
-                val = fn(v[col])
-                d_, sg = dec[col]
-                cells += f"<td>{esc(fmt(val, nd_override if nd_override is not None else d_, sg and label == 'Z-score' ))}</td>"
+                d_, _ = COT_DEC[col]
+                cells += f"<td>{esc(fmt(num(fn(v[col].dropna())), d_ if nd is None else nd, sign))}</td>"
             return f'<tr><th scope="row">{label}</th>{cells}</tr>'
-        stats = [
-            stat_row("Average", lambda s_: s_.mean()),
-            stat_row("Std dev", lambda s_: s_.std(ddof=1)),
-            stat_row("Min", lambda s_: s_.min()),
-            stat_row("Max", lambda s_: s_.max()),
-            stat_row("Z-score (latest)", lambda s_: (s_.iloc[-1] - s_.mean()) / s_.std(ddof=1) if s_.std(ddof=1) else float("nan"), 2),
-        ]
-        idx = c["index"].iloc[-1]
-        cot_cells = f"<td>{esc(fmt(idx, 1))}</td>" + "<td></td>" * (len(v.columns) - 1)
+        stats = [stat_row("Average", lambda s_: s_.mean()), stat_row("Std dev", lambda s_: s_.std(ddof=1)),
+                 stat_row("Min", lambda s_: s_.min()), stat_row("Max", lambda s_: s_.max()),
+                 stat_row("Z-score", lambda s_: zval(s_) if zval(s_) is not None else float("nan"), 2, True)]
+        read = ""
+        for col in v.columns:
+            if col in COT_READ:
+                lab, tone = z_band(zval(v[col]))
+                read += f'<td><span class="pill {tone}">{esc(lab)}</span></td>' if lab else "<td></td>"
+            else:
+                read += "<td></td>"
+        stats.append(f'<tr class="readrow"><th scope="row">Reading</th>{read}</tr>')
+        cot_cells = f'<td colspan="{len(v.columns)}" class="lefttd"><b>{esc(fmt(num(c["index"].iloc[-1]), 1))}</b> <span class="muted-text">(0 = most short, 100 = most long over 52 reports)</span></td>'
         stats.append(f'<tr><th scope="row">COT Index</th>{cot_cells}</tr>')
         heads = ["Report date"] + list(v.columns)
-        out.append(
-            f'<div class="chartbox"><h4>{esc(name)}: last {n} weekly reports, newest first</h4>'
-            f'<p class="lede small">OI normalized net = net position divided by total open interest. Spec net % of OI is the same number times 100. '
-            f'Price is the {esc(pname)} close on the Friday of each report week and its change from the prior Friday. '
-            f'Statistics cover these {n} reports; COT Index is net position rescaled 0 to 100 over them.</p>'
-            f'<div class="scroll tall"><table class="weekly"><thead><tr>' + "".join(f"<th>{h}</th>" for h in heads)
-            + "</tr></thead><tbody>" + "".join(rows) + "</tbody><tfoot>" + "".join(stats) + "</tfoot></table></div></div>")
-    return "".join(out)
+        out[key] = ('<div class="scroll tall"><table class="weekly"><thead><tr>' + "".join(f"<th>{h}</th>" for h in heads)
+                    + "</tr></thead><tbody>" + "".join(rows) + "</tbody><tfoot>" + "".join(stats) + "</tfoot></table></div>")
+    return out
+
+
+def build_kpis(data: dict, computed: dict) -> str:
+    """Headline tiles for the overview strip."""
+    ys, ss = data["yields"], computed["spread_series"]
+    items = [("US 10Y yield", ys.get("DGS10"), 2, "%", False), ("US 2Y yield", ys.get("DGS2"), 2, "%", False),
+             ("10Y vs 2Y spread", ss.get("10y-2y"), 2, " pp", False), ("10Y real yield", ys.get("DFII10"), 2, "%", False),
+             ("DXY", data.get("dxy"), 2, "", True), ("Gold futures", data.get("gold_px"), 1, "", True)]
+    html_ = []
+    for label, s_, nd, unit, pct in items:
+        if s_ is None or len(s_) < 30:
+            continue
+        ch = delta(s_, 1, pct)
+        up = None if ch is None else ch >= 0
+        chs = signed(ch, 2, "%" if pct else (" pp" if unit else ""))
+        html_.append(f'<div class="kpi"><div class="kl">{esc(label)}</div><div class="kv">{esc(fmt(s_.iloc[-1], nd))}<small>{esc(unit.strip())}</small></div>'
+                     f'<div class="kc {"" if up is None else ("up" if up else "down")}">{esc(chs)} <span>1D</span></div>{spark([round(x, 4) for x in s_.tail(60)], up)}</div>')
+    return "".join(html_)
+
+
+def curve_payload(data: dict) -> dict | None:
+    ys = data["yields"]
+    tenors = [(lab, code) for lab, code in TENORS if code in ys]
+    if len(tenors) < 3:
+        return None
+    sets = []
+    for name, back in (("Now", 0), ("1M ago", 21), ("1Y ago", 252)):
+        vals = [r(ys[c].iloc[-1 - back], 3) if len(ys[c]) > back else None for _, c in tenors]
+        sets.append({"name": name, "data": vals})
+    return {"labels": [t for t, _ in tenors], "sets": sets}
 
 
 def build_status(data: dict, today: date) -> str:
@@ -749,6 +807,29 @@ def build_status(data: dict, today: date) -> str:
 TEMPLATE = (ROOT / "template.html").read_text(encoding="utf-8") if (ROOT / "template.html").exists() else None
 
 
+def build_quick(playbook: dict, metrics: dict) -> str:
+    """One-line regime reads for the overview: value plus the playbook band it falls in."""
+    rows = []
+    def add(label, value, band):
+        if band:
+            rows.append(f'<li><span class="ql">{esc(label)}</span><span class="qv">{esc(value)}</span><span class="qb">{esc(band["label"])}</span></li>')
+    for nm in ("10y-2y", "10y-3m"):
+        m = metrics.get(f"S:{nm}")
+        if m:
+            add(spread_title(nm), fmt(m["value"], 2) + " pp", pick_band(spread_spec(playbook, nm)["bands"], m["value"]))
+    m = metrics.get("Y:DFII10")
+    if m:
+        add("10Y real yield", fmt(m["value"], 2) + "%", pick_band(playbook["real_yield"]["bands"], m["z"]))
+    m = metrics.get("DXY")
+    if m:
+        add("DXY", fmt(m["value"], 2), pick_band(playbook["dxy"]["bands"], m["z"]))
+    for key, label in (("gold", "Gold COT"), ("usd_index", "USD COT")):
+        m = metrics.get(f"COT:{key}")
+        if m:
+            add(label, "idx " + fmt(m["index"], 0), pick_band(playbook["cot"][key]["bands"], m["index"]))
+    return f'<ul class="quick">{"".join(rows)}</ul>' if rows else ""
+
+
 def read_fx_feed(data_dir: Path) -> dict | None:
     p = data_dir / "fx_macro.json"
     if not p.exists():
@@ -764,25 +845,29 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     fired = eval_cross_signals(playbook, metrics)
     rows, fam = build_watch(playbook, data, computed)
     fx = build_fx(feed, data)
+    cot_t = build_cot_tables(data)
+    cot_cards = build_cot_cards(playbook, metrics, split=True)
 
     if fired:
         sig_html = "".join(f'<li><strong>{esc(s["label"])}</strong><span>{esc(s["meaning"])}</span></li>' for s in fired)
         sig_html = f'<ul class="signals">{sig_html}</ul>'
     else:
-        sig_html = '<p class="muted-text">No cross-indicator signals are active right now.</p>'
+        sig_html = '<p class="quiet">No cross-indicator signals active right now.</p>'
+    sig_html = build_quick(playbook, metrics) + sig_html
 
     dates = [m["date"] for m in metrics.values() if m.get("date")]
     as_of = max(dates) if dates else "n/a"
     default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y") if any(r_["id"] == x for r_ in rows)]
     payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "info": r_["info"]} for r_ in rows},
-               "default": default_sel, "matrix": matrix_payload(computed), "cot": build_cot_charts(data),
+               "default": default_sel, "matrix": matrix_payload(computed), "curve": curve_payload(data), "cot": build_cot_charts(data),
                "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2}, "unit": {"spreads": " pp", "yields": "%", "dxy": "", "gold": ""}}
 
     page = TEMPLATE
     rep = {
         "__ASOF__": esc(as_of), "__BUILT__": esc(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
         "__TILES__": fx["tiles"], "__SIGNALS__": sig_html, "__WATCHLIST__": build_watch_html(rows), "__MATRIX__": build_matrix(data, computed),
-        "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_TABLES__": build_cot_tables(data),
+        "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_GOLD_TABLE__": cot_t["gold"], "__COT_USD_TABLE__": cot_t["usd_index"],
+        "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
         "__FX_CARDS__": fx["fx"], "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
         "__STATUS__": build_status(data, today), "__DISCLAIMER__": esc(playbook["meta"]["disclaimer"]),
     }
