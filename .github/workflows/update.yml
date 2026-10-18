@@ -1,0 +1,76 @@
+name: Update data and publish dashboard
+
+on:
+  schedule:
+    # Weekdays 22:30 UTC (after US close; FRED yields post with ~1 day lag, CFTC publishes Fridays)
+    - cron: "30 22 * * 1-5"
+  workflow_dispatch: {}          # "Run workflow" button
+  push:
+    branches: [main]
+  pull_request:                  # build-only check for the dev branch, never publishes
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+env:
+  # Fine-grained token with Contents read/write on the public dashboard repo only.
+  PUBLISH_TOKEN: ${{ secrets.DASHBOARD_REPO_TOKEN }}
+  DASHBOARD_REPO: velourofficialdev/macro-dashboard
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Download latest data
+        if: github.event_name != 'pull_request'
+        run: python update_data.py
+
+      - name: Build dashboard
+        run: python build_dashboard.py
+
+      - name: Commit refreshed data (private repo)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data docs
+          if git diff --cached --quiet; then echo "No changes"; else
+            git commit -m "Auto-update data and dashboard"
+            git push
+          fi
+
+      - name: Publish check
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.PUBLISH_TOKEN == ''
+        run: echo "::warning::DASHBOARD_REPO_TOKEN secret is not set, so the public dashboard repo was NOT updated."
+
+      - name: Check out the public dashboard repo
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.PUBLISH_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DASHBOARD_REPO }}
+          token: ${{ env.PUBLISH_TOKEN }}
+          path: public-site
+
+      - name: Publish the finished page (only these two files leave this repo)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.PUBLISH_TOKEN != ''
+        run: |
+          cp docs/index.html docs/Macro_Dashboard.xlsx public-site/
+          cd public-site
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html Macro_Dashboard.xlsx
+          if git diff --cached --quiet; then echo "Dashboard unchanged"; else
+            git commit -m "Update dashboard $(date -u +%Y-%m-%d)"
+            git push
+          fi

@@ -1,0 +1,189 @@
+{
+  "meta": {
+    "disclaimer": "These are rules of thumb used by macro traders to frame what the data is saying. They describe conditions, not predictions or trading advice. Edit any text or threshold below; the dashboard rebuilds from this file.",
+    "how_bands_work": "A band applies when the value is below its 'lt' number. Bands are checked top to bottom; the last band has no 'lt' and catches everything above."
+  },
+
+  "spreads": {
+    "10y-2y": {
+      "title": "10Y - 2Y",
+      "unit": "pp",
+      "what": "Classic curve slope. Compares what the market expects policy rates to do over the next two years against the 10-year yield.",
+      "bands": [
+        {"lt": -0.5, "label": "Deeply inverted", "meaning": "Short rates sit far above long rates. The market is pricing a policy rate that is too tight for the economy and eventual cuts.", "so_what": "Historically a recession warning with a long and variable lag (often 6-24 months). Not a timing tool by itself."},
+        {"lt": 0.0, "label": "Inverted", "meaning": "2Y yield is above the 10Y. Markets expect policy rates to fall later.", "so_what": "Late-cycle or restrictive-policy signal. Watch for the un-inversion (re-steepening): it has often come right before or during downturns."},
+        {"lt": 0.5, "label": "Flat", "meaning": "Little compensation for holding longer maturities. Growth and rate expectations are roughly balanced.", "so_what": "Transition zone. The direction of the next move (steepening or inverting) matters more than the level."},
+        {"lt": 1.5, "label": "Normal / positive", "meaning": "Healthy upward slope. Investors want extra yield for duration, consistent with growth and some inflation risk.", "so_what": "Neutral to supportive backdrop for risk assets. A fast move up from inversion is a different story: see the steepener type below."},
+        {"label": "Steep", "meaning": "Wide gap between long and short yields. Either policy is easy and growth is expected to pick up, or the long end is demanding a large term premium.", "so_what": "Check the cause: falling 2Y (cuts priced) is a different signal than rising 10Y (inflation, supply, term premium)."}
+      ]
+    },
+    "10y-3m": {
+      "title": "10Y - 3M",
+      "unit": "pp",
+      "what": "Compares the 10-year yield with the current policy rate (3-month bill). The NY Fed's recession-probability model uses this spread.",
+      "bands": [
+        {"lt": -0.5, "label": "Deeply inverted", "meaning": "The policy rate is well above the 10Y yield. Policy is clearly restrictive relative to long-term expectations.", "so_what": "Strongest traditional recession-risk reading. Timing remains uncertain; sustained inversion for months carries more weight than a brief dip."},
+        {"lt": 0.0, "label": "Inverted", "meaning": "3M bill yields more than the 10Y.", "so_what": "Recession risk is elevated historically. Cross-check with the 10Y-2Y: when both are inverted the signal is more convincing."},
+        {"lt": 1.0, "label": "Flat to modest", "meaning": "Policy rate is close to the 10Y yield. Not much cushion for the long end.", "so_what": "Neutral. Watch the next policy meeting and how fast the 3M moves."},
+        {"label": "Positive", "meaning": "10Y yield comfortably above the policy rate. No inversion warning.", "so_what": "Curve is not flagging recession risk on this measure."}
+      ]
+    },
+    "20y-10y": {
+      "title": "20Y - 10Y",
+      "unit": "pp",
+      "what": "Slope of the long end of the curve. Shows how much extra yield investors demand to go from 10 to 20 years: a read on term premium, long-duration supply, and pension/insurer demand.",
+      "bands": [
+        {"lt": 0.0, "label": "Long-end inverted", "meaning": "The 20Y yields less than the 10Y. Unusual. It can reflect strong long-duration demand (pensions, insurers), flight to safety into long bonds, or a technical distortion: the 20Y is a less liquid point and its auctions can push the yield around.", "so_what": "Do not read this like the 10Y-2Y. A negative 20Y-10Y is more often a liquidity and technical story than a recession call. Confirm with the 30Y-5Y and the 10Y-2Y before drawing conclusions."},
+        {"lt": 0.15, "label": "Very flat", "meaning": "Little extra yield for stretching from 10 to 20 years. Long-end term premium is compressed.", "so_what": "Long bonds are priced rich relative to the 10Y. If inflation or supply worries return, this is the zone where the long end can reprice sharply."},
+        {"lt": 0.4, "label": "Normal", "meaning": "Typical modest upward slope at the long end.", "so_what": "No stress signal. Use the direction of change over 5-20 days instead of the level."},
+        {"label": "Steep", "meaning": "Investors are demanding a lot of extra yield for long duration: higher term premium, heavy long-bond supply, or inflation and fiscal worries.", "so_what": "Often accompanies a long-end sell-off (bear steepening). Headwind for long-duration assets. Check whether the 10Y itself is also rising."}
+      ]
+    },
+    "30y-5y": {
+      "title": "30Y - 5Y",
+      "unit": "pp",
+      "what": "Wide view of the curve from the belly to the very long end. Less affected by the 2Y's sensitivity to the next Fed move.",
+      "bands": [
+        {"lt": 0.0, "label": "Inverted", "meaning": "Long bonds yield less than the 5Y. Market expects falling rates or sees little inflation risk over the long run.", "so_what": "Defensive or late-cycle signal. Supports the case made by the 10Y-2Y and 10Y-3M if they are also inverted."},
+        {"lt": 0.75, "label": "Flat", "meaning": "Limited term premium across the curve.", "so_what": "Neutral. Watch direction."},
+        {"label": "Steep", "meaning": "The long end offers a large pickup over the 5Y: term premium, inflation, or supply pressure.", "so_what": "Long-end stress or a reflation backdrop. Compare with real yields to separate the two."}
+      ]
+    }
+  },
+
+  "dynamics": {
+    "note": "Classifies how a spread moved over the last 20 trading days. Direction of the spread plus whether yields were generally falling (bull) or rising (bear).",
+    "min_move_pp": 0.10,
+    "types": {
+      "stable": {"label": "Little change", "meaning": "The spread has barely moved over 20 days.", "so_what": "No new curve information. Level bands above still apply."},
+      "bull_steepener": {"label": "Bull steepener", "meaning": "Spread is widening because short yields are falling faster than long yields.", "so_what": "Market is pricing rate cuts, often as growth weakens. Historically common into and during easing cycles."},
+      "bear_steepener": {"label": "Bear steepener", "meaning": "Spread is widening because long yields are rising faster than short yields.", "so_what": "Inflation, supply, or term-premium pressure at the long end. Usually negative for bonds and long-duration equities."},
+      "bull_flattener": {"label": "Bull flattener", "meaning": "Spread is narrowing because long yields are falling faster than short yields.", "so_what": "Flight to safety or falling long-run growth and inflation expectations."},
+      "bear_flattener": {"label": "Bear flattener", "meaning": "Spread is narrowing because short yields are rising faster than long yields.", "so_what": "Market is pricing a tighter policy path. Typical when the Fed is hiking or turning hawkish."}
+    }
+  },
+
+  "zscore": {
+    "note": "How stretched a reading is versus its own 1-year (252 trading days) or 52-week average.",
+    "bands": [
+      {"lt": -2.0, "label": "Very low vs 1y"},
+      {"lt": -1.0, "label": "Low vs 1y"},
+      {"lt": 1.0, "label": "Normal range"},
+      {"lt": 2.0, "label": "High vs 1y"},
+      {"label": "Very high vs 1y"}
+    ]
+  },
+
+  "real_yield": {
+    "title": "10Y real yield (TIPS)",
+    "what": "Inflation-adjusted 10-year yield. The opportunity cost of holding assets that pay no yield, such as gold.",
+    "bands": [
+      {"lt": -1.0, "label": "Very low vs 1y", "meaning": "Real yields are far below their one-year average.", "so_what": "Typically supportive for gold and growth assets."},
+      {"lt": 1.0, "label": "Normal range", "meaning": "Real yields are close to their one-year average.", "so_what": "No strong signal from level. Use the 5-20 day change."},
+      {"label": "High vs 1y", "meaning": "Real yields are well above their one-year average.", "so_what": "Headwind for gold and long-duration assets. Cash and bonds pay a high real return."}
+    ]
+  },
+
+  "dxy": {
+    "title": "US Dollar Index (DXY)",
+    "what": "Dollar against a basket dominated by EUR, JPY and GBP. A stronger dollar tightens global financial conditions and usually weighs on gold and commodities.",
+    "bands": [
+      {"lt": -2.0, "label": "Very weak vs 1y", "meaning": "The dollar is far below its one-year average.", "so_what": "Supportive for gold and commodities. Watch for oversold bounces."},
+      {"lt": -1.0, "label": "Weak vs 1y", "meaning": "The dollar is below its one-year average.", "so_what": "Mild tailwind for gold and non-USD assets."},
+      {"lt": 1.0, "label": "Normal range", "meaning": "The dollar is near its one-year average.", "so_what": "No strong signal from level."},
+      {"lt": 2.0, "label": "Strong vs 1y", "meaning": "The dollar is above its one-year average.", "so_what": "Mild headwind for gold and commodities."},
+      {"label": "Very strong vs 1y", "meaning": "The dollar is far above its one-year average.", "so_what": "Strong headwind for gold. Also a stretched move: watch for reversals when positioning is crowded."}
+    ]
+  },
+
+  "cot": {
+    "usd_index": {
+      "title": "USD Index positioning (CFTC COT)",
+      "what": "ICE US Dollar Index futures, Legacy report, Non-Commercial (large speculators). Net = longs minus shorts. The COT Index scales today's net position between its 52-week low (0) and high (100).",
+      "bands": [
+        {"lt": 10, "label": "Extreme short", "meaning": "Speculators are about as bearish on the dollar as they have been in a year.", "so_what": "Crowded shorts. Fuel for a short-covering rally if the dollar stops falling. Contrarian bullish-dollar signal, needs a catalyst."},
+        {"lt": 30, "label": "Net short side", "meaning": "Speculators are leaning bearish on the dollar relative to the past year.", "so_what": "Trend is bearish dollar. Not yet crowded."},
+        {"lt": 70, "label": "Middle of range", "meaning": "Positioning is neither stretched long nor short.", "so_what": "No positioning edge. Use price action and yields."},
+        {"lt": 90, "label": "Net long side", "meaning": "Speculators are leaning bullish on the dollar relative to the past year.", "so_what": "Trend is bullish dollar. Room remains before it gets crowded."},
+        {"label": "Extreme long", "meaning": "Speculators are about as bullish on the dollar as they have been in a year.", "so_what": "Crowded longs. Dollar is vulnerable to a sharp reversal if data or the Fed disappoints. Contrarian bearish-dollar signal, needs a catalyst."}
+      ]
+    },
+    "gold": {
+      "title": "Gold positioning (CFTC COT)",
+      "what": "COMEX Gold futures, Disaggregated report, Managed Money (hedge funds and CTAs). Not the same trader group as the USD Index figures above, so the two are not directly comparable.",
+      "bands": [
+        {"lt": 10, "label": "Extreme short", "meaning": "Managed money is about as bearish on gold as it has been in a year.", "so_what": "Washed-out positioning. Downside fuel is mostly spent; a bounce needs a catalyst."},
+        {"lt": 30, "label": "Net short side", "meaning": "Managed money is leaning away from gold relative to the past year.", "so_what": "Weak conviction. Watch whether real yields and the dollar start to ease."},
+        {"lt": 70, "label": "Middle of range", "meaning": "Positioning is neither stretched long nor short.", "so_what": "No positioning edge."},
+        {"lt": 90, "label": "Net long side", "meaning": "Managed money is leaning long gold relative to the past year.", "so_what": "Trend is supported by speculators. Vulnerable if real yields or the dollar rise."},
+        {"label": "Extreme long", "meaning": "Managed money is about as bullish on gold as it has been in a year.", "so_what": "Crowded longs. A hawkish surprise can trigger fast liquidation."}
+      ]
+    }
+  },
+
+  "cross_signals": [
+    {
+      "id": "gold_headwind",
+      "label": "Gold headwind: real yields and dollar both rising",
+      "meaning": "10Y real yield is up over 20 days and the dollar index is up more than 1%. Both raise the opportunity cost of holding gold.",
+      "when": [
+        {"metric": "Y:DFII10", "field": "chg20", "op": ">", "value": 0.15},
+        {"metric": "DXY", "field": "pct20", "op": ">", "value": 1.0}
+      ]
+    },
+    {
+      "id": "gold_tailwind",
+      "label": "Gold tailwind: real yields and dollar both falling",
+      "meaning": "10Y real yield is down over 20 days and the dollar index is down more than 1%. Both lower the opportunity cost of holding gold.",
+      "when": [
+        {"metric": "Y:DFII10", "field": "chg20", "op": "<", "value": -0.15},
+        {"metric": "DXY", "field": "pct20", "op": "<", "value": -1.0}
+      ]
+    },
+    {
+      "id": "dollar_crowded_long",
+      "label": "Dollar rally with crowded long positioning",
+      "meaning": "DXY is well above its 1-year average and speculators are near their 52-week max long. The move is extended and positioning is vulnerable.",
+      "when": [
+        {"metric": "COT:usd_index", "field": "index", "op": ">=", "value": 85},
+        {"metric": "DXY", "field": "z", "op": ">", "value": 1.5}
+      ]
+    },
+    {
+      "id": "dollar_crowded_short",
+      "label": "Dollar weakness with crowded short positioning",
+      "meaning": "DXY is well below its 1-year average and speculators are near their 52-week max short. Short-covering risk is high.",
+      "when": [
+        {"metric": "COT:usd_index", "field": "index", "op": "<=", "value": 15},
+        {"metric": "DXY", "field": "z", "op": "<", "value": -1.5}
+      ]
+    },
+    {
+      "id": "double_inversion",
+      "label": "Both 10Y-2Y and 10Y-3M are inverted",
+      "meaning": "Two independent curve measures agree. The recession-risk signal is stronger than when only one is inverted. Timing remains uncertain.",
+      "when": [
+        {"metric": "S:10y-2y", "field": "value", "op": "<", "value": 0},
+        {"metric": "S:10y-3m", "field": "value", "op": "<", "value": 0}
+      ]
+    },
+    {
+      "id": "long_end_selloff",
+      "label": "Long-end sell-off",
+      "meaning": "The 10Y yield is rising fast and the 20Y-10Y spread is widening. Pressure is concentrated in long duration: term premium, supply, or inflation worries.",
+      "when": [
+        {"metric": "Y:DGS10", "field": "chg20", "op": ">", "value": 0.25},
+        {"metric": "S:20y-10y", "field": "chg20", "op": ">", "value": 0.05}
+      ]
+    },
+    {
+      "id": "gold_crowded_long_with_rising_real_yields",
+      "label": "Gold crowded long while real yields rise",
+      "meaning": "Managed money is near its 52-week max long in gold while 10Y real yields are rising. This mix has historically been vulnerable to liquidation.",
+      "when": [
+        {"metric": "COT:gold", "field": "index", "op": ">=", "value": 80},
+        {"metric": "Y:DFII10", "field": "chg20", "op": ">", "value": 0.1}
+      ]
+    }
+  ]
+}
