@@ -28,6 +28,8 @@ One-time setup for the hand-off:
 2. In this repo open Settings > Secrets and variables > Actions > New repository secret. Name `DASHBOARD_REPO_TOKEN`, value the token.
 3. Open the Actions tab, pick **Update data and publish dashboard**, and click **Run workflow**.
 
+A second workflow, **Check publish token**, runs every Monday, tests the token and opens an issue (GitHub emails you) when it is missing, rejected, unable to push, or within 21 days of expiring. GitHub offers no way to renew a personal token automatically, so renewal is still a manual 2-minute step.
+
 If the token expires the workflow still updates the data here and shows a warning, but the public page stops updating until a new token is saved.
 
 ## Changing what the dashboard says

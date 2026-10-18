@@ -1,0 +1,80 @@
+name: Check publish token
+
+# GitHub cannot renew a personal access token automatically (no API for it), so this job
+# watches it instead: every Monday it tests DASHBOARD_REPO_TOKEN and opens an issue here
+# (GitHub emails you) if the token is missing, rejected, can't push, or expires within 21 days.
+
+on:
+  schedule:
+    - cron: "0 1 * * 1"          # Mondays 01:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  PUBLISH_TOKEN: ${{ secrets.DASHBOARD_REPO_TOKEN }}
+  DASHBOARD_REPO: velourofficialdev/macro-dashboard
+  WARN_DAYS: "21"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test the token
+        id: test
+        run: |
+          problem=""
+          if [ -z "$PUBLISH_TOKEN" ]; then
+            problem="The DASHBOARD_REPO_TOKEN secret is not set, so the public dashboard cannot be updated."
+          else
+            code=$(curl -sS -D headers.txt -o body.json -w "%{http_code}" \
+              -H "Authorization: Bearer $PUBLISH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$DASHBOARD_REPO")
+            if [ "$code" != "200" ]; then
+              problem="GitHub rejected the token (HTTP $code). It has probably expired or been revoked."
+            elif [ "$(python3 -c 'import json;print(json.load(open("body.json")).get("permissions",{}).get("push"))')" != "True" ]; then
+              problem="The token can read $DASHBOARD_REPO but cannot push to it. Give it Contents: Read and write."
+            else
+              exp=$(grep -i '^github-authentication-token-expiration:' headers.txt | cut -d' ' -f2- | tr -d '\r')
+              if [ -n "$exp" ]; then
+                days=$(( ( $(date -u -d "$exp" +%s) - $(date -u +%s) ) / 86400 ))
+                echo "Token expires $exp ($days days left)"
+                if [ "$days" -le "$WARN_DAYS" ]; then
+                  problem="The token expires on $exp ($days days left). Create a new fine-grained token and replace the DASHBOARD_REPO_TOKEN secret before then."
+                fi
+              else
+                echo "Token reports no expiry date."
+              fi
+            fi
+          fi
+          echo "problem=$problem" >> "$GITHUB_OUTPUT"
+          echo "${problem:-Token is healthy.}"
+
+      - name: Open or update an issue when there is a problem
+        if: steps.test.outputs.problem != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROBLEM: ${{ steps.test.outputs.problem }}
+        run: |
+          gh label create token-expiry --repo "$GITHUB_REPOSITORY" --color B60205 --description "Publish token needs attention" 2>/dev/null || true
+          body="$PROBLEM
+
+          Fix: GitHub > Settings > Developer settings > Personal access tokens > Fine-grained tokens. Create a token for the repository $DASHBOARD_REPO with Contents: Read and write, then save it in this repo under Settings > Secrets and variables > Actions as DASHBOARD_REPO_TOKEN. This issue closes itself on the next successful check."
+          n=$(gh issue list --repo "$GITHUB_REPOSITORY" --label token-expiry --state open --json number --jq '.[0].number')
+          if [ -n "$n" ]; then gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else gh issue create --repo "$GITHUB_REPOSITORY" --label token-expiry --title "Dashboard publish token needs attention" --body "$body"; fi
+
+      - name: Close the issue once the token is healthy
+        if: steps.test.outputs.problem == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for n in $(gh issue list --repo "$GITHUB_REPOSITORY" --label token-expiry --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --repo "$GITHUB_REPOSITORY" --comment "Token check passed, closing."
+          done
+
+      - name: Fail the run so it shows red
+        if: steps.test.outputs.problem != ''
+        run: exit 1
