@@ -493,31 +493,57 @@ def build_chart_data(data: dict, spread_series: dict[str, pd.Series]) -> dict:
     return charts
 
 
+def cot_view(c: dict) -> pd.DataFrame:
+    """The columns shown for each COT instrument (same set as the user's Excel sheet), oldest first."""
+    frac = c["net_oi"] / 100
+    return pd.DataFrame({
+        "Net pos": c["net"], "Spec WoW change": c["wchg"], "Open interest": c["oi"], "OI change": c["oi_chg"],
+        "OI normalized net": frac, "Normalized WoW change": frac.diff(), "Spec net % of OI": c["net_oi"],
+        "Friday close": c["price"], "Price chg %": c["price_chg"],
+    })
+
+
 def build_cot_tables(data: dict) -> str:
-    """One scrollable 52-week table per instrument, newest first. Everything comes from the same CFTC report."""
-    heads = ["Report date", "Net", "Net chg", "Long chg", "Short chg", "Open int.", "OI chg", "OI chg %",
-             "Net % of OI", "Net % OI chg (pp)", "Net % OI 0-100", "COT Index", "Friday close", "Price chg %"]
+    """One scrollable 52-week table per instrument, newest first, with the stats block under it."""
+    dec = {"Net pos": (0, True), "Spec WoW change": (0, True), "Open interest": (0, False), "OI change": (0, True),
+           "OI normalized net": (3, False), "Normalized WoW change": (3, True), "Spec net % of OI": (1, False),
+           "Friday close": (2, False), "Price chg %": (2, True)}
     out = []
     for key, name, pname in (("gold", "Gold (Managed Money)", "Gold futures"), ("usd_index", "USD Index (Non-Commercial)", "DXY")):
         c = data["cot"].get(key)
         if c is None:
             continue
         n = COT_WINDOW
+        v = cot_view(c).tail(n)
         rows = []
-        for i in range(len(c["net"]) - 1, max(len(c["net"]) - 1 - n, -1), -1):
-            d = c["net"].index[i]
-            cells = [d.strftime("%Y-%m-%d"), fmt(c["net"].iloc[i], 0, True), fmt(c["wchg"].iloc[i], 0, True),
-                     fmt(c["long_chg"].iloc[i], 0, True), fmt(c["short_chg"].iloc[i], 0, True),
-                     fmt(c["oi"].iloc[i], 0), fmt(c["oi_chg"].iloc[i], 0, True), fmt(c["oi_chg_pct"].iloc[i], 2, True),
-                     fmt(c["net_oi"].iloc[i], 1, True), fmt(c["net_oi_chg"].iloc[i], 1, True), fmt(c["net_oi_idx"].iloc[i], 0),
-                     fmt(c["index"].iloc[i], 0), fmt(c["price"].iloc[i], 2), fmt(c["price_chg"].iloc[i], 2, True)]
-            rows.append("<tr>" + f"<th scope=\"row\">{cells[0]}</th>" + "".join(f"<td>{esc(x)}</td>" for x in cells[1:]) + "</tr>")
+        for d, row in v.iloc[::-1].iterrows():
+            tds = "".join(f"<td>{esc(fmt(row[col], *dec[col]))}</td>" for col in v.columns)
+            rows.append(f'<tr><th scope="row">{d.strftime("%Y-%m-%d")}</th>{tds}</tr>')
+        def stat_row(label, fn, nd_override=None):
+            cells = ""
+            for col in v.columns:
+                val = fn(v[col])
+                d_, sg = dec[col]
+                cells += f"<td>{esc(fmt(val, nd_override if nd_override is not None else d_, sg and label == 'Z-score' ))}</td>"
+            return f'<tr><th scope="row">{label}</th>{cells}</tr>'
+        stats = [
+            stat_row("Average", lambda s_: s_.mean()),
+            stat_row("Std dev", lambda s_: s_.std(ddof=1)),
+            stat_row("Min", lambda s_: s_.min()),
+            stat_row("Max", lambda s_: s_.max()),
+            stat_row("Z-score (latest)", lambda s_: (s_.iloc[-1] - s_.mean()) / s_.std(ddof=1) if s_.std(ddof=1) else float("nan"), 2),
+        ]
+        idx = c["index"].iloc[-1]
+        cot_cells = f"<td>{esc(fmt(idx, 1))}</td>" + "<td></td>" * (len(v.columns) - 1)
+        stats.append(f'<tr><th scope="row">COT Index</th>{cot_cells}</tr>')
+        heads = ["Report date"] + list(v.columns)
         out.append(
             f'<div class="chartbox"><h4>{esc(name)}: last {n} weekly reports, newest first</h4>'
-            f'<p class="lede small">Price is the {esc(pname)} close on the Friday of each report week and the change from the prior Friday. '
-            f'Net % of OI = speculator long minus short, divided by total open interest. "0-100" rescales a value within its own 52-report range.</p>'
+            f'<p class="lede small">OI normalized net = net position divided by total open interest. Spec net % of OI is the same number times 100. '
+            f'Price is the {esc(pname)} close on the Friday of each report week and its change from the prior Friday. '
+            f'Statistics cover these {n} reports; COT Index is net position rescaled 0 to 100 over them.</p>'
             f'<div class="scroll tall"><table class="weekly"><thead><tr>' + "".join(f"<th>{h}</th>" for h in heads)
-            + "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div></div>")
+            + "</tr></thead><tbody>" + "".join(rows) + "</tbody><tfoot>" + "".join(stats) + "</tfoot></table></div></div>")
     return "".join(out)
 
 
