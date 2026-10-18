@@ -3,8 +3,9 @@
 
 Sources (all free, no API key):
   - FRED  : US Treasury yields + 10Y real yield   -> data/<CODE>.csv
-  - CFTC  : Gold (Managed Money) and USD Index (Non-Commercial) COT
-            -> data/COT_GOLD.csv, data/COT_USD_INDEX.csv
+  - CFTC  : Gold and USD Index COT, both from the Legacy Futures Only report (Non-Commercial)
+            -> data/COT_GOLD_LEGACY.csv, data/COT_USD_INDEX.csv
+  - FX dashboard feed (deiruuuu/fx-macro-confluence data.json) -> data/fx_macro.json
   - Yahoo : DXY price (fallback: Stooq)          -> data/DXY.csv
             Gold futures price (GC=F)            -> data/GOLD.csv   (used for the weekly price change next to Gold COT)
 
@@ -28,15 +29,17 @@ DATA = ROOT / "data"
 DATA.mkdir(exist_ok=True)
 
 FRED_CODES = ["DGS3MO", "DGS2", "DGS5", "DGS10", "DGS20", "DGS30", "DFII10"]
-KEEP_DAILY = 600      # rows kept per daily series (>= 252 window + history)
+KEEP_DAILY = 2700     # rows kept per daily series (about 10 years; the 252-day window needs only 252)
+HISTORY_YEARS = 10
 CFTC_LIMIT = 180      # weekly reports fetched (52 window + history)
 HEADERS = {"User-Agent": "Mozilla/5.0 (macro-dashboard; personal research)"}
 TIMEOUT = 60
+FX_FEED_URL = "https://deiruuuu.github.io/fx-macro-confluence/data.json"
 
 CFTC_SOURCES = {
     # name: (dataset id, contract code, long field, short field, exchange keyword)
-    "COT_GOLD": ("72hh-3qpy", "088691", "m_money_positions_long_all",
-                 "m_money_positions_short_all", "COMMODITY EXCHANGE"),
+    "COT_GOLD_LEGACY": ("6dca-aqww", "088691", "noncomm_positions_long_all",
+                        "noncomm_positions_short_all", "COMMODITY EXCHANGE"),
     "COT_USD_INDEX": ("6dca-aqww", "098662", "noncomm_positions_long_all",
                       "noncomm_positions_short_all", "ICE FUTURES"),
 }
@@ -58,7 +61,7 @@ def merge_save(path: Path, new: pd.DataFrame, key: str, keep: int) -> pd.DataFra
 
 def fetch_fred(code: str) -> pd.DataFrame:
     # FRED drops connections that send a browser-style User-Agent, so use the library default here.
-    start = (pd.Timestamp.today().normalize() - pd.Timedelta(days=3 * 365)).strftime("%Y-%m-%d")
+    start = (pd.Timestamp.today().normalize() - pd.Timedelta(days=HISTORY_YEARS * 365)).strftime("%Y-%m-%d")
     r = requests.get("https://fred.stlouisfed.org/graph/fredgraph.csv",
                      params={"id": code, "cosd": start}, timeout=30)
     r.raise_for_status()
@@ -106,7 +109,7 @@ def fetch_cftc(dataset: str, contract: str, long_f: str, short_f: str, keyword: 
 
 def fetch_yahoo(symbol: str, col: str) -> pd.DataFrame:
     r = requests.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
-                     params={"range": "2y", "interval": "1d"}, headers=HEADERS, timeout=TIMEOUT)
+                     params={"range": f"{HISTORY_YEARS}y", "interval": "1d"}, headers=HEADERS, timeout=TIMEOUT)
     r.raise_for_status()
     res = r.json()["chart"]["result"][0]
     close = res["indicators"]["quote"][0]["close"]
@@ -172,6 +175,17 @@ def main() -> int:
         record("GOLD_PRICE", True, saved["Date"].iloc[-1], note="source: Yahoo GC=F")
     except Exception as exc:  # noqa: BLE001
         record("GOLD_PRICE", False, error=f"{type(exc).__name__}: {exc}"[:200])
+
+    try:
+        r = requests.get(FX_FEED_URL, timeout=30)
+        r.raise_for_status()
+        feed = r.json()
+        if not isinstance(feed, dict) or "fx" not in feed:
+            raise ValueError("unexpected feed shape")
+        (DATA / "fx_macro.json").write_text(json.dumps(feed))
+        record("FX_MACRO", True, str(feed.get("updated", ""))[:10], note="source: fx-macro-confluence data.json")
+    except Exception as exc:  # noqa: BLE001
+        record("FX_MACRO", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
     (DATA / "status.json").write_text(json.dumps(status, indent=2))
     return 0 if any(s["ok"] for s in status.values()) else 1

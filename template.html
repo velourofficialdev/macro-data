@@ -6,17 +6,16 @@
 <meta name="color-scheme" content="light dark">
 <title>Macro Dashboard</title>
 <script>
-  /* Apply the saved theme before first paint so there is no flash. */
   try { var t = localStorage.getItem("macro-theme"); if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
 </script>
 <style>
-  /* Velour theme. Brand base #42070E is used for titles and small accents only; surfaces are soft and low-contrast.
-     Chart colors (--s1..--s4) were checked for colorblind separation and contrast against the panel color. */
+  /* Velour theme. Brand #42070E for titles and accents; surfaces stay soft. Chart colors --s1..--s4 passed a colorblind/contrast check. */
   :root {
     --brand: #42070E;
     --bg: #f3eeeb; --panel: #fbf8f6; --head: #ebe3e0; --tint: #efe8e5;
     --ink: #3b2b2e; --muted: #7b6b6e; --line: #e2d8d5; --accent: #42070E; --rule: #7a3340;
     --warn-bg: #f0dcdf; --warn-ink: #6b1e2a; --neutral-bg: #ebe4e1; --neutral-ink: #66575a;
+    --up: #0b7a80; --down: #b3374f;
     --s1: #9b424d; --s2: #008e96; --s3: #ad8522; --s4: #635dab;
     color-scheme: light;
   }
@@ -25,122 +24,203 @@
       --bg: #12131a; --panel: #1b1d27; --head: #161820; --tint: #232634;
       --ink: #e6e8f2; --muted: #9aa0b8; --line: #2c3042; --accent: #f0a3b5; --rule: #c4506c;
       --warn-bg: #3a2030; --warn-ink: #ffb3c3; --neutral-bg: #252838; --neutral-ink: #c3c8dc;
+      --up: #3ec7cf; --down: #ff7f9c;
       --s1: #e0587a; --s2: #1ea3ac; --s3: #bf8a1c; --s4: #8478ec;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --bg: #12131a; --panel: #1b1d27; --head: #161820; --tint: #232634;
-      --ink: #e6e8f2; --muted: #9aa0b8; --line: #2c3042; --accent: #f0a3b5; --rule: #c4506c;
-      --warn-bg: #3a2030; --warn-ink: #ffb3c3; --neutral-bg: #252838; --neutral-ink: #c3c8dc;
-      --s1: #e0587a; --s2: #1ea3ac; --s3: #bf8a1c; --s4: #8478ec;
+    --ink: #e6e8f2; --muted: #9aa0b8; --line: #2c3042; --accent: #f0a3b5; --rule: #c4506c;
+    --warn-bg: #3a2030; --warn-ink: #ffb3c3; --neutral-bg: #252838; --neutral-ink: #c3c8dc;
+    --up: #3ec7cf; --down: #ff7f9c;
+    --s1: #e0587a; --s2: #1ea3ac; --s3: #bf8a1c; --s4: #8478ec;
     color-scheme: dark;
   }
-
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-
-  .top { background: var(--head); border-bottom: 1px solid var(--line); }
-  .top .in { max-width: 1080px; margin: 0 auto; padding: 24px 16px 20px; }
-  .top h1 { margin: 0; font: 600 28px/1.2 Georgia, "Times New Roman", serif; color: var(--accent); }
-  .top p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
-  .top a.dl { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; margin-left: 6px; white-space: nowrap; }
-  .top strong { color: var(--ink); font-weight: 600; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px 64px; }
-
-  nav { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--line); }
-  nav a { color: var(--muted); text-decoration: none; padding: 5px 11px; border-radius: 999px; font-size: 13px; }
-  nav a:hover { background: var(--tint); color: var(--ink); }
-  nav a.active { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
-  section { scroll-margin-top: 60px; }
   html { scroll-behavior: smooth; }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .up { color: var(--up); } .down { color: var(--down); }
+  .muted-text { color: var(--muted); }
+  .num, td, .tv { font-variant-numeric: tabular-nums; }
+
+  .top { background: var(--head); border-bottom: 1px solid var(--line); }
+  .top .in { max-width: 1280px; margin: 0 auto; padding: 18px 16px 14px; }
+  .top h1 { margin: 0; font: 600 26px/1.2 Georgia, "Times New Roman", serif; color: var(--accent); }
+  .top p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  .top strong { color: var(--ink); font-weight: 600; }
+  .top a.dl { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; margin-left: 6px; white-space: nowrap; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px 56px; }
+
+  nav { position: sticky; top: 0; z-index: 6; background: var(--bg); padding: 8px 0; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--line); }
+  nav a { color: var(--muted); text-decoration: none; padding: 5px 12px; border-radius: 999px; font-size: 13px; }
+  nav a:hover { background: var(--tint); color: var(--ink); }
+  nav a.active { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
+  section { scroll-margin-top: 56px; }
   .themes { margin-left: auto; display: inline-flex; background: var(--tint); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
   .themes button { font: inherit; font-size: 12px; border: 0; background: transparent; color: var(--muted); padding: 3px 11px; border-radius: 999px; cursor: pointer; }
   .themes button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
-  .themes button:focus-visible, nav a:focus-visible, summary:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  button:focus-visible, nav a:focus-visible, summary:focus-visible, tr.row:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
 
-  h2 { margin: 40px 0 4px; font: 600 21px/1.25 Georgia, "Times New Roman", serif; color: var(--accent); }
+  h2 { margin: 30px 0 4px; font: 600 20px/1.25 Georgia, "Times New Roman", serif; color: var(--accent); }
   h2::after { content: ""; display: block; width: 32px; height: 2px; background: var(--rule); margin-top: 6px; border-radius: 2px; opacity: .8; }
-  .lede { margin: 10px 0 14px; color: var(--muted); max-width: 68ch; }
+  h3.sub { margin: 22px 0 8px; font-size: 15px; font-weight: 600; }
+  .lede { margin: 8px 0 12px; color: var(--muted); max-width: 78ch; }
+  .lede.small { font-size: 13px; margin: 2px 0 10px; }
 
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--rule); border-radius: 10px; padding: 16px; }
-  .card.muted { color: var(--muted); border-top-color: var(--line); }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+  .pad { padding: 14px; }
+
+  /* market tiles */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+  .tile { position: relative; background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--rule); border-radius: 10px; padding: 10px 12px 8px; overflow: hidden; }
+  .tl { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .tv { font: 600 21px/1.25 Georgia, "Times New Roman", serif; margin-top: 2px; }
+  .tc { font-size: 12px; color: var(--muted); }
+  .tc.up { color: var(--up); } .tc.down { color: var(--down); }
+  .spark { display: block; width: 100%; height: 26px; margin-top: 4px; }
+  .spark.up { color: var(--up); } .spark.down { color: var(--down); } .spark.flat { color: var(--muted); }
+  .tag { font-size: 10px; padding: 1px 7px; border-radius: 999px; background: var(--neutral-bg); color: var(--neutral-ink); letter-spacing: .04em; }
+  .tag.up { background: color-mix(in srgb, var(--up) 18%, transparent); color: var(--up); }
+  .tag.down { background: color-mix(in srgb, var(--down) 18%, transparent); color: var(--down); }
+
+  .signals { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .signals li { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--rule); border-radius: 8px; padding: 10px 14px; }
+  .signals span { display: block; color: var(--muted); font-size: 13px; }
+
+  /* terminal layout */
+  .term { display: grid; grid-template-columns: minmax(340px, 430px) minmax(0, 1fr); gap: 12px; align-items: start; }
+  @media (max-width: 900px) { .term { grid-template-columns: minmax(0, 1fr); } }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
+  thead th { background: var(--tint); color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; position: sticky; top: 0; }
+  table.watch th, table.watch td { padding: 6px 7px; }
+  table.watch td, table.watch thead th:not(:first-child) { text-align: right; }
+  table.watch th[scope=row] { font-weight: 500; }
+  table.watch tr.grp th { background: var(--tint); color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; padding: 5px 10px; }
+  tr.row { cursor: pointer; }
+  tr.row:hover { background: var(--tint); }
+  tr.row.on { background: color-mix(in srgb, var(--rule) 10%, transparent); }
+  .pick { display: inline-block; width: 12px; height: 12px; border: 1.5px solid var(--muted); border-radius: 3px; margin-right: 8px; vertical-align: -2px; }
+  tr.row.on .pick { background: var(--c, var(--s1)); border-color: var(--c, var(--s1)); box-shadow: inset 0 0 0 2px var(--panel); }
+  tr.row[data-family=""] .pick { border-radius: 50%; border-style: dotted; }
+  tr.row.dim { opacity: .45; }
+
+  .chead { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 10px 14px 0; }
+  .chead h4 { margin: 0; font: 600 15px Georgia, serif; color: var(--accent); }
+  .ranges { display: flex; flex-wrap: wrap; gap: 2px; }
+  .ranges button { font: inherit; font-size: 12px; border: 0; background: transparent; color: var(--muted); padding: 3px 9px; border-radius: 6px; cursor: pointer; }
+  .ranges button:hover { background: var(--tint); }
+  .ranges button[aria-pressed="true"] { background: var(--rule); color: #fff; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 14px 0; min-height: 34px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--tint); border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 12px; }
+  .chip i { width: 9px; height: 9px; border-radius: 50%; }
+  .chip button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 5px; border-radius: 50%; }
+  .chip button:hover { color: var(--ink); background: var(--line); }
+  .cv { position: relative; height: 340px; margin: 4px 6px 0; }
+  .cv.sm { height: 230px; }
+  .cv svg { display: block; width: 100%; height: 100%; overflow: visible; touch-action: pan-y; }
+  .tip { position: absolute; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12px; line-height: 1.45; box-shadow: 0 4px 14px rgba(0,0,0,.18); white-space: nowrap; z-index: 3; display: none; }
+  .tip b { display: block; margin-bottom: 2px; }
+  .tip span { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+  .tip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); padding: 0 14px; min-height: 18px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 14px; height: 0; border-top: 2.5px solid; border-radius: 2px; }
+
+  .reading { border-top: 1px solid var(--line); padding: 12px 14px 14px; margin-top: 8px; }
+  .reading h5 { margin: 0 0 4px; font-size: 14px; }
+  .reading p { margin: 4px 0; font-size: 13px; }
+  .reading .so { color: var(--muted); }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; white-space: nowrap; background: var(--neutral-bg); color: var(--neutral-ink); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn-ink); }
+
+  /* spreads matrix */
+  table.matrix { border: 0; font-variant-numeric: tabular-nums; }
+  table.matrix td { text-align: right; padding: 7px 12px; }
+  table.matrix thead th:not(:first-child) { text-align: right; }
+  table.matrix td small { color: var(--muted); margin-left: 3px; font-size: 10px; }
+  table.matrix td.heat { --c: var(--s2); background: color-mix(in srgb, var(--c) calc(var(--i) * .55%), transparent); }
+  table.matrix td.heat.neg { --c: var(--down); }
+  table.matrix td.zc { color: var(--muted); border-left: 1px solid var(--line); }
+  table.matrix td.na { color: var(--muted); text-align: center; }
+  table.matrix tbody th { font-weight: 600; position: sticky; left: 0; background: var(--panel); }
+
+  /* positioning */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--rule); border-radius: 10px; padding: 14px; }
+  .card.muted { color: var(--muted); }
   .card h3 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
-  .big { font: 600 28px/1.2 Georgia, "Times New Roman", serif; color: var(--ink); }
+  .big { font: 600 26px/1.2 Georgia, serif; }
   .big .sub { font: 400 12px system-ui, sans-serif; color: var(--muted); margin-left: 6px; }
-  dl { display: grid; gap: 2px; margin: 12px 0; font-size: 13px; }
+  dl { display: grid; gap: 2px; margin: 10px 0; font-size: 13px; }
   dl div { display: flex; justify-content: space-between; gap: 12px; }
   dt { color: var(--muted); } dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
-
-  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
-  .badge.neutral { background: var(--neutral-bg); color: var(--neutral-ink); }
-  .badge.warn { background: var(--warn-bg); color: var(--warn-ink); }
-  .reading { margin: 10px 0 4px; }
-  .meaning { margin: 6px 0; } .sowhat { margin: 6px 0; color: var(--muted); font-size: 14px; }
-  .dyn { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
-  .dynlabel { font-size: 12px; color: var(--muted); margin-right: 4px; }
-  details { margin-top: 10px; font-size: 13px; color: var(--muted); } summary { cursor: pointer; }
-
-  .gauge { position: relative; height: 6px; margin: 14px 0 3px; border-radius: 3px;
-    background: linear-gradient(90deg, var(--s2), var(--neutral-bg) 50%, var(--s1)); opacity: .9; }
+  .reading-line { margin: 8px 0 4px; } .meaning { margin: 6px 0; } .sowhat { margin: 6px 0; color: var(--muted); font-size: 13px; }
+  details { margin-top: 8px; font-size: 13px; color: var(--muted); } summary { cursor: pointer; }
+  .gauge { position: relative; height: 6px; margin: 12px 0 3px; border-radius: 3px; background: linear-gradient(90deg, var(--s2), var(--neutral-bg) 50%, var(--s1)); opacity: .9; }
   .gauge i { position: absolute; top: -5px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 2px var(--panel); }
   .gaugelabels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
-
-  .scroll { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-  thead th { background: var(--tint); color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
-  table.summary td { font-variant-numeric: tabular-nums; }
-  table.summary tbody th { font-weight: 600; }
-  table.summary td:nth-child(n+2):nth-child(-n+5), table.summary thead th:nth-child(n+2):nth-child(-n+5) { text-align: right; }
-  tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
-  tbody tr:hover { background: var(--tint); }
-  .subhead { margin: 28px 0 10px; font-size: 16px; font-weight: 600; color: var(--ink); }
-  .stack { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; margin-top: 12px; }
   .chartbox { min-width: 0; }
-  .lede.small { font-size: 13px; margin: 2px 0 10px; }
-  .scroll.tall { max-height: 460px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
-  table.weekly { border: 0; border-radius: 0; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 1040px; }
-  table.weekly th, table.weekly td { padding: 6px 10px; text-align: right; white-space: nowrap; }
+  .chartbox h4 { margin: 0; padding: 12px 14px 4px; font-size: 14px; }
+  .stack { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+  .scroll.tall { max-height: 460px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; margin: 0 14px 14px; }
+  table.weekly { font-variant-numeric: tabular-nums; min-width: 1040px; }
+  table.weekly th, table.weekly td { padding: 5px 10px; text-align: right; }
   table.weekly tbody th { text-align: left; font-weight: 600; background: var(--panel); position: sticky; left: 0; }
   table.weekly tfoot th, table.weekly tfoot td { background: var(--tint); border-top: 1px solid var(--line); font-weight: 600; }
   table.weekly tfoot th { text-align: left; position: sticky; left: 0; }
-  table.weekly thead th { position: sticky; top: 0; z-index: 1; }
   table.weekly thead th:first-child { text-align: left; left: 0; z-index: 2; }
+
+  /* FX */
+  .confgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; margin-top: 12px; }
+  .conf { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .conf .ctop { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+  .conf .chead { padding: 8px 0; justify-content: flex-start; gap: 14px; }
+  .conf h5 { margin: 10px 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .ring { position: relative; width: 60px; height: 60px; flex: none; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 5; }
+  .ring .rt { stroke: var(--line); }
+  .ring .rf { stroke: var(--muted); stroke-linecap: round; }
+  .ring.up .rf { stroke: var(--up); } .ring.down .rf { stroke: var(--down); }
+  .ring .rn { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1; }
+  .ring .rn b { font-size: 16px; } .ring small { font-size: 9px; color: var(--muted); }
+  .verdict { font-weight: 600; } .verdict small { display: block; color: var(--muted); font-weight: 400; }
+  .verdict.up { color: var(--up); } .verdict.down { color: var(--down); }
+  .sig { display: grid; grid-template-columns: 10px 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; padding: 2px 0; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.up { background: var(--up); } .dot.down { background: var(--down); }
+  .st { color: var(--muted); font-size: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+  .sv { font-variant-numeric: tabular-nums; }
+  .sr { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 2px 0; font-variant-numeric: tabular-nums; }
+  .sr .ss { color: var(--muted); } .sr.above .sd { color: var(--up); } .sr.below .sd { color: var(--down); }
+  .econgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+  .econ { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .econ .ed { font-size: 11px; color: var(--muted); }
+  ul.news { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  ul.news li { display: flex; gap: 12px; background: var(--panel); padding: 9px 14px; }
+  ul.news .src { flex: none; width: 74px; font-size: 11px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding-top: 2px; }
+  ul.news a { color: var(--ink); text-decoration: none; } ul.news a:hover { text-decoration: underline; }
+  ul.news small { display: block; color: var(--muted); }
   .err { color: var(--muted); font-size: 12px; display: block; }
-
-  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin-top: 14px; }
-  .chartbox { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
-  .chartbox h4 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
-  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-bottom: 4px; min-height: 18px; }
-  .legend span { display: inline-flex; align-items: center; gap: 6px; }
-  .legend i { width: 14px; height: 0; border-top: 2.5px solid; border-radius: 2px; }
-  .cv { position: relative; height: 250px; }
-  .cv svg { display: block; width: 100%; height: 100%; overflow: visible; touch-action: pan-y; }
-  .tip { position: absolute; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12px; line-height: 1.45; box-shadow: 0 4px 14px rgba(0,0,0,.18); white-space: nowrap; z-index: 3; display: none; }
-  .tip b { display: block; margin-bottom: 2px; font-weight: 600; }
-  .tip span { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
-  .tip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-
-  .signals { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-  .signals li { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--rule); border-radius: 8px; padding: 12px 14px; }
-  .signals span { color: var(--muted); font-size: 14px; }
-  .muted-text { color: var(--muted); }
-  footer { margin-top: 44px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; max-width: 80ch; }
-  @media (max-width: 480px) { .big { font-size: 25px; } .cv { height: 220px; } .top h1 { font-size: 24px; } .themes { margin-left: 0; } }
+  table.plain { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; max-width: 90ch; }
+  @media (max-width: 480px) { .cv { height: 280px; } .top h1 { font-size: 22px; } .themes { margin-left: 0; } .tv { font-size: 19px; } }
 </style>
 </head>
 <body>
 <header class="top"><div class="in">
   <h1>Macro Dashboard</h1>
-  <p>Treasury curve and spreads, dollar and gold positioning. Latest data point: <strong>__ASOF__</strong>. Page built __BUILT__. <a class="dl" href="Macro_Dashboard.xlsx" download>Download as Excel</a></p>
+  <p>Treasury curve and spreads, dollar, gold, positioning and FX confluence. Latest data point: <strong>__ASOF__</strong>. Built __BUILT__. <a class="dl" href="Macro_Dashboard.xlsx" download>Download as Excel</a></p>
 </div></header>
 
 <div class="wrap">
   <nav>
-    <a href="#summary">Summary</a><a href="#signals">Signals</a><a href="#curve">Curve and spreads</a><a href="#levels">Yields and dollar</a><a href="#cot">Positioning</a><a href="#status">Data status</a>
+    <a href="#overview">Overview</a><a href="#markets">Markets</a><a href="#positioning">Positioning</a><a href="#fx">FX confluence</a><a href="#economy">Economy and news</a><a href="#status">Data status</a>
     <span class="themes" role="group" aria-label="Color theme">
       <button type="button" data-theme-btn="auto" aria-pressed="true">Auto</button>
       <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
@@ -148,48 +228,58 @@
     </span>
   </nav>
 
-  <section id="summary">
-    <h2>Summary</h2>
-    <p class="lede">Every headline reading in one place. Changes are in percentage points for yields and spreads, percent for DXY, contracts for COT. Z-score compares today with the past year.</p>
-    __SUMMARY__
-  </section>
-
-  <section id="signals">
-    <h2>Cross-indicator signals</h2>
-    <p class="lede">Rules in playbook.json that combine two or more readings. Only the ones that are true right now are listed.</p>
+  <section id="overview">
+    <h2>Overview</h2>
+    <p class="lede">Daily moves for the main markets, plus any cross-indicator signals that are true right now.</p>
+    <div class="tiles">__TILES__</div>
+    <h3 class="sub">Active signals</h3>
     __SIGNALS__
   </section>
 
-  <section id="curve">
-    <h2>Yield curve and spreads</h2>
-    <p class="lede">Spreads are long yield minus short yield, in percentage points (pp). Negative means inverted.</p>
-    <div class="grid">__CARDS_SPREADS__</div>
-    <div class="charts">
-      <div class="chartbox"><h4>Yield curve: now vs 1 month vs 1 year ago (%)</h4><div class="legend" data-for="curve"></div><div class="cv" id="ch-curve"></div></div>
-      <div class="chartbox"><h4>Spreads, last 252 trading days (pp)</h4><div class="legend" data-for="spreads"></div><div class="cv" id="ch-spreads"></div></div>
+  <section id="markets">
+    <h2>Markets</h2>
+    <p class="lede">Click rows on the left to plot them. You can overlay up to four from the same group (spreads, yields, DXY or gold). The panel under the chart explains the row you clicked last. Changes: spreads and yields in percentage points, DXY and gold in percent. Z compares today with the past 252 trading days.</p>
+    <div class="term">
+      <div class="box"><div class="scroll" style="max-height:640px;overflow:auto">__WATCHLIST__</div></div>
+      <div class="box">
+        <div class="chead"><h4 id="ctitle">Historical</h4>
+          <div class="ranges" id="ranges" role="group" aria-label="Date range"></div></div>
+        <div class="chips" id="chips"></div>
+        <div class="cv" id="ch-main"></div>
+        <div class="reading" id="reading"></div>
+      </div>
     </div>
+    <h3 class="sub">Yield spreads matrix</h3>
+    <p class="lede small">US Treasury spreads in basis points (long yield minus short yield) now and as they stood 1 day to 1 year ago. Rose shading marks inverted (negative) spreads, teal marks positive ones; darker means larger.</p>
+    <div class="box">__MATRIX__</div>
   </section>
 
-  <section id="levels">
-    <h2>Yields, real yield and the dollar</h2>
-    <div class="grid">__CARDS_LEVELS__</div>
-    <div class="charts">
-      <div class="chartbox"><h4>10Y real yield (%)</h4><div class="cv" id="ch-real"></div></div>
-      <div class="chartbox"><h4>US Dollar Index (DXY)</h4><div class="cv" id="ch-dxy"></div></div>
-    </div>
-  </section>
-
-  <section id="cot">
+  <section id="positioning">
     <h2>Positioning (CFTC Commitments of Traders)</h2>
-    <p class="lede">Reports describe Tuesday positions and are published on Friday. The two series use different trader groups, so compare each with its own history, not with each other.</p>
-    <div class="grid">__CARDS_COT__</div>
+    <p class="lede">CFTC Legacy Futures Only report, Non-Commercial (speculator) group, for COMEX Gold and the ICE US Dollar Index. Reports describe Tuesday positions and are published Friday. Price is the Friday close of the same week.</p>
+    <div class="grid">__COT_CARDS__</div>
     <div class="charts">
-      <div class="chartbox"><h4>COT Index, last 52 reports (0 = most short, 100 = most long)</h4><div class="legend" data-for="cot"></div><div class="cv" id="ch-cot"></div></div>
-      <div class="chartbox"><h4>Speculator net as % of open interest, last 52 reports</h4><div class="legend" data-for="cotoi"></div><div class="cv" id="ch-cotoi"></div></div>
-      <div class="chartbox"><h4>Weekly price change at Friday close, last 52 weeks (%)</h4><div class="legend" data-for="cotpx"></div><div class="cv" id="ch-cotpx"></div></div>
+      <div class="box chartbox"><h4>COT Index, last 52 reports (0 = most short, 100 = most long)</h4><div class="legend" data-for="cot"></div><div class="cv sm" id="ch-cot"></div></div>
+      <div class="box chartbox"><h4>Speculator net as % of open interest</h4><div class="legend" data-for="cotoi"></div><div class="cv sm" id="ch-cotoi"></div></div>
+      <div class="box chartbox"><h4>Weekly price change at Friday close (%)</h4><div class="legend" data-for="cotpx"></div><div class="cv sm" id="ch-cotpx"></div></div>
     </div>
-    <h3 class="subhead">Weekly detail, last 52 reports</h3>
+    <h3 class="sub">Weekly detail, last 52 reports</h3>
     <div class="stack">__COT_TABLES__</div>
+  </section>
+
+  <section id="fx">
+    <h2>FX confluence</h2>
+    <p class="lede">Spot FX pairs with a confluence score that combines momentum, RSI, trend and statistical signals. Updated __FXUPD__.</p>
+    __FX_CARDS__
+    __CONFLUENCE__
+  </section>
+
+  <section id="economy">
+    <h2>Economy and news</h2>
+    <p class="lede">Latest readings of key economic indicators, and market headlines.</p>
+    __ECON__
+    <h3 class="sub">Headlines</h3>
+    __NEWS__
   </section>
 
   <section id="status">
@@ -199,17 +289,16 @@
 
   <footer>
     <p>__DISCLAIMER__</p>
-    <p>Sources: FRED (Treasury yields, TIPS), CFTC public reporting API, Yahoo Finance or Stooq (DXY). Z-scores use 252 trading days for daily series and 52 weekly reports for COT.</p>
+    <p>Sources: FRED (Treasury yields, TIPS), CFTC public reporting API, Yahoo Finance (DXY, gold futures), plus the FX confluence feed. Z-scores use 252 trading days for daily series and 52 weekly reports for COT.</p>
   </footer>
 </div>
 
 <script>
-const CHARTS = __CHARTS__;
+const P = __PAYLOAD__;
 
-/* ---------- theme toggle (Auto follows the device) ---------- */
+/* theme toggle */
 (function () {
-  const root = document.documentElement;
-  const buttons = document.querySelectorAll("[data-theme-btn]");
+  const root = document.documentElement, buttons = document.querySelectorAll("[data-theme-btn]");
   const current = () => root.getAttribute("data-theme") || "auto";
   const paint = () => buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.themeBtn === current())));
   buttons.forEach(b => b.addEventListener("click", () => {
@@ -221,126 +310,180 @@ const CHARTS = __CHARTS__;
   paint();
 })();
 
-/* ---------- highlight the nav tab for the section being read ---------- */
+/* nav highlight for the section being read */
 (function () {
   const links = [...document.querySelectorAll("nav a[href^='#']")];
   const secs = links.map(a => document.querySelector(a.getAttribute("href")));
-  const set = i => links.forEach((a, k) => { a.classList.toggle("active", k === i); if (k === i) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current"); });
+  const set = i => links.forEach((a, k) => { a.classList.toggle("active", k === i); k === i ? a.setAttribute("aria-current", "true") : a.removeAttribute("aria-current"); });
   let ticking = false;
   function update() {
-    ticking = false;
-    const line = 90; // px below the top of the window
-    let idx = 0;
-    secs.forEach((s, i) => { if (s && s.getBoundingClientRect().top <= line) idx = i; });
+    ticking = false; let idx = 0;
+    secs.forEach((s, i) => { if (s && s.getBoundingClientRect().top <= 90) idx = i; });
     if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) idx = secs.length - 1;
     set(idx);
   }
   window.addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
-  window.addEventListener("resize", update);
-  update();
+  window.addEventListener("resize", update); update();
 })();
 
-/* ---------- small SVG line chart (no external libraries). Colors come from CSS variables, so theme changes need no redraw. ---------- */
-(function () {
-  const NS = "http://www.w3.org/2000/svg";
-  const el = (name, attrs, parent) => { const n = document.createElementNS(NS, name); for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; };
-  const fmt = (v, d) => (v === null || v === undefined) ? "n/a" : Number(v).toFixed(d);
-
-  function niceTicks(min, max, n) {
-    if (min === max) { min -= 1; max += 1; }
-    const span = max - min, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
-    const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) || 10 * mag;
-    const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step, out = [];
-    for (let v = lo; v <= hi + step / 2; v += step) out.push(+v.toFixed(10));
-    return out;
+/* SVG line chart, no libraries. spec: {labels, sets:[{name,data,color}], dec, unit, yMin, yMax, shortX, endLabels} */
+const NS = "http://www.w3.org/2000/svg";
+const el = (n, a, p) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+const f = (v, d) => (v === null || v === undefined) ? "n/a" : Number(v).toFixed(d);
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const mon = s => { const [y, m, d] = s.split("-"); return MON[+m - 1] + " " + y.slice(2); };
+function niceTicks(min, max, n) {
+  if (min === max) { min -= 1; max += 1; }
+  const raw = (max - min) / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) || 10 * mag;
+  const lo = Math.floor(min / step) * step, out = [];
+  for (let v = lo; v <= max + step; v += step) { out.push(+v.toFixed(10)); if (v >= max) break; }
+  return out;
+}
+function draw(host, spec) {
+  host.innerHTML = "";
+  const W = host.clientWidth || 320, H = host.clientHeight || 240;
+  const m = { l: 46, r: spec.endLabels ? 62 : 12, t: 10, b: 24 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b, n = spec.labels.length;
+  const all = spec.sets.flatMap(s => s.data).filter(v => v !== null && v !== undefined);
+  if (!all.length || n < 2) { host.textContent = "No data for this range."; host.style.color = "var(--muted)"; return; }
+  let lo = spec.yMin !== undefined ? spec.yMin : Math.min(...all), hi = spec.yMax !== undefined ? spec.yMax : Math.max(...all);
+  if (spec.yMin === undefined) { const pad = (hi - lo) * 0.08 || 0.5; lo -= pad; hi += pad; }
+  const ticks = niceTicks(lo, hi, 5); lo = Math.min(lo, ticks[0]); hi = Math.max(hi, ticks[ticks.length - 1]);
+  const x = i => m.l + (i * iw) / (n - 1), y = v => m.t + ih - ((v - lo) / (hi - lo)) * ih;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": spec.title || "chart" }, host);
+  ticks.forEach(t => {
+    el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: "var(--line)" }, svg);
+    el("text", { x: m.l - 8, y: y(t) + 4, "text-anchor": "end", fill: "var(--muted)", "font-size": 11 }, svg).textContent = f(t, spec.axDec !== undefined ? spec.axDec : 1);
+  });
+  if (lo < 0 && hi > 0) el("line", { x1: m.l, x2: W - m.r, y1: y(0), y2: y(0), stroke: "var(--muted)", "stroke-dasharray": "4 4" }, svg);
+  const maxLabels = Math.max(2, Math.floor(iw / 70)), every = Math.max(1, Math.ceil(n / maxLabels));
+  let lastX = -99;
+  spec.labels.forEach((lab, i) => {
+    if (i % every !== 0) return;
+    if (x(i) - lastX < 60) return; lastX = x(i);
+    el("text", { x: x(i), y: H - 6, "text-anchor": i === 0 ? "start" : "middle", fill: "var(--muted)", "font-size": 11 }, svg).textContent = (spec.shortX || (s => s))(lab);
+  });
+  spec.sets.forEach(s => {
+    let d = "", pen = false;
+    s.data.forEach((v, i) => { if (v === null || v === undefined) { pen = false; return; } d += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1); pen = true; });
+    el("path", { d, fill: "none", stroke: s.color, "stroke-width": 1.8, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+  });
+  if (spec.endLabels) {
+    const ends = spec.sets.map(s => { let i = s.data.length - 1; while (i >= 0 && (s.data[i] === null || s.data[i] === undefined)) i--; return i < 0 ? null : { s, v: s.data[i], y: y(s.data[i]) }; }).filter(Boolean).sort((a, b) => a.y - b.y);
+    for (let k = 1; k < ends.length; k++) if (ends[k].y - ends[k - 1].y < 18) ends[k].y = ends[k - 1].y + 18;
+    ends.forEach(e => {
+      el("rect", { x: W - m.r + 4, y: e.y - 9, width: m.r - 4, height: 18, rx: 4, fill: e.s.color }, svg);
+      const t = el("text", { x: W - m.r + 4 + (m.r - 4) / 2, y: e.y + 4, "text-anchor": "middle", fill: "#fff", "font-size": 11, "font-weight": 600 }, svg); t.textContent = f(e.v, spec.dec);
+    });
   }
-
-  function draw(host, spec) {
-    host.innerHTML = "";
-    const W = host.clientWidth || 320, H = host.clientHeight || 240;
-    const m = { l: 44, r: 12, t: 8, b: 24 };
-    const iw = W - m.l - m.r, ih = H - m.t - m.b, n = spec.labels.length;
-    const all = spec.sets.flatMap(s => s.data).filter(v => v !== null && v !== undefined);
-    if (!all.length || n < 2) { host.textContent = "No data yet."; return; }
-    let lo = spec.yMin !== undefined ? spec.yMin : Math.min(...all), hi = spec.yMax !== undefined ? spec.yMax : Math.max(...all);
-    if (spec.yMin === undefined) { const pad = (hi - lo) * 0.08 || 0.5; lo -= pad; hi += pad; }
-    const ticks = niceTicks(lo, hi, 4); lo = Math.min(lo, ticks[0]); hi = Math.max(hi, ticks[ticks.length - 1]);
-    const x = i => m.l + (n === 1 ? iw / 2 : (i * iw) / (n - 1)), y = v => m.t + ih - ((v - lo) / (hi - lo)) * ih;
-
-    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": spec.title || "chart" }, host);
-    ticks.forEach(t => {
-      el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: "var(--line)", "stroke-width": 1 }, svg);
-      const tx = el("text", { x: m.l - 8, y: y(t) + 4, "text-anchor": "end", fill: "var(--muted)", "font-size": 11 }, svg); tx.textContent = fmt(t, spec.yDec);
-    });
-    if (lo < 0 && hi > 0) el("line", { x1: m.l, x2: W - m.r, y1: y(0), y2: y(0), stroke: "var(--muted)", "stroke-width": 1, "stroke-dasharray": "4 4" }, svg);
-
-    const maxLabels = Math.max(2, Math.floor(iw / 78)), every = Math.max(1, Math.ceil(n / maxLabels));
-    spec.labels.forEach((lab, i) => {
-      if (!spec.allLabels) {
-        if (i % every !== 0 && i !== n - 1) return;
-        if (i === n - 1 && i % every !== 0 && (n - 1 - Math.floor((n - 1) / every) * every) < every * 0.6) return;
-      }
-      const t = el("text", { x: x(i), y: H - 6, "text-anchor": i === 0 ? "start" : i === n - 1 ? "end" : "middle", fill: "var(--muted)", "font-size": 11 }, svg);
-      t.textContent = spec.shortX ? spec.shortX(lab) : lab;
-    });
-
+  const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: "var(--muted)", opacity: 0 }, svg);
+  const dots = spec.sets.map(s => el("circle", { r: 4, fill: s.color, stroke: "var(--panel)", "stroke-width": 2, opacity: 0 }, svg));
+  const tip = document.createElement("div"); tip.className = "tip"; host.appendChild(tip);
+  const hit = el("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent" }, svg);
+  const hide = () => { cross.setAttribute("opacity", 0); dots.forEach(c => c.setAttribute("opacity", 0)); tip.style.display = "none"; };
+  const move = ev => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width);
+    const i = Math.max(0, Math.min(n - 1, Math.round(((px - m.l) / iw) * (n - 1))));
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("opacity", .5);
+    let h = `<b>${spec.labels[i]}</b>`;
     spec.sets.forEach((s, k) => {
-      let d = "", pen = false;
-      s.data.forEach((v, i) => { if (v === null || v === undefined) { pen = false; return; } d += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1); pen = true; });
-      el("path", { d, fill: "none", stroke: `var(--s${(k % 4) + 1})`, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
-      if (spec.markers) s.data.forEach((v, i) => { if (v !== null && v !== undefined) el("circle", { cx: x(i), cy: y(v), r: 3.5, fill: `var(--s${(k % 4) + 1})`, stroke: "var(--panel)", "stroke-width": 1.5 }, svg); });
+      const v = s.data[i];
+      if (v === null || v === undefined) { dots[k].setAttribute("opacity", 0); return; }
+      dots[k].setAttribute("cx", x(i)); dots[k].setAttribute("cy", y(v)); dots[k].setAttribute("opacity", 1);
+      h += `<span><i style="background:${s.color}"></i>${spec.sets.length > 1 ? s.name + ": " : ""}${f(v, spec.dec)}${spec.unit || ""}</span>`;
     });
-
-    /* hover: crosshair + tooltip */
-    const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: "var(--muted)", "stroke-width": 1, opacity: 0 }, svg);
-    const dots = spec.sets.map((s, k) => el("circle", { r: 4.5, fill: `var(--s${(k % 4) + 1})`, stroke: "var(--panel)", "stroke-width": 2, opacity: 0 }, svg));
-    const tip = document.createElement("div"); tip.className = "tip"; host.appendChild(tip);
-    const hit = el("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent" }, svg);
-    const hide = () => { cross.setAttribute("opacity", 0); dots.forEach(c => c.setAttribute("opacity", 0)); tip.style.display = "none"; };
-    const move = ev => {
-      const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width);
-      const i = Math.max(0, Math.min(n - 1, Math.round(((px - m.l) / iw) * (n - 1))));
-      cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("opacity", 0.5);
-      let html = `<b>${spec.labels[i]}</b>`;
-      spec.sets.forEach((s, k) => {
-        const v = s.data[i];
-        if (v === null || v === undefined) { dots[k].setAttribute("opacity", 0); return; }
-        dots[k].setAttribute("cx", x(i)); dots[k].setAttribute("cy", y(v)); dots[k].setAttribute("opacity", 1);
-        html += `<span><i style="background:var(--s${(k % 4) + 1})"></i>${spec.sets.length > 1 ? s.name + ": " : ""}${fmt(v, spec.tipDec !== undefined ? spec.tipDec : 2)}${spec.unit || ""}</span>`;
-      });
-      tip.innerHTML = html; tip.style.display = "block";
-      const tw = tip.offsetWidth, left = x(i) * (r.width / W) + 12;
-      tip.style.left = Math.min(left, r.width - tw - 4) + "px"; tip.style.top = "4px";
-      if (x(i) * (r.width / W) + 12 + tw > r.width) tip.style.left = Math.max(4, x(i) * (r.width / W) - tw - 12) + "px";
-    };
-    hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move); hit.addEventListener("pointerleave", hide);
-  }
-
-  function legend(key, sets) {
-    const box = document.querySelector(`.legend[data-for="${key}"]`); if (!box) return;
-    box.innerHTML = sets.length < 2 ? "" : sets.map((s, k) => `<span><i style="border-color:var(--s${(k % 4) + 1})"></i>${s.name}</span>`).join("");
-  }
-
-  const short = s => s.slice(2);               /* 2026-10-09 -> 26-10-09 */
-  const mon = s => { const [y, mo] = s.split("-"); return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo - 1] + " " + y.slice(2); };
-  const specs = {
-    curve:   c => ({ title: "Yield curve", labels: c.labels, sets: c.sets, markers: true, allLabels: true, yDec: 1, tipDec: 2, unit: "%" }),
-    spreads: c => ({ title: "Spreads", labels: c.labels, sets: c.sets, yDec: 1, tipDec: 2, unit: " pp", shortX: mon }),
-    real:    c => ({ title: "10Y real yield", labels: c.labels, sets: [{ name: "10Y real yield", data: c.data }], yDec: 1, tipDec: 2, unit: "%", shortX: mon }),
-    dxy:     c => ({ title: "DXY", labels: c.labels, sets: [{ name: "DXY", data: c.data }], yDec: 0, tipDec: 2, shortX: mon }),
-    cotoi:   c => ({ title: "Net % of open interest", labels: c.labels, sets: c.sets, yDec: 0, tipDec: 1, unit: "%", shortX: mon }),
-    cotpx:   c => ({ title: "Weekly price change", labels: c.labels, sets: c.sets, yDec: 1, tipDec: 2, unit: "%", shortX: mon }),
-    cot:     c => ({ title: "COT Index", labels: c.labels, sets: c.sets, yMin: 0, yMax: 100, yDec: 0, tipDec: 1, shortX: mon }),
+    tip.innerHTML = h; tip.style.display = "block";
+    const sc = r.width / W, tw = tip.offsetWidth; let left = x(i) * sc + 12;
+    if (left + tw > r.width) left = Math.max(4, x(i) * sc - tw - 12);
+    tip.style.left = left + "px"; tip.style.top = "4px";
   };
+  hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move); hit.addEventListener("pointerleave", hide);
+}
+const colorOf = k => `var(--s${(k % 4) + 1})`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+/* Markets: watchlist + historical chart */
+(function () {
+  const RANGES = ["MTD", "1M", "QTD", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "10Y"];
+  let range = "1Y", sel = P.default.slice(), focus = sel[sel.length - 1] || null;
+  const rows = [...document.querySelectorAll("tr.row")];
+  const host = document.getElementById("ch-main");
+  const rbox = document.getElementById("ranges");
+  RANGES.forEach(r => { const b = document.createElement("button"); b.type = "button"; b.textContent = r; b.dataset.r = r; b.addEventListener("click", () => { range = r; paint(); }); rbox.appendChild(b); });
+
+  function startFor(last) {
+    const d = new Date(last + "T00:00:00Z"), y = d.getUTCFullYear(), mo = d.getUTCMonth();
+    const iso = dt => dt.toISOString().slice(0, 10);
+    if (range === "MTD") return iso(new Date(Date.UTC(y, mo, 1)));
+    if (range === "QTD") return iso(new Date(Date.UTC(y, Math.floor(mo / 3) * 3, 1)));
+    if (range === "YTD") return iso(new Date(Date.UTC(y, 0, 1)));
+    const back = { "1M": [0, 1], "3M": [0, 3], "6M": [0, 6], "1Y": [1, 0], "3Y": [3, 0], "5Y": [5, 0], "10Y": [10, 0] }[range];
+    return iso(new Date(Date.UTC(y - back[0], mo - back[1], d.getUTCDate())));
+  }
+  function toggle(id) {
+    const row = P.rows[id]; if (!row) return;
+    if (!row.family) { document.getElementById("positioning").scrollIntoView(); return; }
+    const curFam = sel.length ? P.rows[sel[0]].family : null;
+    if (curFam !== row.family) { sel = [id]; }
+    else if (sel.includes(id)) { if (sel.length > 1) sel = sel.filter(x => x !== id); }
+    else { sel.push(id); if (sel.length > 4) sel.shift(); }
+    focus = id; paint();
+  }
+  rows.forEach(r => {
+    r.addEventListener("click", () => toggle(r.dataset.id));
+    r.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(r.dataset.id); } });
+  });
+
+  function paint() {
+    rbox.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.r === range)));
+    const fam = sel.length ? P.rows[sel[0]].family : null;
+    rows.forEach(r => {
+      const k = sel.indexOf(r.dataset.id);
+      r.classList.toggle("on", k >= 0);
+      r.classList.toggle("dim", !!r.dataset.family && !!fam && r.dataset.family !== fam);
+      if (k >= 0) r.style.setProperty("--c", colorOf(k)); else r.style.removeProperty("--c");
+      r.setAttribute("aria-pressed", String(k >= 0));
+    });
+    const chips = document.getElementById("chips"); chips.innerHTML = "";
+    sel.forEach((id, k) => {
+      const c = document.createElement("span"); c.className = "chip";
+      c.innerHTML = `<i style="background:${colorOf(k)}"></i>${esc(P.rows[id].label)}`;
+      if (sel.length > 1) { const x = document.createElement("button"); x.type = "button"; x.setAttribute("aria-label", "Remove " + P.rows[id].label); x.textContent = "×"; x.addEventListener("click", () => { sel = sel.filter(s => s !== id); if (focus === id) focus = sel[sel.length - 1]; paint(); }); c.appendChild(x); }
+      chips.appendChild(c);
+    });
+    if (fam && P.families[fam]) {
+      const F = P.families[fam], last = F.dates[F.dates.length - 1], st = startFor(last);
+      let i0 = F.dates.findIndex(d => d >= st); if (i0 < 0) i0 = 0;
+      const labels = F.dates.slice(i0);
+      const sets = sel.map((id, k) => ({ name: P.rows[id].label, data: F.series[id].slice(i0), color: colorOf(k) }));
+      draw(host, { labels, sets, dec: P.dec[fam], axDec: fam === "spreads" || fam === "yields" ? 2 : 1, unit: P.unit[fam], endLabels: true, shortX: labels.length > 400 ? mon : (s => s.slice(5)), title: "Historical" });
+    }
+    const info = focus && P.rows[focus] && P.rows[focus].info, box = document.getElementById("reading");
+    if (info) {
+      const b = info.band || {};
+      box.innerHTML = `<h5>${esc(info.title)} ${b.label ? `<span class="badge${/invert|extreme|very|high/i.test(b.label) ? " warn" : ""}">${esc(b.label)}</span>` : ""}</h5>` +
+        (b.meaning ? `<p>${esc(b.meaning)}</p>` : "") + (b.so_what ? `<p class="so"><b>So what:</b> ${esc(b.so_what)}</p>` : "") +
+        (info.dyn && info.dyn.label ? `<p><b>Last 20 days:</b> <span class="badge">${esc(info.dyn.label)}</span> ${esc(info.dyn.meaning)} <span class="so">${esc(info.dyn.so_what)}</span></p>` : "") +
+        `<details><summary>What is this?</summary><p>${esc(info.what)}</p></details>`;
+    }
+  }
+  paint();
+  let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(paint, 120); });
+})();
+
+/* Positioning charts */
+(function () {
+  const defs = { cot: { yMin: 0, yMax: 100, dec: 1, axDec: 0 }, cotoi: { dec: 1, axDec: 0, unit: "%" }, cotpx: { dec: 2, axDec: 1, unit: "%" } };
   function render() {
-    Object.keys(specs).forEach(key => {
-      const host = document.getElementById("ch-" + key);
-      if (!host) return;
-      if (!CHARTS[key]) { host.closest(".chartbox").style.display = "none"; return; }
-      const spec = specs[key](CHARTS[key]);
-      legend(key, spec.sets);
-      draw(host, spec);
+    Object.keys(defs).forEach(key => {
+      const host = document.getElementById("ch-" + key); if (!host) return;
+      const c = P.cot[key];
+      if (!c) { host.closest(".chartbox").style.display = "none"; return; }
+      const sets = c.sets.map((s, k) => ({ name: s.name, data: s.data, color: colorOf(k) }));
+      const lg = document.querySelector(`.legend[data-for="${key}"]`);
+      if (lg) lg.innerHTML = sets.length < 2 ? "" : sets.map(s => `<span><i style="border-color:${s.color}"></i>${esc(s.name)}</span>`).join("");
+      draw(host, Object.assign({ labels: c.labels, sets, shortX: mon, title: key }, defs[key]));
     });
   }
   render();

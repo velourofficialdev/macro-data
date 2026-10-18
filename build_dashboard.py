@@ -25,14 +25,23 @@ COT_WINDOW = 52
 
 YIELD_CODES = ["DGS3MO", "DGS2", "DGS5", "DGS10", "DGS20", "DGS30", "DFII10"]
 TENORS = [("3M", "DGS3MO"), ("2Y", "DGS2"), ("5Y", "DGS5"), ("10Y", "DGS10"), ("20Y", "DGS20"), ("30Y", "DGS30")]
-SPREADS = {  # name: (long leg, short leg)
+SPREADS = {  # name: (long leg, short leg); order = order on the page and in the matrix
     "10y-2y": ("DGS10", "DGS2"),
     "10y-3m": ("DGS10", "DGS3MO"),
     "20y-10y": ("DGS20", "DGS10"),
     "30y-5y": ("DGS30", "DGS5"),
+    "30y-10y": ("DGS30", "DGS10"),
+    "30y-2y": ("DGS30", "DGS2"),
+    "30y-3m": ("DGS30", "DGS3MO"),
+    "10y-5y": ("DGS10", "DGS5"),
+    "5y-2y": ("DGS5", "DGS2"),
+    "5y-3m": ("DGS5", "DGS3MO"),
+    "2y-3m": ("DGS2", "DGS3MO"),
 }
+MATRIX_ORDER = ["30y-10y", "30y-5y", "30y-2y", "30y-3m", "20y-10y", "10y-5y", "10y-2y", "10y-3m", "5y-2y", "5y-3m", "2y-3m"]
+YIELD_LABELS = {"DGS3MO": "3M", "DGS2": "2Y", "DGS5": "5Y", "DGS10": "10Y", "DGS20": "20Y", "DGS30": "30Y", "DFII10": "10Y real"}
 COT_FILES = {
-    "gold": ["COT_GOLD.csv", "CFTC_Gold_52_Weeks.csv"],
+    "gold": ["COT_GOLD_LEGACY.csv"],
     "usd_index": ["COT_USD_INDEX.csv"],
 }
 
@@ -176,8 +185,6 @@ def load_everything(data_dir: Path) -> dict:
     yields = {c: s for c in YIELD_CODES if (s := read_series(data_dir / f"{c}.csv", "date", c)) is not None}
 
     dxy = read_series(data_dir / "DXY.csv", "Date", "DXY")
-    if dxy is None:
-        dxy = read_series(data_dir / "DXY_52_Weeks.csv", "Date", "DXY")
 
     cot = {k: load_cot(data_dir, v) for k, v in COT_FILES.items()}
     gold_px = read_series(data_dir / "GOLD.csv", "Date", "Gold")
@@ -268,6 +275,11 @@ def fmt(v, nd=2, sign=False):
     return f"{v:+,.{nd}f}" if sign else f"{v:,.{nd}f}"
 
 
+def spread_title(name: str) -> str:
+    lg, sh = name.upper().split("-")
+    return f"{lg} vs {sh}"
+
+
 def esc(s):
     return html.escape(str(s))
 
@@ -316,180 +328,298 @@ def card(title, big, sub, band, extra_rows, what, dyn=None, gauge_html=""):
     )
 
 
-def build_cards(playbook: dict, metrics: dict) -> dict[str, str]:
-    out: dict[str, list[str]] = {"spreads": [], "levels": [], "cot": []}
+def spread_spec(playbook: dict, name: str) -> dict:
+    spec = playbook["spreads"].get(name)
+    if spec:
+        return spec
+    d = playbook["spread_default"]
+    return {"title": spread_title(name).replace(" vs ", " - "), "what": d["what"], "bands": d["bands"]}
 
-    for name, spec in playbook["spreads"].items():
-        m = metrics.get(f"S:{name}")
-        if not m:
-            out["spreads"].append(
-                f'<article class="card muted"><h3>{esc(spec["title"])}</h3>'
-                f'<p>Waiting for data. This spread appears after the first successful data update.</p></article>')
+
+def band_info(band: dict | None) -> dict:
+    if not band:
+        return {"label": "", "meaning": "", "so_what": ""}
+    return {"label": band["label"], "meaning": band.get("meaning", ""), "so_what": band.get("so_what", "")}
+
+
+def delta(s: pd.Series, n: int, pct: bool = False):
+    if len(s) <= n:
+        return None
+    return num((s.iloc[-1] / s.iloc[-1 - n] - 1) * 100) if pct else num(s.iloc[-1] - s.iloc[-1 - n])
+
+
+def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict], dict]:
+    """Rows for the watchlist (left panel) and the daily series for the chart (right panel)."""
+    metrics = computed["metrics"]
+    rows: list[dict] = []
+    fam: dict[str, dict] = {}
+
+    def family(name: str, series: dict[str, pd.Series], dec: int):
+        if not series:
+            return
+        frame = pd.concat(series, axis=1).sort_index()
+        fam[name] = {"dates": [d.strftime("%Y-%m-%d") for d in frame.index],
+                     "series": {k: [r(v, dec) for v in frame[k]] for k in frame.columns}}
+
+    # spreads
+    ss = computed["spread_series"]
+    for name in SPREADS:
+        s = ss.get(name)
+        if s is None:
             continue
-        band = pick_band(spec["bands"], m["value"])
+        m = metrics[f"S:{name}"]
+        spec = spread_spec(playbook, name)
         dyn = playbook["dynamics"]["types"].get(m.get("dynamics") or "")
-        zb = pick_band(playbook["zscore"]["bands"], m["z"])
-        out["spreads"].append(card(
-            spec["title"], f'{fmt(m["value"], 2)} pp', f' as of {m["date"]}', band,
-            [("5D change", f'{fmt(m["chg5"], 2, True)} pp'), ("20D change", f'{fmt(m["chg20"], 2, True)} pp'),
-             ("Z-score (1y)", f'{fmt(m["z"], 2, True)}' + (f' · {zb["label"]}' if zb else ""))],
-            spec["what"], dyn))
+        rows.append({"id": f"S:{name}", "group": "Spreads", "family": "spreads", "label": spread_title(name),
+                     "latest": fmt(s.iloc[-1], 2) + " pp", "d1": fmt(delta(s, 1), 2, True), "d5": fmt(delta(s, 5), 2, True),
+                     "d20": fmt(delta(s, 20), 2, True), "z": fmt(m["z"], 2, True), "date": m["date"],
+                     "info": {"title": spec["title"] + " spread", "what": spec["what"], "band": band_info(pick_band(spec["bands"], m["value"])),
+                              "dyn": band_info(dyn) if dyn else None, "z": m["z"]}})
+    family("spreads", {f"S:{k}": v for k, v in ss.items()}, 3)
 
-    ry = metrics.get("Y:DFII10")
-    if ry:
-        spec = playbook["real_yield"]
-        band = pick_band(spec["bands"], ry["z"])
-        out["levels"].append(card(
-            spec["title"], f'{fmt(ry["value"], 2)}%', f' as of {ry["date"]}', band,
-            [("5D change", f'{fmt(ry["chg5"], 2, True)} pp'), ("20D change", f'{fmt(ry["chg20"], 2, True)} pp'),
-             ("Z-score (1y)", fmt(ry["z"], 2, True))], spec["what"]))
-    dx = metrics.get("DXY")
-    if dx:
-        spec = playbook["dxy"]
-        band = pick_band(spec["bands"], dx["z"])
-        out["levels"].append(card(
-            spec["title"], fmt(dx["value"], 2), f' as of {dx["date"]}', band,
-            [("5D change", f'{fmt(dx["pct5"], 2, True)}%'), ("20D change", f'{fmt(dx["pct20"], 2, True)}%'),
-             ("Z-score (1y)", fmt(dx["z"], 2, True))], spec["what"]))
-    for code, label in (("DGS2", "US 2Y yield"), ("DGS10", "US 10Y yield")):
-        m = metrics.get(f"Y:{code}")
-        if m:
-            zb = pick_band(playbook["zscore"]["bands"], m["z"])
-            out["levels"].append(card(
-                label, f'{fmt(m["value"], 2)}%', f' as of {m["date"]}',
-                {"label": zb["label"], "meaning": f'{label} is {zb["label"].lower()} (z-score {fmt(m["z"], 2, True)}).',
-                 "so_what": "Use the level together with the spreads above: a rising yield with a widening spread reads differently from a rising yield with a flat curve."} if zb else None,
-                [("5D change", f'{fmt(m["chg5"], 2, True)} pp'), ("20D change", f'{fmt(m["chg20"], 2, True)} pp')],
-                f"{label} from FRED ({code})."))
+    # yields
+    ys = {}
+    for code in YIELD_CODES:
+        s = data["yields"].get(code)
+        if s is None:
+            continue
+        m = metrics[f"Y:{code}"]
+        if code == "DFII10":
+            band = pick_band(playbook["real_yield"]["bands"], m["z"]); what = playbook["real_yield"].get("what", "")
+        else:
+            band = pick_band(playbook["zscore"]["bands"], m["z"]); what = "US Treasury constant-maturity yield from FRED."
+        rows.append({"id": f"Y:{code}", "group": "Yields", "family": "yields", "label": YIELD_LABELS[code],
+                     "latest": fmt(s.iloc[-1], 2) + "%", "d1": fmt(delta(s, 1), 2, True), "d5": fmt(delta(s, 5), 2, True),
+                     "d20": fmt(delta(s, 20), 2, True), "z": fmt(m["z"], 2, True), "date": m["date"],
+                     "info": {"title": YIELD_LABELS[code] + (" yield" if code != "DFII10" else " Treasury yield (TIPS)"), "what": what,
+                              "band": band_info(band), "dyn": None, "z": m["z"]}})
+        ys[f"Y:{code}"] = s
+    family("yields", ys, 3)
 
-    for key in ("usd_index", "gold"):
+    # dollar and gold
+    for key, series, label, dec, spec in (("dxy", data["dxy"], "DXY", 2, playbook["dxy"]), ("gold", data.get("gold_px"), "Gold futures", 2, None)):
+        if series is None or len(series) < 30:
+            continue
+        z = roll_z(series, DAILY_WINDOW).iloc[-1]
+        band = pick_band((spec or playbook["zscore"])["bands"], num(z))
+        rows.append({"id": f"P:{key}", "group": "Dollar and gold", "family": key, "label": label,
+                     "latest": fmt(series.iloc[-1], dec), "d1": fmt(delta(series, 1, True), 2, True) + "%",
+                     "d5": fmt(delta(series, 5, True), 2, True) + "%", "d20": fmt(delta(series, 20, True), 2, True) + "%",
+                     "z": fmt(num(z), 2, True), "date": series.index[-1].strftime("%Y-%m-%d"),
+                     "info": {"title": label, "what": (spec or {}).get("what", "COMEX gold futures (GC=F, continuous front month) from Yahoo Finance."),
+                              "band": band_info(band), "dyn": None, "z": num(z)}})
+        family(key, {f"P:{key}": series}, dec)
+
+    # positioning rows (link to the Positioning section)
+    for key, title in (("gold", "Gold COT"), ("usd_index", "USD Index COT")):
+        m = metrics.get(f"COT:{key}")
+        if not m:
+            continue
+        spec = playbook["cot"][key]
+        rows.append({"id": f"C:{key}", "group": "Positioning", "family": None, "label": title,
+                     "latest": fmt(m["net"], 0, True), "d1": "", "d5": "wk " + fmt(m["wchg"], 0, True),
+                     "d20": "idx " + fmt(m["index"], 0), "z": fmt(m["z"], 2, True), "date": m["date"],
+                     "info": {"title": spec["title"], "what": spec["what"], "band": band_info(pick_band(spec["bands"], m["index"])),
+                              "dyn": None, "z": m["z"]}})
+    return rows, fam
+
+
+def build_watch_html(rows: list[dict]) -> str:
+    out = ['<div class="scroll"><table class="watch"><thead><tr><th>Name</th><th>Latest</th><th>1D</th><th>5D</th><th>20D</th><th>Z</th></tr></thead>']
+    group = None
+    for r_ in rows:
+        if r_["group"] != group:
+            group = r_["group"]
+            out.append(f'<tbody><tr class="grp"><th colspan="6">{esc(group)}</th></tr>')
+        cls = "sel" if r_["family"] is None else ""
+        out.append(
+            f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="{esc(r_["family"] or "")}">'
+            f'<th scope="row"><span class="pick" aria-hidden="true"></span>{esc(r_["label"])}</th>'
+            f'<td>{esc(r_["latest"])}</td><td class="{chg_class(r_["d1"])}">{esc(r_["d1"])}</td>'
+            f'<td class="{chg_class(r_["d5"])}">{esc(r_["d5"])}</td><td class="{chg_class(r_["d20"])}">{esc(r_["d20"])}</td>'
+            f'<td>{esc(r_["z"])}</td></tr>')
+        nxt = rows[rows.index(r_) + 1]["group"] if rows.index(r_) + 1 < len(rows) else None
+        if nxt != group:
+            out.append("</tbody>")
+    out.append("</table></div>")
+    return "".join(out)
+
+
+def chg_class(text: str) -> str:
+    t = str(text).strip()
+    if t.startswith("+") or t.startswith("wk +"):
+        return "up"
+    if t.startswith("-") or t.startswith("wk -"):
+        return "down"
+    return ""
+
+
+def build_matrix(data: dict, computed: dict) -> str:
+    """US spreads in basis points across time horizons, with blue/rose heat shading (picture: 'Yield Spreads Matrix')."""
+    ss = computed["spread_series"]
+    horizons = [("Now", 0), ("1D", 1), ("1W", 5), ("1M", 21), ("3M", 63), ("6M", 126), ("1Y", 252)]
+    table = []
+    for name in MATRIX_ORDER:
+        s = ss.get(name)
+        if s is None:
+            continue
+        vals = [num(s.iloc[-1 - n] * 100) if len(s) > n else None for _, n in horizons]
+        z = computed["metrics"][f"S:{name}"]["z"]
+        table.append((name, vals, z))
+    if not table:
+        return ""
+    peak = max((abs(v) for _, vals, _ in table for v in vals if v is not None), default=1) or 1
+    head = "".join(f"<th>{h}{' ago' if h not in ('Now',) else ''}</th>" for h, _ in horizons)
+    body = []
+    for name, vals, z in table:
+        cells = ""
+        for v in vals:
+            if v is None:
+                cells += '<td class="na">-</td>'
+                continue
+            i = min(100, round(100 * (abs(v) / peak) ** 0.7))
+            tone = "neg" if v < 0 else "pos"
+            cells += f'<td class="heat {tone}" style="--i:{i}">{v:,.1f}<small>bp</small></td>'
+        body.append(f'<tr><th scope="row">{esc(spread_title(name))}</th>{cells}<td class="zc">{esc(fmt(z, 2, True))}</td></tr>')
+    return ('<div class="scroll"><table class="matrix"><thead><tr><th>Spread</th>' + head + '<th>Z (1y)</th></tr></thead><tbody>'
+            + "".join(body) + "</tbody></table></div>")
+
+
+# ----------------------------------------------------------------- FX Macro Confluence (merged from the user's own dashboard)
+def spark(vals: list, up: bool | None) -> str:
+    v = [x for x in (vals or []) if isinstance(x, (int, float))]
+    if len(v) < 2:
+        return ""
+    lo, hi = min(v), max(v)
+    span = (hi - lo) or 1
+    pts = " ".join(f"{i * 100 / (len(v) - 1):.1f},{26 - (x - lo) * 24 / span:.1f}" for i, x in enumerate(v))
+    cls = "flat" if up is None else ("up" if up else "down")
+    return f'<svg class="spark {cls}" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><polyline points="{pts}" fill="none" stroke="currentColor" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>'
+
+
+def signed(v, nd=2, suffix=""):
+    return "n/a" if v is None else f"{fmt(v, nd, True)}{suffix}"
+
+
+def tile(label, display, chg_pct, vals, sub=""):
+    up = None if chg_pct is None else chg_pct >= 0
+    cls = "" if chg_pct is None else ("up" if chg_pct >= 0 else "down")
+    return (f'<div class="tile"><div class="tl">{esc(label)}</div><div class="tv">{esc(display)}</div>'
+            f'<div class="tc {cls}">{esc(signed(chg_pct, 2, "%"))}{(" · " + esc(sub)) if sub else ""}</div>{spark(vals, up)}</div>')
+
+
+def gauge_ring(score: float, cls: str) -> str:
+    rad = 24; c = 2 * math.pi * rad; off = c * (1 - max(0, min(100, score)) / 100)
+    return (f'<div class="ring {cls}"><svg width="60" height="60" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="{rad}" class="rt"/>'
+            f'<circle cx="28" cy="28" r="{rad}" class="rf" stroke-dasharray="{c:.1f}" stroke-dashoffset="{off:.1f}"/></svg>'
+            f'<div class="rn"><b>{score:.0f}</b><small>/100</small></div></div>')
+
+
+def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
+    empty = '<p class="muted-text">No FX feed saved yet. It appears after the first successful update.</p>'
+    out = {"tiles": "", "fx": empty, "conf": empty, "econ": empty, "news": empty, "upd": "n/a"}
+    tiles = []
+    # our own, correctly labelled DXY and gold futures
+    for series, label, dec in ((data.get("dxy"), "DXY (ICE)", 2), (data.get("gold_px"), "Gold futures", 2)):
+        if series is not None and len(series) > 30:
+            ch = delta(series, 1, True)
+            tiles.append(tile(label, fmt(series.iloc[-1], dec), ch, [round(x, 4) for x in series.tail(30)], series.index[-1].strftime("%m-%d")))
+    if not feed:
+        out["tiles"] = "".join(tiles)
+        return out
+    out["upd"] = str(feed.get("updated", ""))[:16].replace("T", " ") + " UTC"
+    for key in ("sp500", "wti", "vix", "btc"):
+        d = (feed.get("markets") or {}).get(key)
+        if d:
+            tiles.append(tile(d["label"], d.get("display", ""), d.get("changePct"), d.get("spark"), (d.get("date") or "")[5:]))
+    out["tiles"] = "".join(tiles)
+
+    fx = feed.get("fx") or {}
+    cards, confs = [], []
+    for sym, d in fx.items():
+        cf = d.get("confluence")
+        tone = "flat" if not cf else ("up" if cf["score"] >= 60 else "down" if cf["score"] <= 40 else "mid")
+        tag = cf["label"].split(" ")[0].upper() if cf else "N/A"
+        ch = d.get("changePct")
+        cards.append(
+            f'<div class="tile fxc"><div class="tl"><span>{esc(sym)}</span><span class="tag {tone}">{esc(tag)}</span></div>'
+            f'<div class="tv">{esc(d.get("display", ""))}</div><div class="tc {"" if ch is None else ("up" if ch >= 0 else "down")}">{esc(signed(ch, 3, "%"))}</div>'
+            f'{spark(d.get("spark"), None if ch is None else ch >= 0)}</div>')
+        if cf:
+            sg = cf.get("signals", {})
+            rows = [("Daily price momentum", "D1", signed((sg.get("momentum") or {}).get("pct"), 1, "%"), (sg.get("momentum") or {}).get("bull")),
+                    ("RSI reading", "D1", ("RSI %s" % sg["rsi"]["value"]) if sg.get("rsi") else "n/a", (sg.get("rsi") or {}).get("bull")),
+                    ("Price vs EMA", "D1", "Above EMA" if (sg.get("ema") or {}).get("above") else "Below EMA", (sg.get("ema") or {}).get("above")),
+                    ("Price Z-score", "Stat", ("Z=" + fmt(sg["zscore"]["value"], 2, True)) if sg.get("zscore") else "n/a", (sg.get("zscore") or {}).get("bull"))]
+            sig_html = "".join(
+                f'<div class="sig"><span class="dot {"up" if b else "down"}" title="{"bullish" if b else "bearish"}"></span><span class="sn">{esc(n)}</span>'
+                f'<span class="st">{esc(t)}</span><span class="sv">{esc(v)}</span></div>' for n, t, v, b in rows)
+            sr_html = "".join(
+                f'<div class="sr {"above" if x["distPct"] >= 0 else "below"}"><span>{esc(x["level"])}</span><span class="ss">{esc(x["strength"])}</span>'
+                f'<span class="sd">{esc(signed(x["distPct"], 2, "%"))}</span></div>' for x in cf.get("sr", []))
+            confs.append(
+                f'<article class="conf"><div class="ctop"><b>{esc(sym)}</b><span>{esc(d.get("display", ""))}</span></div>'
+                f'<div class="chead">{gauge_ring(cf["score"], tone)}<div class="verdict {tone}">{esc(cf["label"].split(" ")[0])} confluence<small>Confluence score</small></div></div>'
+                f'<h5>Signals</h5>{sig_html}<h5>Support / resistance</h5>{sr_html}</article>')
+    if cards:
+        out["fx"] = '<div class="tiles">' + "".join(cards) + "</div>"
+    if confs:
+        out["conf"] = '<div class="confgrid">' + "".join(confs) + "</div>"
+
+    econ = feed.get("econ") or {}
+    items = []
+    for d in econ.values():
+        sfx = d.get("suffix") or ""
+        ch = d.get("change")
+        chs = "" if ch is None else f'<span class="{"up" if ch > 0 else "down" if ch < 0 else ""}">{esc(signed(ch, 2 if sfx == "%" else 1, d.get("unit") or ""))}</span>'
+        items.append(f'<div class="econ"><div class="tl">{esc(d["label"])}</div><div class="tv">{esc(d.get("display", "n/a"))}{esc(sfx)}</div>'
+                     f'<div class="tc">{chs}</div><div class="ed">{esc(d.get("date", ""))}</div></div>')
+    if items:
+        out["econ"] = '<div class="econgrid">' + "".join(items) + "</div>"
+
+    news = feed.get("news") or []
+    if news:
+        nrows = []
+        for n in news:
+            url = str(n.get("url", ""))
+            if not url.startswith("https://"):
+                url = ""
+            t = (n.get("publishedAt") or "")[:16].replace("T", " ")
+            title = esc(n.get("title", ""))
+            link = f'<a href="{esc(url)}" target="_blank" rel="noopener noreferrer">{title}</a>' if url else title
+            nrows.append(f'<li><span class="src">{esc((n.get("source") or "News").split(" ")[0][:10])}</span><div>{link}<small>{esc(t)} UTC</small></div></li>')
+        out["news"] = '<ul class="news">' + "".join(nrows) + "</ul>"
+    return out
+
+
+def build_cot_cards(playbook: dict, metrics: dict) -> str:
+    cards = []
+    for key in ("gold", "usd_index"):
         spec = playbook["cot"][key]
         m = metrics.get(f"COT:{key}")
         if not m:
-            out["cot"].append(
-                f'<article class="card muted"><h3>{esc(spec["title"])}</h3>'
-                f'<p>No data yet. It appears after the first successful CFTC update.</p></article>')
+            cards.append(f'<article class="card muted"><h3>{esc(spec["title"])}</h3><p>No data yet. It appears after the first successful CFTC update.</p></article>')
             continue
         band = pick_band(spec["bands"], m["index"])
-        out["cot"].append(card(
-            spec["title"], f'{fmt(m["net"], 0, True)}', f' net contracts · {m["date"]}', band,
-            [("Net change, week", f'{fmt(m["wchg"], 0, True)}'),
-             ("Longs / shorts change", f'{fmt(m["long_chg"], 0, True)} / {fmt(m["short_chg"], 0, True)}'),
-             ("Open interest", f'{fmt(m["oi"], 0)} ({fmt(m["oi_chg"], 0, True)})'),
-             ("Net % of open interest", f'{fmt(m["net_pct"], 1, True)}%'),
-             ("Net % of OI, 0-100 (52w)", fmt(m["net_oi_idx"], 1)),
-             ("COT Index (0-100)", fmt(m["index"], 1)),
-             ("Z-score (52w)", fmt(m["z"], 2, True)),
-             ("Friday close, week change", f'{fmt(m["price"], 2)} ({fmt(m["price_chg"], 2, True)}%)')],
-            spec["what"], gauge_html=gauge(m["index"])))
-    return {k: "\n".join(v) for k, v in out.items()}
+        cards.append(card(spec["title"], fmt(m["net"], 0, True), f' net contracts · {m["date"]}', band,
+                          [("COT Index (0-100, 52w)", fmt(m["index"], 1)), ("Z-score (52w)", fmt(m["z"], 2, True)),
+                           ("Spec net % of OI", fmt(m["net_pct"], 1) + "%")], spec["what"], gauge_html=gauge(m["index"])))
+    return "".join(cards)
 
 
-
-def build_summary(playbook: dict, metrics: dict) -> str:
-    """One compact table with every headline reading (the notebook's summary table, plus a plain-English label)."""
-    rows: list[tuple] = []
-
-    def add(name, latest, c5, c20, z, label):
-        rows.append((name, latest, c5, c20, z, label))
-
-    for name, spec in playbook["spreads"].items():
-        m = metrics.get(f"S:{name}")
-        if m:
-            b = pick_band(spec["bands"], m["value"])
-            add(spec["title"] + " spread", f'{fmt(m["value"], 2)} pp', fmt(m["chg5"], 2, True), fmt(m["chg20"], 2, True),
-                fmt(m["z"], 2, True), b["label"] if b else "")
-    for code, label in (("DGS2", "US 2Y yield"), ("DGS10", "US 10Y yield")):
-        m = metrics.get(f"Y:{code}")
-        if m:
-            b = pick_band(playbook["zscore"]["bands"], m["z"])
-            add(label, f'{fmt(m["value"], 2)}%', fmt(m["chg5"], 2, True), fmt(m["chg20"], 2, True), fmt(m["z"], 2, True), b["label"] if b else "")
-    m = metrics.get("Y:DFII10")
-    if m:
-        b = pick_band(playbook["real_yield"]["bands"], m["z"])
-        add("10Y real yield", f'{fmt(m["value"], 2)}%', fmt(m["chg5"], 2, True), fmt(m["chg20"], 2, True), fmt(m["z"], 2, True), b["label"] if b else "")
-    m = metrics.get("DXY")
-    if m:
-        b = pick_band(playbook["dxy"]["bands"], m["z"])
-        add("DXY", fmt(m["value"], 2), fmt(m["pct5"], 2, True) + "%", fmt(m["pct20"], 2, True) + "%", fmt(m["z"], 2, True), b["label"] if b else "")
-    for key, label in (("usd_index", "USD Index COT"), ("gold", "Gold COT")):
-        m = metrics.get(f"COT:{key}")
-        if m:
-            b = pick_band(playbook["cot"][key]["bands"], m["index"])
-            add(label + " (net)", fmt(m["net"], 0, True), "wk " + fmt(m["wchg"], 0, True), "idx " + fmt(m["index"], 0),
-                fmt(m["z"], 2, True), b["label"] if b else "")
-    if not rows:
-        return ""
-    body = "".join(
-        f'<tr><th scope="row">{esc(n)}</th><td>{esc(a)}</td><td>{esc(b)}</td><td>{esc(c)}</td><td>{esc(d)}</td>'
-        f'<td>{badge(e, tone_for(e))}</td></tr>' for n, a, b, c, d, e in rows)
-    return ('<div class="scroll"><table class="summary"><thead><tr><th>Indicator</th><th>Latest</th><th>5D</th><th>20D</th>'
-            '<th>Z-score</th><th>Reading</th></tr></thead><tbody>' + body + "</tbody></table></div>")
-
-
-def build_chart_data(data: dict, spread_series: dict[str, pd.Series]) -> dict:
+def build_cot_charts(data: dict) -> dict:
     charts: dict = {}
-
-    # Curve snapshot: now vs ~1 month vs ~1 year ago
-    cols = [(lab, code) for lab, code in TENORS if code in data["yields"]]
-    if len(cols) >= 3:
-        frame = pd.concat({lab: data["yields"][code] for lab, code in cols}, axis=1).dropna()
-        if len(frame) > 1:
-            def at(offset):
-                i = max(0, len(frame) - 1 - offset)
-                return frame.index[i].strftime("%Y-%m-%d"), [r(v, 3) for v in frame.iloc[i].tolist()]
-            now_d, now_v = at(0)
-            m_d, m_v = at(20)
-            y_d, y_v = at(DAILY_WINDOW - 1)
-            charts["curve"] = {"labels": [c[0] for c in cols],
-                               "sets": [{"name": f"Now ({now_d})", "data": now_v},
-                                        {"name": f"~1 month ago ({m_d})", "data": m_v},
-                                        {"name": f"~1 year ago ({y_d})", "data": y_v}]}
-
-    if spread_series:
-        df = pd.concat(spread_series, axis=1).tail(DAILY_WINDOW)
-        charts["spreads"] = {"labels": [d.strftime("%Y-%m-%d") for d in df.index],
-                             "sets": [{"name": n.replace("y", "Y").replace("m", "M"), "data": [r(v, 3) for v in df[n]]} for n in df.columns]}
-
-    if data["dxy"] is not None:
-        d = data["dxy"].tail(DAILY_WINDOW)
-        charts["dxy"] = {"labels": [i.strftime("%Y-%m-%d") for i in d.index], "data": [r(v, 3) for v in d]}
-
-    if "DFII10" in data["yields"]:
-        d = data["yields"]["DFII10"].tail(DAILY_WINDOW)
-        charts["real"] = {"labels": [i.strftime("%Y-%m-%d") for i in d.index], "data": [r(v, 3) for v in d]}
-
-    cot_sets = []
-    labels: set[str] = set()
-    for key, name in (("usd_index", "USD Index (Non-Comm)"), ("gold", "Gold (Managed Money)")):
-        c = data["cot"].get(key)
-        if c is None:
-            continue
-        s = c["index"].tail(COT_WINDOW)
-        labels.update(i.strftime("%Y-%m-%d") for i in s.index)
-        cot_sets.append((name, s))
-    oi_sets = []
-    for key, name in (("usd_index", "USD Index (Non-Comm)"), ("gold", "Gold (Managed Money)")):
-        c = data["cot"].get(key)
-        if c is not None and c["net_oi"].notna().any():
-            oi_sets.append((name, c["net_oi"].tail(COT_WINDOW)))
-    if oi_sets:
-        lab = sorted({i.strftime("%Y-%m-%d") for _, s_ in oi_sets for i in s_.index})
-        charts["cotoi"] = {"labels": lab, "sets": [
-            {"name": n, "data": [r(s_.get(pd.Timestamp(l)), 2) for l in lab]} for n, s_ in oi_sets]}
-    pr_sets = []
-    for key, name in (("usd_index", "DXY"), ("gold", "Gold futures")):
-        c = data["cot"].get(key)
-        if c is not None and c["price_chg"].notna().any():
-            pr_sets.append((name, c["price_chg"].tail(COT_WINDOW)))
-    if pr_sets:
-        lab = sorted({i.strftime("%Y-%m-%d") for _, s_ in pr_sets for i in s_.index})
-        charts["cotpx"] = {"labels": lab, "sets": [
-            {"name": n, "data": [r(s_.get(pd.Timestamp(l)), 2) for l in lab]} for n, s_ in pr_sets]}
-    if cot_sets:
-        all_labels = sorted(labels)
-        charts["cot"] = {"labels": all_labels, "sets": [
-            {"name": n, "data": [r(s.get(pd.Timestamp(l)), 1) for l in all_labels]} for n, s in cot_sets]}
+    for ckey, field, name_map, dec in (("cot", "index", (("usd_index", "USD Index (Non-Comm)"), ("gold", "Gold (Non-Comm)")), 1),
+                                       ("cotoi", "net_oi", (("usd_index", "USD Index (Non-Comm)"), ("gold", "Gold (Non-Comm)")), 2),
+                                       ("cotpx", "price_chg", (("usd_index", "DXY"), ("gold", "Gold futures")), 2)):
+        sets = []
+        for key, nm in name_map:
+            c = data["cot"].get(key)
+            if c is not None and c[field].notna().any():
+                sets.append((nm, c[field].tail(COT_WINDOW)))
+        if sets:
+            lab = sorted({i.strftime("%Y-%m-%d") for _, s_ in sets for i in s_.index})
+            charts[ckey] = {"labels": lab, "sets": [{"name": n, "data": [r(s_.get(pd.Timestamp(l)), dec) for l in lab]} for n, s_ in sets]}
     return charts
 
 
@@ -509,7 +639,7 @@ def build_cot_tables(data: dict) -> str:
            "OI normalized net": (3, False), "Normalized WoW change": (3, True), "Spec net % of OI": (1, False),
            "Friday close": (2, False), "Price chg %": (2, True)}
     out = []
-    for key, name, pname in (("gold", "Gold (Managed Money)", "Gold futures"), ("usd_index", "USD Index (Non-Commercial)", "DXY")):
+    for key, name, pname in (("gold", "Gold (Legacy, Non-Commercial)", "Gold futures"), ("usd_index", "USD Index (Non-Commercial)", "DXY")):
         c = data["cot"].get(key)
         if c is None:
             continue
@@ -555,7 +685,7 @@ def build_status(data: dict, today: date) -> str:
         stale = ""
         if info.get("last_data_date"):
             age = (today - datetime.strptime(info["last_data_date"], "%Y-%m-%d").date()).days
-            limit = 12 if name.startswith("COT") else 6
+            limit = 12 if name.startswith("COT") else (10 if name == "FX_MACRO" else 6)
             if age > limit:
                 stale = ' <span class="badge warn">stale</span>'
         state = "ok" if info.get("ok") else '<span class="badge warn">last update failed</span>'
@@ -570,35 +700,46 @@ def build_status(data: dict, today: date) -> str:
 TEMPLATE = (ROOT / "template.html").read_text(encoding="utf-8") if (ROOT / "template.html").exists() else None
 
 
-def render(playbook: dict, data: dict, computed: dict, today: date) -> str:
+def read_fx_feed(data_dir: Path) -> dict | None:
+    p = data_dir / "fx_macro.json"
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+
+
+def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict | None) -> str:
     metrics = computed["metrics"]
-    cards = build_cards(playbook, metrics)
     fired = eval_cross_signals(playbook, metrics)
-    charts = build_chart_data(data, computed["spread_series"])
+    rows, fam = build_watch(playbook, data, computed)
+    fx = build_fx(feed, data)
 
     if fired:
-        sig_html = "".join(
-            f'<li><strong>{esc(s["label"])}</strong><br><span>{esc(s["meaning"])}</span></li>' for s in fired)
+        sig_html = "".join(f'<li><strong>{esc(s["label"])}</strong><span>{esc(s["meaning"])}</span></li>' for s in fired)
         sig_html = f'<ul class="signals">{sig_html}</ul>'
     else:
         sig_html = '<p class="muted-text">No cross-indicator signals are active right now.</p>'
 
     dates = [m["date"] for m in metrics.values() if m.get("date")]
     as_of = max(dates) if dates else "n/a"
+    default_sel = [x for x in ("S:10y-2y", "S:10y-3m") if any(r_["id"] == x for r_ in rows)]
+    payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "info": r_["info"]} for r_ in rows},
+               "default": default_sel, "cot": build_cot_charts(data),
+               "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2}, "unit": {"spreads": " pp", "yields": "%", "dxy": "", "gold": ""}}
 
     page = TEMPLATE
-    page = page.replace("__ASOF__", esc(as_of))
-    page = page.replace("__BUILT__", esc(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")))
-    page = page.replace("__SIGNALS__", sig_html)
-    page = page.replace("__SUMMARY__", build_summary(playbook, metrics))
-    page = page.replace("__CARDS_SPREADS__", cards["spreads"])
-    page = page.replace("__CARDS_LEVELS__", cards["levels"])
-    page = page.replace("__CARDS_COT__", cards["cot"])
-    page = page.replace("__COT_TABLES__", build_cot_tables(data))
-    page = page.replace("__STATUS__", build_status(data, today))
-    page = page.replace("__DISCLAIMER__", esc(playbook["meta"]["disclaimer"]))
-    page = page.replace("__CHARTS__", json.dumps(charts).replace("</", "<\\/"))
-    return page
+    rep = {
+        "__ASOF__": esc(as_of), "__BUILT__": esc(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
+        "__TILES__": fx["tiles"], "__SIGNALS__": sig_html, "__WATCHLIST__": build_watch_html(rows), "__MATRIX__": build_matrix(data, computed),
+        "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_TABLES__": build_cot_tables(data),
+        "__FX_CARDS__": fx["fx"], "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
+        "__STATUS__": build_status(data, today), "__DISCLAIMER__": esc(playbook["meta"]["disclaimer"]),
+    }
+    for k, v in rep.items():
+        page = page.replace(k, v)
+    return page.replace("__PAYLOAD__", json.dumps(payload, separators=(",", ":")).replace("</", "<\\/"))
 
 
 def main() -> int:
@@ -619,7 +760,7 @@ def main() -> int:
     today = datetime.strptime(a.today, "%Y-%m-%d").date() if a.today else datetime.now(timezone.utc).date()
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render(playbook, data, computed, today), encoding="utf-8")
+    out.write_text(render(playbook, data, computed, today, read_fx_feed(Path(a.data_dir))), encoding="utf-8")
     try:   # Excel copy of every number on the page; the page itself never depends on this
         import export_excel
         export_excel.export(out.parent / "Macro_Dashboard.xlsx", playbook, data, computed)

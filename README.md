@@ -56,7 +56,7 @@ python build_dashboard.py   # writes docs/index.html, open it in a browser
 ## Notes
 
 - Positioning detail uses the same CFTC report for everything: net, net/long/short weekly change, open interest and its change, net as % of open interest (also rescaled 0-100 over 52 reports), plus the Friday-close price and its change from the prior Friday. The last 52 reports are shown in the weekly tables.
-- The COT groups differ: USD Index uses Legacy Non-Commercial, Gold uses Disaggregated Managed Money. Compare each with its own history only.
+- Both COT series use the CFTC Legacy Futures Only report, Non-Commercial group (Gold: COMEX 088691, USD Index: ICE 098662), so they are comparable in kind; still read each against its own history.
 - Z-scores use 252 trading days (daily series) and 52 weekly reports (COT). The COT Index is 0 at the 52-week low net position and 100 at the high.
 - If a source fails, the old CSV is kept and the failure shows in the **Data status** table on the page.
 - Gold price (for the weekly price change next to Gold COT) is the COMEX gold future `GC=F` from Yahoo Finance. DXY comes from Yahoo Finance, with Stooq as a fallback. Cloud servers are sometimes blocked by Yahoo, so check the status table if the DXY date stops moving.
