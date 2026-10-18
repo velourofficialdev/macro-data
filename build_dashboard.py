@@ -749,8 +749,11 @@ def build_cot_tables(data: dict) -> dict[str, str]:
         cot_cells = f'<td colspan="{len(v.columns)}" class="lefttd"><b>{esc(fmt(num(c["index"].iloc[-1]), 1))}</b> <span class="muted-text">(0 = most short, 100 = most long over 52 reports)</span></td>'
         stats.append(f'<tr><th scope="row">COT Index</th>{cot_cells}</tr>')
         heads = ["Report date"] + list(v.columns)
-        out[key] = ('<div class="scroll tall"><table class="weekly"><thead><tr>' + "".join(f"<th>{h}</th>" for h in heads)
-                    + "</tr></thead><tbody>" + "".join(rows) + "</tbody><tfoot>" + "".join(stats) + "</tfoot></table></div>")
+        cols = '<colgroup><col class="cd">' + "<col>" * len(v.columns) + "</colgroup>"
+        out[key] = ('<div class="cotpair"><div class="scroll tall"><table class="weekly">' + cols + "<thead><tr>" + "".join(f"<th>{h}</th>" for h in heads)
+                    + "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>"
+                    + f'<div class="stathead">Statistics, last {COT_WINDOW} reports</div>'
+                    + '<div class="statwrap"><table class="weekly stats">' + cols + "<tbody>" + "".join(stats) + "</tbody></table></div></div>")
     return out
 
 

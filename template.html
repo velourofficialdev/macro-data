@@ -13,18 +13,18 @@
      Chart colors --s1..--s4 pass a colorblind / contrast check against the tile color of each theme. */
   :root {
     --brand: #42070E;
-    --grad: linear-gradient(135deg, #2a0409 0%, #42070E 38%, #7a1424 72%, #a52a3f 100%);
-    --grad-soft: linear-gradient(135deg, #42070E, #8c1c30);
-    --page: radial-gradient(1100px 520px at 0% -8%, rgba(122, 20, 36, .55), transparent 62%),
-            radial-gradient(900px 480px at 100% 0%, rgba(66, 7, 14, .65), transparent 60%),
-            linear-gradient(180deg, #1a0508 0%, #120306 100%);
-    --bg: #140407; --tile: #22080e; --tile2: #2b0b12; --tint: #351019; --head: #2a0a11;
-    --ink: #f5e9eb; --muted: #c09aa1; --line: rgba(255, 214, 222, .09); --line2: rgba(255, 214, 222, .16);
-    --accent: #f4a9b7; --rule: #b8324a; --onacc: #fff;
-    --warn-bg: rgba(224, 88, 122, .18); --warn-ink: #ffb8c6; --neutral-bg: rgba(255, 214, 222, .08); --neutral-ink: #dcc1c6;
-    --up: #3fc6ce; --down: #ff8aa2;
+    /* Dark mode: calm warm-charcoal surfaces; burgundy only as an accent so nothing glows. */
+    --grad: linear-gradient(135deg, #2e070d 0%, #42070E 55%, #561019 100%);
+    --grad-soft: #5a1421;
+    --page: #121012;
+    --bg: #121012; --tile: #1a1719; --tile2: #1a1719; --tint: #231f21; --head: #1f1b1d;
+    --ink: #ebe5e6; --muted: #a99ca0; --line: rgba(255, 255, 255, .07); --line2: rgba(255, 255, 255, .12);
+    --accent: #e3a3b0; --rule: #8c2a3c; --onacc: #fff;
+    --warn-bg: rgba(224, 88, 122, .14); --warn-ink: #f0b3c0; --neutral-bg: rgba(255, 255, 255, .06); --neutral-ink: #cfc4c7;
+    --up: #3dbdc5; --down: #ef8199;
     --s1: #e0587a; --s2: #1ea3ac; --s3: #bf8a1c; --s4: #8478ec;
-    --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 10px 30px rgba(0, 0, 0, .25);
+    --qr: #1f1a1c; --qr-edge: #6e1a2a; --qr-ink: var(--ink); --qr-muted: var(--muted); --qr-band: #e3a3b0; --qr-line: rgba(255, 255, 255, .07);
+    --shadow: none;
     color-scheme: dark;
   }
   :root[data-theme="light"] {
@@ -36,6 +36,8 @@
     --up: #007c85; --down: #b02a46;
     --s1: #a8304a; --s2: #008f99; --s3: #9a7414; --s4: #5f55b5;
     --shadow: 0 1px 2px rgba(66, 7, 14, .06), 0 8px 24px rgba(66, 7, 14, .06);
+    --qr: var(--grad); --qr-edge: transparent; --qr-ink: #fff; --qr-muted: rgba(255,255,255,.82); --qr-band: #ffd6de; --qr-line: rgba(255,255,255,.16);
+    --grad-soft: linear-gradient(135deg, #42070E, #8c1c30);
     color-scheme: light;
   }
   @media (prefers-color-scheme: light) {
@@ -48,6 +50,8 @@
       --up: #007c85; --down: #b02a46;
       --s1: #a8304a; --s2: #008f99; --s3: #9a7414; --s4: #5f55b5;
       --shadow: 0 1px 2px rgba(66, 7, 14, .06), 0 8px 24px rgba(66, 7, 14, .06);
+    --qr: var(--grad); --qr-edge: transparent; --qr-ink: #fff; --qr-muted: rgba(255,255,255,.82); --qr-band: #ffd6de; --qr-line: rgba(255,255,255,.16);
+      --grad-soft: linear-gradient(135deg, #42070E, #8c1c30);
       color-scheme: light;
     }
   }
@@ -62,7 +66,7 @@
 
   /* ---------- header: burgundy gradient band + sticky nav ---------- */
   .hero { background: var(--grad); color: #fff; position: relative; overflow: hidden; }
-  .hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(600px 200px at 85% 0%, rgba(255, 255, 255, .12), transparent 70%); pointer-events: none; }
+  .hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(600px 200px at 85% 0%, rgba(255, 255, 255, .06), transparent 70%); pointer-events: none; }
   .hero .in { position: relative; z-index: 1; padding: 18px 12px 14px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   .brand h1 { margin: 0; font: 600 26px/1.1 Georgia, serif; letter-spacing: .01em; }
@@ -75,7 +79,7 @@
         background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
   nav a { color: var(--muted); text-decoration: none; padding: 5px 13px; border-radius: 999px; font-size: 13px; }
   nav a:hover { color: var(--ink); background: var(--tint); }
-  nav a.active { color: #fff; background: var(--grad-soft); box-shadow: 0 2px 10px rgba(122, 20, 36, .35); }
+  nav a.active { color: #fff; background: var(--grad-soft); }
   .themes { margin-left: auto; display: inline-flex; background: var(--tint); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
   .themes button { font: inherit; font-size: 12px; border: 0; background: transparent; color: var(--muted); padding: 3px 11px; border-radius: 999px; cursor: pointer; }
   .themes button[aria-pressed="true"] { background: var(--tile); color: var(--ink); box-shadow: 0 0 0 1px var(--line2); }
@@ -89,7 +93,7 @@
   .sec span { color: var(--muted); font-size: 12px; }
   .bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; grid-auto-flow: row dense; }
   .t { grid-column: span var(--w, 12); grid-row: span var(--h, 1); background: linear-gradient(165deg, var(--tile2), var(--tile)); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
-  .t.accent { background: var(--grad); color: #fff; border-color: transparent; }
+  .t.accent { background: var(--qr); color: var(--qr-ink); border-color: var(--line); border-left: 3px solid var(--qr-edge); }
   .th { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 11px 14px 6px; }
   .th h3 { margin: 0; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; display: flex; align-items: center; gap: 8px; }
   .th h3::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: var(--grad-soft); box-shadow: 0 0 0 2px color-mix(in srgb, var(--rule) 25%, transparent); }
@@ -125,16 +129,16 @@
 
   .tiles.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .quick { list-style: none; margin: 0 0 10px; padding: 0; }
-  .quick li { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "l v" "b b"; gap: 0 8px; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, .14); }
+  .quick li { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "l v" "b b"; gap: 0 8px; padding: 6px 0; border-bottom: 1px solid var(--qr-line); }
   .quick li:last-child { border-bottom: 0; }
-  .ql { grid-area: l; font-size: 12px; opacity: .85; } .qv { grid-area: v; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .qb { grid-area: b; font-size: 12px; font-weight: 600; color: #ffd6de; }
-  .quiet { margin: 4px 0 0; font-size: 12px; opacity: .8; }
+  .ql { grid-area: l; font-size: 12px; color: var(--qr-muted); } .qv { grid-area: v; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .qb { grid-area: b; font-size: 12px; font-weight: 600; color: var(--qr-band); }
+  .quiet { margin: 4px 0 0; font-size: 12px; color: var(--qr-muted); }
   .t.accent .signals li { background: rgba(255, 255, 255, .1); border-left-color: #fff; } .t.accent .signals span { color: rgba(255, 255, 255, .8); }
   .signals { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
   .signals li { background: var(--tint); border-left: 3px solid var(--rule); border-radius: 10px; padding: 9px 12px; }
   .signals span { display: block; color: var(--muted); font-size: 13px; }
-  .t.accent .muted-text { color: rgba(255, 255, 255, .8); }
+  .t.accent .muted-text { color: var(--qr-muted); }
 
   /* watchlist */
   .tools { display: flex; flex-wrap: wrap; gap: 2px; }
@@ -225,6 +229,15 @@
   table.weekly tfoot th { text-align: left; position: sticky; left: 0; }
   table.weekly thead th:first-child { text-align: left; left: 0; z-index: 2; }
   table.weekly td.lefttd { text-align: left; }
+  table.weekly { table-layout: fixed; }
+  table.weekly thead th { white-space: normal; line-height: 1.25; vertical-align: bottom; }
+  table.weekly col.cd { width: 112px; }
+  .statwrap { overflow-x: auto; border-top: 2px solid var(--rule); scrollbar-width: none; }
+  .statwrap::-webkit-scrollbar { display: none; }
+  table.weekly.stats th, table.weekly.stats td { background: var(--tint); font-weight: 600; padding: 7px 10px; }
+  table.weekly.stats th { position: sticky; left: 0; text-align: left; }
+  table.weekly.stats tr:last-child th, table.weekly.stats tr:last-child td { border-bottom: 0; }
+  .stathead { padding: 8px 14px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: var(--tint); border-top: 1px solid var(--line); }
   table.weekly tr.readrow td { padding: 6px 6px; }
 
   /* FX confluence */
@@ -284,7 +297,7 @@
       <div class="t" style="--w:12"><div class="kpis">__KPIS__</div></div>
       <div class="t" style="--w:5"><div class="th"><h3>Yield curve</h3></div><div class="legend" data-for="curve"></div><div class="cv fill" id="ch-curve"></div></div>
       <div class="t" style="--w:4"><div class="th"><h3>Risk and commodities</h3></div><div class="tb"><div class="tiles two">__TILES__</div></div></div>
-      <div class="t accent" style="--w:3"><div class="th"><h3 style="color:#fff">Quick read</h3></div><div class="tb">__SIGNALS__</div></div>
+      <div class="t accent" style="--w:3"><div class="th"><h3 style="color:var(--qr-ink)">Quick read</h3></div><div class="tb">__SIGNALS__</div></div>
     </div>
   </section>
 
@@ -598,6 +611,14 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
   }
   paint();
 })();
+
+/* COT: keep the statistics block (outside the scroll box) aligned with the weekly table when scrolling sideways */
+document.querySelectorAll(".cotpair").forEach(p => {
+  const a = p.querySelector(".scroll.tall"), b = p.querySelector(".statwrap"); if (!a || !b) return;
+  let lock = false;
+  a.addEventListener("scroll", () => { if (lock) return; lock = true; b.scrollLeft = a.scrollLeft; lock = false; }, { passive: true });
+  b.addEventListener("scroll", () => { if (lock) return; lock = true; a.scrollLeft = b.scrollLeft; lock = false; }, { passive: true });
+});
 
 /* Overview: yield curve now vs 1M vs 1Y */
 (function () {
