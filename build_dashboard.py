@@ -38,6 +38,9 @@ SPREADS = {  # name: (long leg, short leg); order = order on the page and in the
     "5y-3m": ("DGS5", "DGS3MO"),
     "2y-3m": ("DGS2", "DGS3MO"),
 }
+COUNTRIES = {"US": "United States", "CA": "Canada", "DE": "Germany", "JP": "Japan", "AU": "Australia"}
+INTL_TENORS = ["2Y", "5Y", "10Y", "30Y"]
+INTL_PAIRS = ["30y-10y", "30y-5y", "30y-2y", "10y-5y", "10y-2y", "5y-2y"]
 MATRIX_ORDER = ["30y-10y", "30y-5y", "30y-2y", "30y-3m", "20y-10y", "10y-5y", "10y-2y", "10y-3m", "5y-2y", "5y-3m", "2y-3m"]
 YIELD_LABELS = {"DGS3MO": "3M", "DGS2": "2Y", "DGS5": "5Y", "DGS10": "10Y", "DGS20": "20Y", "DGS30": "30Y", "DFII10": "10Y real"}
 COT_FILES = {
@@ -186,6 +189,16 @@ def load_everything(data_dir: Path) -> dict:
 
     dxy = read_series(data_dir / "DXY.csv", "Date", "DXY")
 
+    intl = {}
+    for cc in COUNTRIES:
+        if cc == "US":
+            continue
+        p = data_dir / f"YC_{cc}.csv"
+        if p.exists():
+            df = pd.read_csv(p, parse_dates=["date"]).set_index("date").sort_index()
+            ser = {t: pd.to_numeric(df[t], errors="coerce").dropna() for t in INTL_TENORS if t in df}
+            intl[cc] = {t: v for t, v in ser.items() if len(v) > 30}
+
     cot = {k: load_cot(data_dir, v) for k, v in COT_FILES.items()}
     gold_px = read_series(data_dir / "GOLD.csv", "Date", "Gold")
     attach_price(cot.get("gold"), gold_px)
@@ -197,7 +210,7 @@ def load_everything(data_dir: Path) -> dict:
             status = json.loads(sp.read_text())
         except json.JSONDecodeError:
             status = {}
-    return {"yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
+    return {"intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
 
 
 def compute(data: dict, playbook: dict) -> dict:
@@ -221,6 +234,19 @@ def compute(data: dict, playbook: dict) -> dict:
         metrics[f"S:{name}"] = m
         spread_series[name] = s
         spreads[name] = m
+
+    for cc, ser in data.get("intl", {}).items():
+        for name in INTL_PAIRS:
+            lg, sh = [x.upper() for x in name.split("-")]
+            if lg not in ser or sh not in ser:
+                continue
+            s = (ser[lg] - ser[sh]).dropna()
+            if len(s) < 252:
+                continue
+            m = yield_metrics(s)
+            m["dynamics"] = classify_dynamics(ser[lg], ser[sh], min_move)
+            metrics[f"S:{cc}:{name}"] = m
+            spread_series[f"{cc}:{name}"] = s
 
     dxy = data["dxy"]
     if dxy is not None and len(dxy) > 21:
@@ -361,19 +387,23 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
         fam[name] = {"dates": [d.strftime("%Y-%m-%d") for d in frame.index],
                      "series": {k: [r(v, dec) for v in frame[k]] for k in frame.columns}}
 
-    # spreads
+    # spreads, grouped by country (US first); every country's spreads can be overlaid on one chart
     ss = computed["spread_series"]
-    for name in SPREADS:
-        s = ss.get(name)
+    order = [(cc, n) for cc in COUNTRIES for n in (list(SPREADS) if cc == "US" else INTL_PAIRS)]
+    for cc, name in order:
+        key = name if cc == "US" else f"{cc}:{name}"
+        s = ss.get(key)
         if s is None:
             continue
-        m = metrics[f"S:{name}"]
+        m = metrics[f"S:{key}"]
         spec = spread_spec(playbook, name)
         dyn = playbook["dynamics"]["types"].get(m.get("dynamics") or "")
-        rows.append({"id": f"S:{name}", "group": "Spreads", "family": "spreads", "label": spread_title(name),
-                     "latest": fmt(s.iloc[-1], 2) + " pp", "d1": fmt(delta(s, 1), 2, True), "d5": fmt(delta(s, 5), 2, True),
+        lg, sh = name.upper().split("-")
+        title = f"{COUNTRIES[cc]} {lg} vs {sh}"
+        rows.append({"id": f"S:{key}", "group": COUNTRIES[cc], "family": "spreads", "label": title, "ticker": f"{cc}YC{lg}{sh}",
+                     "latest": fmt(s.iloc[-1], 2), "d1": fmt(delta(s, 1), 2, True), "d5": fmt(delta(s, 5), 2, True),
                      "d20": fmt(delta(s, 20), 2, True), "z": fmt(m["z"], 2, True), "date": m["date"],
-                     "info": {"title": spec["title"] + " spread", "what": spec["what"], "band": band_info(pick_band(spec["bands"], m["value"])),
+                     "info": {"title": title + " spread", "what": spec["what"], "band": band_info(pick_band(spec["bands"], m["value"])),
                               "dyn": band_info(dyn) if dyn else None, "z": m["z"]}})
     family("spreads", {f"S:{k}": v for k, v in ss.items()}, 3)
 
@@ -388,7 +418,7 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
             band = pick_band(playbook["real_yield"]["bands"], m["z"]); what = playbook["real_yield"].get("what", "")
         else:
             band = pick_band(playbook["zscore"]["bands"], m["z"]); what = "US Treasury constant-maturity yield from FRED."
-        rows.append({"id": f"Y:{code}", "group": "Yields", "family": "yields", "label": YIELD_LABELS[code],
+        rows.append({"id": f"Y:{code}", "group": "US Treasury yields", "family": "yields", "label": "US " + YIELD_LABELS[code], "ticker": "US" + YIELD_LABELS[code].replace(" real", "R").upper(),
                      "latest": fmt(s.iloc[-1], 2) + "%", "d1": fmt(delta(s, 1), 2, True), "d5": fmt(delta(s, 5), 2, True),
                      "d20": fmt(delta(s, 20), 2, True), "z": fmt(m["z"], 2, True), "date": m["date"],
                      "info": {"title": YIELD_LABELS[code] + (" yield" if code != "DFII10" else " Treasury yield (TIPS)"), "what": what,
@@ -402,7 +432,7 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
             continue
         z = roll_z(series, DAILY_WINDOW).iloc[-1]
         band = pick_band((spec or playbook["zscore"])["bands"], num(z))
-        rows.append({"id": f"P:{key}", "group": "Dollar and gold", "family": key, "label": label,
+        rows.append({"id": f"P:{key}", "group": "Dollar and gold", "family": key, "label": label, "ticker": {"dxy": "DXY", "gold": "GC1"}[key],
                      "latest": fmt(series.iloc[-1], dec), "d1": fmt(delta(series, 1, True), 2, True) + "%",
                      "d5": fmt(delta(series, 5, True), 2, True) + "%", "d20": fmt(delta(series, 20, True), 2, True) + "%",
                      "z": fmt(num(z), 2, True), "date": series.index[-1].strftime("%Y-%m-%d"),
@@ -416,7 +446,7 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
         if not m:
             continue
         spec = playbook["cot"][key]
-        rows.append({"id": f"C:{key}", "group": "Positioning", "family": None, "label": title,
+        rows.append({"id": f"C:{key}", "group": "Positioning", "family": None, "label": title, "ticker": {"gold": "COT-GC", "usd_index": "COT-DX"}[key],
                      "latest": fmt(m["net"], 0, True), "d1": "", "d5": "wk " + fmt(m["wchg"], 0, True),
                      "d20": "idx " + fmt(m["index"], 0), "z": fmt(m["z"], 2, True), "date": m["date"],
                      "info": {"title": spec["title"], "what": spec["what"], "band": band_info(pick_band(spec["bands"], m["index"])),
@@ -425,23 +455,24 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
 
 
 def build_watch_html(rows: list[dict]) -> str:
-    out = ['<div class="scroll"><table class="watch"><thead><tr><th>Name</th><th>Latest</th><th>1D</th><th>5D</th><th>20D</th><th>Z</th></tr></thead>']
-    group = None
+    cols = ('<th>Name</th><th class="c-tk">Ticker</th><th>Latest</th><th>1D</th><th class="c-d5">5D</th><th class="c-d20">20D</th><th class="c-z">Z</th>')
+    out = [f'<table class="watch" id="watch"><thead><tr>{cols}</tr></thead>']
+    groups: list[str] = []
     for r_ in rows:
-        if r_["group"] != group:
-            group = r_["group"]
-            out.append(f'<tbody><tr class="grp"><th colspan="6">{esc(group)}</th></tr>')
-        cls = "sel" if r_["family"] is None else ""
-        out.append(
-            f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="{esc(r_["family"] or "")}">'
-            f'<th scope="row"><span class="pick" aria-hidden="true"></span>{esc(r_["label"])}</th>'
-            f'<td>{esc(r_["latest"])}</td><td class="{chg_class(r_["d1"])}">{esc(r_["d1"])}</td>'
-            f'<td class="{chg_class(r_["d5"])}">{esc(r_["d5"])}</td><td class="{chg_class(r_["d20"])}">{esc(r_["d20"])}</td>'
-            f'<td>{esc(r_["z"])}</td></tr>')
-        nxt = rows[rows.index(r_) + 1]["group"] if rows.index(r_) + 1 < len(rows) else None
-        if nxt != group:
-            out.append("</tbody>")
-    out.append("</table></div>")
+        if r_["group"] not in groups:
+            groups.append(r_["group"])
+    for g in groups:
+        members = [r_ for r_ in rows if r_["group"] == g]
+        out.append(f'<tbody data-group="{esc(g)}"><tr class="grp" tabindex="0" role="button" aria-expanded="true"><th colspan="7"><span class="car"></span>{esc(g)} <small>{len(members)}</small></th></tr>')
+        for r_ in members:
+            out.append(
+                f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="{esc(r_["family"] or "")}">'
+                f'<th scope="row"><span class="pick" aria-hidden="true"></span>{esc(r_["label"])}</th><td class="c-tk tk">{esc(r_["ticker"])}</td>'
+                f'<td>{esc(r_["latest"])}</td><td class="{chg_class(r_["d1"])}">{esc(r_["d1"])}</td>'
+                f'<td class="c-d5 {chg_class(r_["d5"])}">{esc(r_["d5"])}</td><td class="c-d20 {chg_class(r_["d20"])}">{esc(r_["d20"])}</td>'
+                f'<td class="c-z">{esc(r_["z"])}</td></tr>')
+        out.append("</tbody>")
+    out.append("</table>")
     return "".join(out)
 
 
@@ -454,22 +485,41 @@ def chg_class(text: str) -> str:
     return ""
 
 
-def build_matrix(data: dict, computed: dict) -> str:
-    """US spreads in basis points across time horizons, with blue/rose heat shading (picture: 'Yield Spreads Matrix')."""
+HORIZONS = [("Now", 0), ("1D ago", 1), ("1W ago", 5), ("1M ago", 21), ("3M ago", 63), ("6M ago", 126), ("1Y ago", 252)]
+
+
+def matrix_payload(computed: dict) -> dict:
+    """Spread levels in bp for every country x pair x horizon (the JS draws and re-draws the heat map)."""
     ss = computed["spread_series"]
-    horizons = [("Now", 0), ("1D", 1), ("1W", 5), ("1M", 21), ("3M", 63), ("6M", 126), ("1Y", 252)]
+    cols = [cc for cc in COUNTRIES if any((n if cc == "US" else f"{cc}:{n}") in ss for n in MATRIX_ORDER)]
+    vals = []
+    for _, n in HORIZONS:
+        grid = []
+        for name in MATRIX_ORDER:
+            row = []
+            for cc in cols:
+                s_ = ss.get(name if cc == "US" else f"{cc}:{name}")
+                row.append(num(round(s_.iloc[-1 - n] * 100, 1)) if s_ is not None and len(s_) > n else None)
+            grid.append(row)
+        vals.append(grid)
+    return {"cols": cols, "rows": [" vs ".join(x.upper() for x in nm.split("-")) for nm in MATRIX_ORDER],
+            "horizons": [h for h, _ in HORIZONS], "vals": vals}
+
+
+def build_matrix(data: dict, computed: dict) -> str:
+    """US spreads in basis points across time horizons, with heat shading."""
+    ss = computed["spread_series"]
     table = []
     for name in MATRIX_ORDER:
         s = ss.get(name)
         if s is None:
             continue
-        vals = [num(s.iloc[-1 - n] * 100) if len(s) > n else None for _, n in horizons]
-        z = computed["metrics"][f"S:{name}"]["z"]
-        table.append((name, vals, z))
+        vals = [num(s.iloc[-1 - n] * 100) if len(s) > n else None for _, n in HORIZONS]
+        table.append((name, vals, computed["metrics"][f"S:{name}"]["z"]))
     if not table:
         return ""
     peak = max((abs(v) for _, vals, _ in table for v in vals if v is not None), default=1) or 1
-    head = "".join(f"<th>{h}{' ago' if h not in ('Now',) else ''}</th>" for h, _ in horizons)
+    head = "".join(f"<th>{h}</th>" for h, _ in HORIZONS)
     body = []
     for name, vals, z in table:
         cells = ""
@@ -478,10 +528,9 @@ def build_matrix(data: dict, computed: dict) -> str:
                 cells += '<td class="na">-</td>'
                 continue
             i = min(100, round(100 * (abs(v) / peak) ** 0.7))
-            tone = "neg" if v < 0 else "pos"
-            cells += f'<td class="heat {tone}" style="--i:{i}">{v:,.1f}<small>bp</small></td>'
+            cells += f'<td class="heat {"neg" if v < 0 else "pos"}" style="--i:{i}">{v:,.1f}</td>'
         body.append(f'<tr><th scope="row">{esc(spread_title(name))}</th>{cells}<td class="zc">{esc(fmt(z, 2, True))}</td></tr>')
-    return ('<div class="scroll"><table class="matrix"><thead><tr><th>Spread</th>' + head + '<th>Z (1y)</th></tr></thead><tbody>'
+    return ('<div class="scroll"><table class="matrix"><thead><tr><th>US spread (bp)</th>' + head + '<th>Z (1y)</th></tr></thead><tbody>'
             + "".join(body) + "</tbody></table></div>")
 
 
@@ -724,9 +773,9 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
 
     dates = [m["date"] for m in metrics.values() if m.get("date")]
     as_of = max(dates) if dates else "n/a"
-    default_sel = [x for x in ("S:10y-2y", "S:10y-3m") if any(r_["id"] == x for r_ in rows)]
+    default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y") if any(r_["id"] == x for r_ in rows)]
     payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "info": r_["info"]} for r_ in rows},
-               "default": default_sel, "cot": build_cot_charts(data),
+               "default": default_sel, "matrix": matrix_payload(computed), "cot": build_cot_charts(data),
                "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2}, "unit": {"spreads": " pp", "yields": "%", "dxy": "", "gold": ""}}
 
     page = TEMPLATE

@@ -90,7 +90,7 @@
   .signals span { display: block; color: var(--muted); font-size: 13px; }
 
   /* terminal layout */
-  .term { display: grid; grid-template-columns: minmax(340px, 430px) minmax(0, 1fr); gap: 12px; align-items: start; }
+  .term { display: grid; grid-template-columns: minmax(380px, 520px) minmax(0, 1fr); gap: 12px; align-items: start; }
   @media (max-width: 900px) { .term { grid-template-columns: minmax(0, 1fr); } }
   .scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -147,6 +147,34 @@
   table.matrix td.zc { color: var(--muted); border-left: 1px solid var(--line); }
   table.matrix td.na { color: var(--muted); text-align: center; }
   table.matrix tbody th { font-weight: 600; position: sticky; left: 0; background: var(--panel); }
+
+
+  .phead { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 10px 12px 6px; }
+  .phead h4 { margin: 0; font: 600 15px Georgia, serif; color: var(--accent); }
+  .tools { display: flex; flex-wrap: wrap; gap: 2px; }
+  .tools button, .mhead .ranges button { font: inherit; font-size: 12px; border: 0; background: transparent; color: var(--muted); padding: 3px 8px; border-radius: 6px; cursor: pointer; }
+  .tools button:hover { background: var(--tint); color: var(--ink); }
+  .tools button[aria-pressed="true"], .tools button[aria-expanded="true"] { background: var(--tint); color: var(--ink); }
+  .colmenu { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 4px 12px 8px; font-size: 12px; color: var(--muted); }
+  .colmenu[hidden] { display: none; }
+  .filter { padding: 0 12px 8px; }
+  .filter input { width: 100%; font: inherit; font-size: 13px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+  .wl { max-height: 660px; overflow: auto; border-top: 1px solid var(--line); }
+  table.watch { min-width: 100%; }
+  table.watch.hide-c-tk .c-tk, table.watch.hide-c-d5 .c-d5, table.watch.hide-c-d20 .c-d20, table.watch.hide-c-z .c-z { display: none; }
+  table.watch .tk { color: var(--muted); font-size: 11px; text-align: left; letter-spacing: .02em; }
+  table.watch thead th.c-tk { text-align: left; }
+  table.watch tr.grp { cursor: pointer; }
+  table.watch tr.grp th small { color: var(--muted); font-weight: 400; margin-left: 4px; }
+  .car { display: inline-block; width: 0; height: 0; border: 4px solid transparent; border-left-color: var(--muted); margin-right: 7px; transform: rotate(90deg); transition: transform .12s; }
+  tr.grp[aria-expanded="false"] .car { transform: none; }
+  tbody.closed tr.row { display: none; }
+  tr.row.hidden { display: none; }
+  .mhead { margin: -4px 0 8px; }
+  .mhead .ranges button[aria-pressed="true"] { background: var(--rule); color: #fff; }
+  table.matrix thead th { text-align: right; }
+  table.matrix thead th:first-child { text-align: left; }
+  table.matrix tbody td.heat.pos { --c: var(--s2); }
 
   /* positioning */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
@@ -238,11 +266,24 @@
 
   <section id="markets">
     <h2>Markets</h2>
-    <p class="lede">Click rows on the left to plot them. You can overlay up to four from the same group (spreads, yields, DXY or gold). The panel under the chart explains the row you clicked last. Changes: spreads and yields in percentage points, DXY and gold in percent. Z compares today with the past 252 trading days.</p>
+    <p class="lede">Click rows on the left to plot them. You can overlay up to four of the same kind (any mix of countries' spreads, US yields, DXY or gold). Click a section title to collapse it. The panel under the chart explains the row you clicked last. Changes: spreads and yields in percentage points, DXY and gold in percent. Z compares today with the past 252 trading days.</p>
     <div class="term">
-      <div class="box"><div class="scroll" style="max-height:640px;overflow:auto">__WATCHLIST__</div></div>
       <div class="box">
-        <div class="chead"><h4 id="ctitle">Historical</h4>
+        <div class="phead"><h4>Yield spreads</h4>
+          <div class="tools">
+            <button type="button" id="t-cols" aria-expanded="false">Columns</button>
+            <button type="button" id="t-save" title="Remember the rows you have selected in this browser">Save as watchlist</button>
+            <button type="button" id="t-group" aria-pressed="true">Group</button>
+            <button type="button" id="t-dl">Download</button>
+          </div></div>
+        <div class="colmenu" id="colmenu" hidden>
+          <label><input type="checkbox" data-col="c-tk" checked> Ticker</label><label><input type="checkbox" data-col="c-d5" checked> 5D</label>
+          <label><input type="checkbox" data-col="c-d20" checked> 20D</label><label><input type="checkbox" data-col="c-z" checked> Z</label></div>
+        <div class="filter"><input id="t-filter" type="search" placeholder="Filter (e.g. Japan, 10Y, DXY)" aria-label="Filter watchlist"></div>
+        <div class="scroll wl">__WATCHLIST__</div>
+      </div>
+      <div class="box">
+        <div class="chead"><h4 id="ctitle">Historical yields</h4>
           <div class="ranges" id="ranges" role="group" aria-label="Date range"></div></div>
         <div class="chips" id="chips"></div>
         <div class="cv" id="ch-main"></div>
@@ -250,7 +291,10 @@
       </div>
     </div>
     <h3 class="sub">Yield spreads matrix</h3>
-    <p class="lede small">US Treasury spreads in basis points (long yield minus short yield) now and as they stood 1 day to 1 year ago. Rose shading marks inverted (negative) spreads, teal marks positive ones; darker means larger.</p>
+    <div class="mhead"><div class="ranges" id="hz" role="group" aria-label="Matrix date"></div></div>
+    <p class="lede small">Spreads in basis points (long yield minus short yield) by country. Pick a date to see how they stood then. A dash means that country does not publish one of the two maturities. Rose marks inverted (negative) spreads, teal positive ones; darker means larger.</p>
+    <div class="box"><div class="scroll"><table class="matrix" id="cmx"></table></div></div>
+    <h3 class="sub">United States across time horizons</h3>
     <div class="box">__MATRIX__</div>
   </section>
 
@@ -366,7 +410,7 @@ function draw(host, spec) {
   });
   spec.sets.forEach(s => {
     let d = "", pen = false;
-    s.data.forEach((v, i) => { if (v === null || v === undefined) { pen = false; return; } d += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1); pen = true; });
+    s.data.forEach((v, i) => { if (v === null || v === undefined) { return; } d += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1); pen = true; });
     el("path", { d, fill: "none", stroke: s.color, "stroke-width": 1.8, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
   });
   if (spec.endLabels) {
@@ -430,6 +474,9 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
     else { sel.push(id); if (sel.length > 4) sel.shift(); }
     focus = id; paint();
   }
+  window.__getSel = () => sel.slice();
+  let savedSel = null; try { savedSel = JSON.parse(localStorage.getItem("macro-watchlist") || "null"); } catch (e) {}
+  if (Array.isArray(savedSel)) { const ok = savedSel.filter(id => P.rows[id] && P.rows[id].family); if (ok.length && ok.every(id => P.rows[id].family === P.rows[ok[0]].family)) { sel = ok.slice(0, 4); focus = sel[sel.length - 1]; } }
   rows.forEach(r => {
     r.addEventListener("click", () => toggle(r.dataset.id));
     r.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(r.dataset.id); } });
@@ -470,6 +517,68 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
   }
   paint();
   let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(paint, 120); });
+})();
+
+
+/* Watchlist tools: group collapse, filter, columns, save, download */
+(function () {
+  const tbl = document.getElementById("watch"); if (!tbl) return;
+  tbl.querySelectorAll("tr.grp").forEach(g => {
+    const tog = () => { const b = g.parentElement; const closed = b.classList.toggle("closed"); g.setAttribute("aria-expanded", String(!closed)); };
+    g.addEventListener("click", tog);
+    g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tog(); } });
+  });
+  const flt = document.getElementById("t-filter");
+  flt.addEventListener("input", () => {
+    const q = flt.value.trim().toLowerCase();
+    tbl.querySelectorAll("tr.row").forEach(r => { r.classList.toggle("hidden", !!q && !(r.textContent.toLowerCase().includes(q))); });
+    tbl.querySelectorAll("tbody").forEach(b => { b.style.display = q && !b.querySelector("tr.row:not(.hidden)") ? "none" : ""; if (q) b.classList.remove("closed"); });
+  });
+  const menu = document.getElementById("colmenu"), cb = document.getElementById("t-cols");
+  cb.addEventListener("click", () => { menu.hidden = !menu.hidden; cb.setAttribute("aria-expanded", String(!menu.hidden)); });
+  menu.querySelectorAll("input").forEach(i => i.addEventListener("change", () => tbl.classList.toggle("hide-" + i.dataset.col, !i.checked)));
+  const gb = document.getElementById("t-group");
+  gb.addEventListener("click", () => {   /* Group on = sections visible and collapsible; off = one flat list */
+    const on = gb.getAttribute("aria-pressed") !== "true"; gb.setAttribute("aria-pressed", String(on));
+    tbl.querySelectorAll("tr.grp").forEach(g => { g.style.display = on ? "" : "none"; });
+    tbl.querySelectorAll("tbody").forEach(b => { if (!on) b.classList.remove("closed"); });
+  });
+  document.getElementById("t-dl").addEventListener("click", () => {
+    const lines = [["Group", "Name", "Ticker", "Latest", "1D", "5D", "20D", "Z"].join(",")];
+    tbl.querySelectorAll("tbody").forEach(b => b.querySelectorAll("tr.row").forEach(r => {
+      const c = [...r.children].map(x => '"' + x.textContent.trim().replace(/"/g, '""') + '"');
+      lines.push(['"' + b.dataset.group + '"'].concat(c).join(","));
+    }));
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" })); a.download = "watchlist.csv"; a.click();
+  });
+  const sv = document.getElementById("t-save");
+  sv.addEventListener("click", () => {
+    try { localStorage.setItem("macro-watchlist", JSON.stringify(window.__getSel())); sv.textContent = "Saved"; setTimeout(() => sv.textContent = "Save as watchlist", 1500); } catch (e) { sv.textContent = "Not saved"; }
+  });
+})();
+
+/* Spreads matrix by country */
+(function () {
+  const M = P.matrix, tbl = document.getElementById("cmx"); if (!M || !tbl) return;
+  const NAMES = { US: "US", CA: "CA", DE: "DE", JP: "JP", AU: "AU" };
+  const hz = document.getElementById("hz"); let cur = 0;
+  M.horizons.forEach((h, i) => { const b = document.createElement("button"); b.type = "button"; b.textContent = h; b.addEventListener("click", () => { cur = i; paint(); }); hz.appendChild(b); });
+  let peak = 1; M.vals.forEach(g => g.forEach(r => r.forEach(v => { if (v !== null) peak = Math.max(peak, Math.abs(v)); })));
+  function paint() {
+    hz.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === cur)));
+    let h = "<thead><tr><th>Spread (bp)</th>" + M.cols.map(c => `<th>${NAMES[c] || c}</th>`).join("") + "</tr></thead><tbody>";
+    M.rows.forEach((name, i) => {
+      h += `<tr><th scope="row">${name}</th>`;
+      M.cols.forEach((c, j) => {
+        const v = M.vals[cur][i][j];
+        if (v === null) h += '<td class="na">-</td>';
+        else { const k = Math.min(100, Math.round(100 * Math.pow(Math.abs(v) / peak, .7))); h += `<td class="heat ${v < 0 ? "neg" : "pos"}" style="--i:${k}">${v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>`; }
+      });
+      h += "</tr>";
+    });
+    tbl.innerHTML = h + "</tbody>";
+  }
+  paint();
 })();
 
 /* Positioning charts */

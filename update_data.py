@@ -5,6 +5,7 @@ Sources (all free, no API key):
   - FRED  : US Treasury yields + 10Y real yield   -> data/<CODE>.csv
   - CFTC  : Gold and USD Index COT, both from the Legacy Futures Only report (Non-Commercial)
             -> data/COT_GOLD_LEGACY.csv, data/COT_USD_INDEX.csv
+  - Canada (Bank of Canada), Germany (Bundesbank), Japan (MoF), Australia (RBA): 2y/5y/10y/30y yields -> data/YC_<CC>.csv
   - FX dashboard feed (deiruuuu/fx-macro-confluence data.json) -> data/fx_macro.json
   - Yahoo : DXY price (fallback: Stooq)          -> data/DXY.csv
             Gold futures price (GC=F)            -> data/GOLD.csv   (used for the weekly price change next to Gold COT)
@@ -136,6 +137,83 @@ def fetch_dxy_stooq() -> pd.DataFrame:
     return pd.DataFrame({"Date": pd.to_datetime(df["Date"]), "DXY": pd.to_numeric(df["Close"], errors="coerce")}).dropna()
 
 
+# ---- other countries: government yield curves from central-bank / ministry sources (daily, free, no key)
+INTL = {"CA": "Canada", "DE": "Germany", "JP": "Japan", "AU": "Australia"}
+INTL_KEEP = 2700
+
+
+def _start() -> str:
+    return (datetime.now(timezone.utc) - pd.Timedelta(days=365 * HISTORY_YEARS + 10)).strftime("%Y-%m-%d")
+
+
+def fetch_yc_ca() -> pd.DataFrame:
+    """Bank of Canada Valet: benchmark bond yields (2y, 5y, 10y, long = about 30y)."""
+    ids = {"BD.CDN.2YR.DQ.YLD": "2Y", "BD.CDN.5YR.DQ.YLD": "5Y", "BD.CDN.10YR.DQ.YLD": "10Y", "BD.CDN.LONG.DQ.YLD": "30Y"}
+    r = requests.get("https://www.bankofcanada.ca/valet/observations/group/bond_yields_benchmark/json",
+                     params={"start_date": _start()}, headers=HEADERS, timeout=TIMEOUT)
+    r.raise_for_status()
+    rows = []
+    for o in r.json()["observations"]:
+        row = {"date": o["d"]}
+        for k, col in ids.items():
+            v = (o.get(k) or {}).get("v")
+            row[col] = pd.to_numeric(v, errors="coerce")
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def fetch_yc_de() -> pd.DataFrame:
+    """Deutsche Bundesbank: Svensson zero-coupon curve of listed federal securities (2y, 5y, 10y, 30y)."""
+    out = None
+    for yrs, col in ((2, "2Y"), (5, "5Y"), (10, "10Y"), (30, "30Y")):
+        key = f"D.I.ZST.ZI.EUR.S1311.B.A604.R{yrs:02d}XX.R.A.A._Z._Z.A"
+        r = requests.get(f"https://api.statistiken.bundesbank.de/rest/data/BBSIS/{key}",
+                         params={"startPeriod": _start(), "format": "csv"}, headers=HEADERS, timeout=TIMEOUT)
+        r.raise_for_status()
+        recs = []
+        for ln in r.text.splitlines():
+            p = ln.split(";")
+            if len(p) >= 2 and len(p[0]) == 10 and p[0][4] == "-" and p[0][:4].isdigit():
+                recs.append((p[0], pd.to_numeric(p[1].replace(",", "."), errors="coerce")))
+        d = pd.DataFrame(recs, columns=["date", col])
+        out = d if out is None else out.merge(d, on="date", how="outer")
+    if out is None or out.empty:
+        raise ValueError("Bundesbank returned no data")
+    return out
+
+
+def fetch_yc_jp() -> pd.DataFrame:
+    """Japan Ministry of Finance: JGB benchmark yields (2y, 5y, 10y, 30y), full history file plus current month."""
+    base = "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/"
+    frames = []
+    for url in (base + "historical/jgbcme_all.csv", base + "jgbcme.csv"):
+        r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        r.raise_for_status()
+        df = pd.read_csv(StringIO(r.text), skiprows=1, na_values=["-"])
+        df = df.rename(columns=str.strip)
+        df["date"] = pd.to_datetime(df["Date"], format="%Y/%m/%d", errors="coerce")
+        frames.append(df[["date", "2Y", "5Y", "10Y", "30Y"]])
+    out = pd.concat(frames).dropna(subset=["date"]).drop_duplicates("date", keep="last")
+    out = out[out["date"] >= pd.Timestamp(_start())].copy()
+    for c in ("2Y", "5Y", "10Y", "30Y"):
+        out[c] = pd.to_numeric(out[c], errors="coerce")
+    return out
+
+
+def fetch_yc_au() -> pd.DataFrame:
+    """Reserve Bank of Australia table F2: interpolated government bond yields (2y, 5y, 10y; no 30y published)."""
+    r = requests.get("https://www.rba.gov.au/statistics/tables/csv/f2-data.csv", headers=HEADERS, timeout=TIMEOUT)
+    r.raise_for_status()
+    lines = r.text.lstrip("\ufeff").splitlines()
+    start = next(i for i, ln in enumerate(lines) if ln.startswith("Series ID")) + 1
+    df = pd.read_csv(StringIO("\n".join(lines[start:])), header=None, usecols=range(5), engine="python", on_bad_lines="skip")
+    out = pd.DataFrame({"date": pd.to_datetime(df[0], format="%d-%b-%Y", errors="coerce"),
+                        "2Y": pd.to_numeric(df[1], errors="coerce"), "5Y": pd.to_numeric(df[3], errors="coerce"),
+                        "10Y": pd.to_numeric(df[4], errors="coerce")})
+    out["30Y"] = float("nan")
+    return out.dropna(subset=["date"])
+
+
 def main() -> int:
     status: dict[str, dict] = {}
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -175,6 +253,14 @@ def main() -> int:
         record("GOLD_PRICE", True, saved["Date"].iloc[-1], note="source: Yahoo GC=F")
     except Exception as exc:  # noqa: BLE001
         record("GOLD_PRICE", False, error=f"{type(exc).__name__}: {exc}"[:200])
+
+    for cc, fn in (("CA", fetch_yc_ca), ("DE", fetch_yc_de), ("JP", fetch_yc_jp), ("AU", fetch_yc_au)):
+        try:
+            df = fn().dropna(subset=["2Y", "5Y", "10Y", "30Y"], how="all")
+            saved = merge_save(DATA / f"YC_{cc}.csv", df, "date", INTL_KEEP)
+            record(f"YC_{cc}", True, saved["date"].iloc[-1], note=f"{INTL[cc]} government yields")
+        except Exception as exc:  # noqa: BLE001
+            record(f"YC_{cc}", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
     try:
         r = requests.get(FX_FEED_URL, timeout=30)

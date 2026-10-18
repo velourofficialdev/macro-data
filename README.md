@@ -61,3 +61,5 @@ python build_dashboard.py   # writes docs/index.html, open it in a browser
 - If a source fails, the old CSV is kept and the failure shows in the **Data status** table on the page.
 - Gold price (for the weekly price change next to Gold COT) is the COMEX gold future `GC=F` from Yahoo Finance. DXY comes from Yahoo Finance, with Stooq as a fallback. Cloud servers are sometimes blocked by Yahoo, so check the status table if the DXY date stops moving.
 - The rules in `playbook.json` are rules of thumb, not predictions or advice.
+
+- Other-country yields come from official free sources: Bank of Canada (Valet API), Deutsche Bundesbank (Svensson curve), Japan Ministry of Finance (JGB benchmark yields) and Reserve Bank of Australia (table F2, no 30Y published). Saved as `data/YC_<CC>.csv`. France, Italy, China, India and Brazil have no free daily official feed, so they are not included.
