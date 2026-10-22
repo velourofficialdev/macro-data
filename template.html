@@ -208,8 +208,15 @@
   table.watch td { text-align: right; }
   table.watch th[scope=row] { font-weight: 500; position: sticky; left: 0; background: var(--surface); z-index: 1; }
   table.watch.econ th[scope=row] { white-space: normal; min-width: 170px; max-width: 230px; line-height: 1.3; }
-  table.watch thead th:nth-child(2) { position: sticky; left: 0; z-index: 3; }
-  table.watch td.cb, table.watch th.cb { width: 28px; padding: 0 0 0 12px; text-align: left; }
+  /* frozen left side while scrolling sideways: checkbox column, name column and the group titles */
+  table.watch td.cb, table.watch th.cb { position: sticky; left: 0; z-index: 2; background: var(--surface); width: 30px; min-width: 30px; max-width: 30px; }
+  table.watch thead th.cb { z-index: 4; background: var(--surface-2); }
+  table.watch th[scope=row] { left: 30px !important; }
+  table.watch thead th:nth-child(2) { position: sticky; left: 30px; z-index: 4; }
+  table.watch tr.grp td.cb { background: color-mix(in srgb, var(--surface-2) 55%, var(--surface)); }
+  table.watch tr.grp .gt { position: sticky; left: 30px; }
+  table.watch tr.grp .gmove { z-index: 2; background: color-mix(in srgb, var(--surface-2) 55%, var(--surface)); }
+  table.watch td.cb, table.watch th.cb { padding: 0 0 0 10px; text-align: left; }
   table.watch .plus { color: var(--accent); margin-right: 6px; font-size: 10px; }
   table.watch .tk { color: var(--muted); font-size: 12px; text-align: left; }
   table.watch td.yd small { color: var(--muted); font-size: 10px; margin-left: 1px; }
@@ -228,7 +235,6 @@
   tr.row { cursor: pointer; transition: background-color .12s; }
   table.watch tr.row.on > *, table.watch tr.row.on > th[scope=row] { background: linear-gradient(var(--tint-primary), var(--tint-primary)) var(--surface); }
   table.watch tr.row:hover > th[scope=row] { background: var(--surface-2); }
-  tr.row.on th[scope=row] { box-shadow: inset 2px 0 0 var(--primary); }
   tr.row.on .pick { background: var(--c, var(--primary)); border-color: var(--c, var(--primary)); box-shadow: inset 0 0 0 2px var(--surface); }
   tr.row.dim { opacity: .5; }
 
@@ -278,7 +284,7 @@
   .rterm .cv.main { flex: 1; height: auto; min-height: 300px; margin: 2px 4px 6px 8px; }
   .rterm table.watch { font-size: 12px; }
   .rterm table.watch th, .rterm table.watch td { padding: 4px 7px; height: 26px; }
-  .rterm table.watch td.hm { background: none; }
+  .rterm table.watch tr.row:not(.on) td.hm { background: none; }
   .rterm table.watch tr.grp td, .rterm table.watch tr.grp th { height: 30px; }
   .rterm .mxs { flex: 1; }
   .rterm table.matrix { font-size: 12.5px; }
