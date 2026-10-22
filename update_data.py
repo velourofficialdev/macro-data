@@ -6,7 +6,8 @@ Sources (all free, no API key):
             US macro (inflation, growth, labor)    -> data/econ/<CODE>.csv
   - CFTC  : Gold and USD Index COT, both from the Legacy Futures Only report (Non-Commercial)
             -> data/COT_GOLD_LEGACY.csv, data/COT_USD_INDEX.csv
-  - Canada (Bank of Canada), Germany (Bundesbank), Japan (MoF), Australia (RBA): 2y/5y/10y/30y yields -> data/YC_<CC>.csv
+  - Canada (Bank of Canada), Germany (Bundesbank), Japan (MoF), Australia (RBA), China (ChinaBond, EastMoney fallback),
+    India (FBIL par yields), France and Italy (CNBC benchmark yields; no free official daily feed): 2y/5y/10y/30y -> data/YC_<CC>.csv
   - ECB     : euro reference rates (official, daily ~16:00 CET) -> 7 major pairs in data/fx/<PAIR>.csv (crosses via EUR)
             and the US Dollar Index computed with ICE's published DXY formula -> data/DXY.csv
             (fallbacks: Yahoo, then FRED H.10 for pairs / Stooq for DXY). XAUUSD uses the gold futures series
@@ -20,6 +21,7 @@ Exit code is 1 only if every source failed.
 """
 from __future__ import annotations
 
+import io
 import json
 import sys
 from datetime import datetime, timezone
@@ -150,7 +152,7 @@ def fetch_dxy_stooq() -> pd.DataFrame:
 
 
 # ---- other countries: government yield curves from central-bank / ministry sources (daily, free, no key)
-INTL = {"CA": "Canada", "DE": "Germany", "JP": "Japan", "AU": "Australia"}
+INTL = {"CA": "Canada", "DE": "Germany", "FR": "France", "IT": "Italy", "JP": "Japan", "AU": "Australia", "CN": "China", "IN": "India"}
 INTL_KEEP = 2700
 
 
@@ -224,6 +226,98 @@ def fetch_yc_au() -> pd.DataFrame:
                         "10Y": pd.to_numeric(df[4], errors="coerce")})
     out["30Y"] = float("nan")
     return out.dropna(subset=["date"])
+
+
+BROWSER = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
+
+
+def _cnbc_curve(cc: str) -> pd.DataFrame:
+    """France / Italy benchmark yields from CNBC's chart API (daily closes, about 2 years per call).
+    No central bank publishes these daily for free. Checks done when this was added (Oct 2026):
+      - monthly means vs the official OECD series (FRED IRLTLT01FRM156N / IRLTLT01ITM156N): within ~1 bp (FR), ~4 bp (IT)
+      - the same CNBC feed for US 10Y vs FRED DGS10: daily levels within ~1 bp, daily changes correlate 0.96
+      - daily bar close = the price at about 17:30 CET (European close), confirmed against CNBC's 5-minute bars"""
+    cols = {}
+    for t in (2, 5, 10, 30):
+        r = requests.get("https://ts-api.cnbc.com/harmony/app/charts/1Y.json", params={"symbol": f"{cc}{t}Y-{cc}"},
+                         headers=BROWSER, timeout=TIMEOUT)
+        r.raise_for_status()
+        bars = r.json()["barData"]["priceBars"]
+        s = pd.Series([float(b["close"]) for b in bars], index=pd.to_datetime([b["tradeTime"][:8] for b in bars]))
+        s = s[~s.index.duplicated(keep="last")]
+        cols[f"{t}Y"] = s[s.index.dayofweek < 5]   # weekday bars close at the European close; weekend bars are late Friday trades
+    df = pd.DataFrame(cols).dropna(how="all")
+    if len(df) < 100:
+        raise ValueError(f"CNBC returned only {len(df)} rows for {cc}")
+    return df.rename_axis("date").reset_index()
+
+
+def fetch_yc_fr() -> pd.DataFrame:
+    return _cnbc_curve("FR")
+
+
+def fetch_yc_it() -> pd.DataFrame:
+    return _cnbc_curve("IT")
+
+
+def fetch_yc_cn() -> pd.DataFrame:
+    """ChinaBond government bond yield curve (YTM), the official CGB curve. EastMoney (which republishes it) as fallback."""
+    try:
+        r = requests.post("https://yield.chinabond.com.cn/cbweb-mn/yc/queryYz",
+                          params={"bjlx": "no", "dcq": "2,2y;5,5y;10,10y;30,30y;", "startTime": _start(),
+                                  "endTime": datetime.now(timezone.utc).strftime("%Y-%m-%d"), "qxlx": "0,", "yqqxN": "N",
+                                  "yqqxK": "K", "par": "day", "ycDefIds": "2c9081e50a2f9606010a3068cae70001,", "locale": "en_US"},
+                          headers=BROWSER, timeout=90)
+        r.raise_for_status()
+        cols = {}
+        for s in r.json():
+            ten = s["ycDefName"].rsplit("(", 1)[-1].rstrip(")").upper()          # "(10y)" -> "10Y"
+            d = s["seriesData"]
+            cols[ten] = pd.Series([v for _, v in d], index=pd.to_datetime([ts for ts, _ in d], unit="ms") + pd.Timedelta(hours=8))
+        df = pd.DataFrame(cols)
+        df.index = df.index.normalize()
+        if not {"2Y", "5Y", "10Y", "30Y"} <= set(df.columns) or len(df) < 250:
+            raise ValueError("ChinaBond curve incomplete")
+        return df.rename_axis("date").reset_index()
+    except Exception as exc:  # noqa: BLE001
+        print(f"WARN China via ChinaBond failed ({type(exc).__name__}: {exc}); trying EastMoney")
+    r = requests.get("https://datacenter-web.eastmoney.com/api/data/v1/get",
+                     params={"reportName": "RPTA_WEB_TREASURYYIELD", "columns": "ALL", "pageSize": 60,
+                             "sortColumns": "SOLAR_DATE", "sortTypes": -1}, headers=BROWSER, timeout=TIMEOUT)
+    r.raise_for_status()
+    rows = r.json()["result"]["data"]
+    return pd.DataFrame({"date": pd.to_datetime([x["SOLAR_DATE"][:10] for x in rows]),
+                         "2Y": [x["EMM00588704"] for x in rows], "5Y": [x["EMM00166462"] for x in rows],
+                         "10Y": [x["EMM00166466"] for x in rows], "30Y": [x["EMM00166469"] for x in rows]})
+
+
+def _fbil_day(day: str) -> dict | None:
+    """FBIL G-Sec par yield curve for one day (semi-annual YTM, the market quoting convention). None if not published."""
+    r = requests.get("https://www.fbil.org.in/wasdm/gsec/downloadPublished", params={"date": day}, headers=BROWSER, timeout=TIMEOUT)
+    if r.status_code != 200 or len(r.content) < 1000:
+        return None
+    v = pd.read_excel(io.BytesIO(r.content), sheet_name="Par Yield", header=None)
+    hdr = v.index[v[0].astype(str).str.contains("Tenor", na=False)][0]
+    t = v.iloc[hdr + 1:, :2].dropna()
+    t.columns = ["tenor", "ytm"]
+    t["tenor"] = pd.to_numeric(t["tenor"], errors="coerce")
+    t = t.dropna().set_index("tenor")["ytm"].astype(float)
+    out = {"date": day, **{f"{k}Y": t.get(float(k)) for k in (2, 5, 10, 30)}}
+    return out if out["10Y"] is not None else None
+
+
+def fetch_yc_in() -> pd.DataFrame:
+    """India: FBIL G-Sec par yields, one published file per business day. Only days after the saved file are fetched
+    (initial history was backfilled once). Checked against the OECD monthly 10Y (FRED INDIRLTLT01STM): within about 2 bp."""
+    p = DATA / "YC_IN.csv"
+    last = pd.to_datetime(pd.read_csv(p)["date"]).max() if p.exists() else pd.Timestamp.today() - pd.Timedelta(days=400)
+    days = pd.bdate_range(last + pd.Timedelta(days=1), pd.Timestamp.today().normalize())[-60:]
+    rows = [r for d in days if (r := _fbil_day(d.strftime("%Y-%m-%d")))]
+    if not rows:
+        if p.exists():
+            return pd.DataFrame(columns=["date", "2Y", "5Y", "10Y", "30Y"])   # nothing new published yet
+        raise ValueError("FBIL returned no par yield files")
+    return pd.DataFrame(rows).assign(date=lambda d: pd.to_datetime(d["date"]))
 
 
 # ---- Fed decision odds from Kalshi's public market data (CME FedWatch has no free API)
@@ -430,7 +524,8 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         record("GOLD_PRICE", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
-    for cc, fn in (("CA", fetch_yc_ca), ("DE", fetch_yc_de), ("JP", fetch_yc_jp), ("AU", fetch_yc_au)):
+    for cc, fn in (("CA", fetch_yc_ca), ("DE", fetch_yc_de), ("FR", fetch_yc_fr), ("IT", fetch_yc_it), ("JP", fetch_yc_jp),
+                   ("AU", fetch_yc_au), ("CN", fetch_yc_cn), ("IN", fetch_yc_in)):
         try:
             df = fn().dropna(subset=["2Y", "5Y", "10Y", "30Y"], how="all")
             saved = merge_save(DATA / f"YC_{cc}.csv", df, "date", INTL_KEEP)
