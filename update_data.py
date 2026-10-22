@@ -7,11 +7,12 @@ Sources (all free, no API key):
   - CFTC  : Gold and USD Index COT, both from the Legacy Futures Only report (Non-Commercial)
             -> data/COT_GOLD_LEGACY.csv, data/COT_USD_INDEX.csv
   - Canada (Bank of Canada), Germany (Bundesbank), Japan (MoF), Australia (RBA): 2y/5y/10y/30y yields -> data/YC_<CC>.csv
-  - FX      : 7 major pairs (Yahoo, FRED H.10 fallback) -> data/fx/<PAIR>.csv; XAUUSD uses the gold futures series
+  - ECB     : euro reference rates (official, daily ~16:00 CET) -> 7 major pairs in data/fx/<PAIR>.csv (crosses via EUR)
+            and the US Dollar Index computed with ICE's published DXY formula -> data/DXY.csv
+            (fallbacks: Yahoo, then FRED H.10 for pairs / Stooq for DXY). XAUUSD uses the gold futures series
   - Kalshi  : Fed decision market odds (next meetings) + daily history -> data/fed/
   - FX dashboard feed (deiruuuu/fx-macro-confluence data.json) -> data/fx_macro.json
-  - Yahoo : DXY price (fallback: Stooq)          -> data/DXY.csv
-            Gold futures price (GC=F)            -> data/GOLD.csv   (used for the weekly price change next to Gold COT)
+  - Yahoo : Gold futures price (GC=F)            -> data/GOLD.csv   (used for the weekly price change next to Gold COT)
 
 A failed source never wipes existing data: the old file is kept and the error
 is written to data/status.json, which the dashboard shows in its footer.
@@ -302,7 +303,47 @@ def fetch_fed_odds() -> tuple[dict, dict[str, pd.DataFrame]]:
     return snap, hist
 
 
-# ---- FX pairs for the confluence panel: Yahoo daily closes, FRED H.10 noon rates as fallback (no key needed)
+# ---- ECB euro foreign exchange reference rates (official, free, no key). Quoted as units of currency per 1 EUR;
+# USD pairs are crossed through the euro, which is exact arithmetic on the same 14:15 CET fixing.
+ECB_CCY = ("USD", "JPY", "GBP", "CHF", "CAD", "AUD", "NZD", "SEK")
+_ECB: dict = {}
+
+
+def fetch_ecb_rates() -> pd.DataFrame:
+    """Daily ECB reference rates, one column per currency (per 1 EUR), indexed by date. Cached per run."""
+    if "df" in _ECB:
+        return _ECB["df"]
+    r = requests.get("https://data-api.ecb.europa.eu/service/data/EXR/D." + "+".join(ECB_CCY) + ".EUR.SP00.A",
+                     params={"startPeriod": _start(), "format": "csvdata"}, timeout=60)
+    r.raise_for_status()
+    raw = pd.read_csv(StringIO(r.text), usecols=["CURRENCY", "TIME_PERIOD", "OBS_VALUE"])
+    df = raw.pivot_table(index="TIME_PERIOD", columns="CURRENCY", values="OBS_VALUE", aggfunc="last")
+    df.index = pd.to_datetime(df.index)
+    df = df.sort_index().dropna(subset=[c for c in ECB_CCY if c in df.columns])
+    missing = [c for c in ECB_CCY if c not in df.columns]
+    if missing or len(df) < 250:
+        raise ValueError(f"ECB returned too little data (missing {missing}, rows {len(df)})")
+    _ECB["df"] = df
+    return df
+
+
+def ecb_pairs() -> dict[str, pd.Series]:
+    e = fetch_ecb_rates()
+    usd = e["USD"]
+    return {"EURUSD": usd, "GBPUSD": usd / e["GBP"], "USDJPY": e["JPY"] / usd, "USDCAD": e["CAD"] / usd,
+            "AUDUSD": usd / e["AUD"], "USDCHF": e["CHF"] / usd, "NZDUSD": usd / e["NZD"]}
+
+
+def fetch_dxy_ecb() -> pd.DataFrame:
+    """US Dollar Index from ICE's published formula, using ECB reference rates (EUR, JPY, GBP, CAD, SEK, CHF)."""
+    e = fetch_ecb_rates()
+    usd = e["USD"]
+    dxy = (50.14348112 * usd ** -0.576 * (e["JPY"] / usd) ** 0.136 * (usd / e["GBP"]) ** -0.119
+           * (e["CAD"] / usd) ** 0.091 * (e["SEK"] / usd) ** 0.042 * (e["CHF"] / usd) ** 0.036)
+    return pd.DataFrame({"Date": dxy.index, "DXY": dxy.values}).dropna()
+
+
+# ---- FX pairs for the confluence panel: ECB reference rates, then Yahoo daily closes, then FRED H.10 (no key needed)
 FX_PAIRS = {   # pair: (Yahoo symbol, FRED series)
     "EURUSD": ("EURUSD=X", "DEXUSEU"), "GBPUSD": ("GBPUSD=X", "DEXUSUK"), "USDJPY": ("JPY=X", "DEXJPUS"),
     "USDCAD": ("CAD=X", "DEXCAUS"), "AUDUSD": ("AUDUSD=X", "DEXUSAL"), "USDCHF": ("CHF=X", "DEXSZUS"),
@@ -312,6 +353,13 @@ FX_PAIRS = {   # pair: (Yahoo symbol, FRED series)
 
 def fetch_fx_pair(pair: str) -> tuple[pd.DataFrame, str]:
     ysym, fred = FX_PAIRS[pair]
+    try:
+        s = ecb_pairs()[pair]
+        s = s[s.index >= pd.Timestamp.today() - pd.Timedelta(days=3 * 365)]
+        if len(s) > 60:
+            return pd.DataFrame({"date": s.index, "Close": s.values}), "ECB reference rate"
+    except Exception as exc:  # noqa: BLE001 - fall back to Yahoo, then FRED
+        print(f"WARN {pair} via ECB failed ({type(exc).__name__}: {exc}); trying Yahoo")
     try:
         df = fetch_yahoo(ysym, "Close").rename(columns={"Date": "date"})
         df = df[df["date"] >= pd.Timestamp.today() - pd.Timedelta(days=3 * 365)]
@@ -357,9 +405,16 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             record(name, False, error=f"{type(exc).__name__}: {exc}"[:200])
 
-    for label, fn in (("Yahoo", fetch_dxy_yahoo), ("Stooq", fetch_dxy_stooq)):
+    for label, fn in (("ECB (ICE formula)", fetch_dxy_ecb), ("Yahoo", fetch_dxy_yahoo), ("Stooq", fetch_dxy_stooq)):
         try:
-            saved = merge_save(DATA / "DXY.csv", fn(), "Date", KEEP_DAILY)
+            df = fn()
+            p = DATA / "DXY.csv"
+            if p.exists():   # keep one source per file so the history stays consistent
+                old = pd.read_csv(p)
+                if (str(old["source"].iloc[-1]) if "source" in old else "Yahoo") != label:
+                    p.unlink()
+            df["source"] = label
+            saved = merge_save(p, df, "Date", KEEP_DAILY)
             record("DXY", True, saved["Date"].iloc[-1], note=f"source: {label}")
             break
         except Exception as exc:  # noqa: BLE001
