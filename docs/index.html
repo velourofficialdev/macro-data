@@ -16,24 +16,22 @@
 <style>
   /* =====================================================================
      DESIGN TOKENS
-     Brand palette (dark = reference design), used exactly:
-       --primary #90BFF9  --secondary #B96AC9  --accent #787779
-       --background #202020 (darkened from #2E2E2E on request)  --surface #35383C  --text #F8FAFC  --muted #94A3B8  --border #334155
-     Added tokens (only what the palette lacks):
-       --border-strong  #475569  #334155 is ~1.1:1 against #35383C, so card/table outlines use this (1.55:1)
-       --surface-2      #3A3D42  raised band (table heads, group rows); body text only, never muted text
-       --secondary-ink  #D29BDC  #B96AC9 is 3.35:1 on surface, below AA for small text; text uses this tint
-       --up #7BC8A4 (muted green)  --down #E8908A (muted coral)  --warn #E3B661 (amber)
-     Accent #787779 is ~2.6:1 on surface: used only for non-text marks (icons, rules, 3rd chart series).
+     Dark: a single cool-slate neutral family, tinted toward the brand blue, so page, panels, lines and accents harmonise.
+       background #12151A · surface #1A1E25 · raised #20252D · hairline #252B34 · outline #2D343F
+       text #E6EAF0 (softened white) · muted #8E98A9 · primary #90BFF9 · secondary #B96AC9 · neutral mark #6F7A8C
+       status: up #6FBF9C · down #E0938D · warn #D9B26A (desaturated so they sit quietly on the surface)
+     Light: derived from the same hues (primary #2F6FB7, secondary #8E3FA0), all text pairs AA.
      ===================================================================== */
   :root {
-    --primary: #90bff9; --secondary: #b96ac9; --accent: #787779;
-    --background: #202020; --surface: #35383c; --text: #f8fafc; --muted: #94a3b8; --border: #334155;
-    --border-strong: #475569; --surface-2: #3a3d42; --secondary-ink: #d29bdc; --primary-ink: #90bff9;
-    --up: #7bc8a4; --down: #e8908a; --warn: #e3b661; --on-primary: #1f2933;
-    --s1: var(--primary); --s2: var(--secondary); --s3: var(--accent); --s4: #c7defc; --s5: #ddb3e6;
-    --tint-primary: rgba(144, 191, 249, .14); --tint-secondary: rgba(185, 106, 201, .16);
-    --grid: rgba(51, 65, 85, .55);
+    /* Dark: one cool slate family tinted toward the primary blue, so background, panels, lines and accents share a hue.
+       Brand accents kept: primary #90BFF9, secondary #B96AC9. Text softened slightly from #F8FAFC to cut glare. */
+    --primary: #90bff9; --secondary: #b96ac9; --accent: #6f7a8c;
+    --background: #12151a; --surface: #1a1e25; --text: #e6eaf0; --muted: #8e98a9; --border: #252b34;
+    --border-strong: #2d343f; --surface-2: #20252d; --secondary-ink: #cf9ad9; --primary-ink: #9cc6fa;
+    --up: #6fbf9c; --down: #e0938d; --warn: #d9b26a; --on-primary: #12151a;
+    --s1: var(--primary); --s2: var(--secondary); --s3: #8a95a8; --s4: #c3dbfb; --s5: #dcb6e4;
+    --tint-primary: rgba(144, 191, 249, .10); --tint-secondary: rgba(185, 106, 201, .14);
+    --grid: rgba(143, 156, 178, .12);
     color-scheme: dark;
   }
   /* Light: derived from the same hues. #90BFF9 -> #2F6FB7, #B96AC9 -> #8E3FA0 (both AA on white and on #F4F5F7). */
@@ -111,7 +109,7 @@
   @media (max-width: 760px) { .grid > * { grid-column: span 12 !important; } }
 
   /* ---------- one card style ---------- */
-  .card { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .card-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 12px 16px 8px; min-height: 44px; }
   .card-h h3 { margin: 0; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
   .card-h .note { margin: 0; }
@@ -133,7 +131,7 @@
   .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
   @media (max-width: 1024px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   @media (max-width: 520px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  .kpi { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; padding: 12px 16px 8px; min-width: 0; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px 8px; min-width: 0; }
   .kl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .kv { font-size: 24px; font-weight: 600; line-height: 1.25; margin-top: 4px; letter-spacing: -.01em; }
   .kv small { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 4px; }
@@ -148,7 +146,7 @@
   /* market tiles (risk strip, FX spot) */
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
   .riskstrip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .tile { border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 12px; min-width: 0; background: var(--surface); }
+  .tile { border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; min-width: 0; background: var(--surface); }
   .tl { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
   .tv { font-size: 18px; font-weight: 600; margin-top: 2px; }
   .tc { font-size: 12px; color: var(--muted); }
@@ -174,10 +172,10 @@
   .scroll { overflow: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.5; }
   th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
-  thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); color: var(--text); font-size: 11px; font-weight: 600; letter-spacing: .02em; border-bottom: 1px solid var(--border-strong); }
+  thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); color: var(--text); font-size: 11px; font-weight: 600; letter-spacing: .02em; border-bottom: 1px solid var(--border); }
   thead th small, th small { color: var(--muted); font-weight: 400; }
   tbody tr:hover > * { background-color: color-mix(in srgb, var(--surface-2) 70%, transparent); }
-  td.hm { --c: var(--up); background: color-mix(in srgb, var(--c) calc(var(--i) * .28%), transparent); }
+  td.hm { --c: var(--up); background: color-mix(in srgb, var(--c) calc(var(--i) * .2%), transparent); }
   td.hm.down { --c: var(--down); }
   .badge, .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; white-space: nowrap; background: var(--surface-2); color: var(--muted); }
   .badge.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
@@ -202,7 +200,7 @@
   .colmenu input { accent-color: var(--primary); }
   .filter { padding: 0 16px 8px; }
   .filter input { width: 100%; font: inherit; font-size: 13px; padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--background); color: var(--text); }
-  .wl { flex: 1; overflow: auto; min-height: 0; border-top: 1px solid var(--border-strong); }
+  .wl { flex: 1; overflow: auto; min-height: 0; border-top: 1px solid var(--border); }
   table.watch { font-size: 13px; }
   table.watch th, table.watch td { padding: 5px 8px; height: 30px; }
   table.watch thead th { text-align: right; }
@@ -270,9 +268,9 @@
   .rterm .wlp { grid-row: 1 / span 2; max-height: none; min-height: 0; contain: size; }  /* list takes exactly the height of chart + matrix, scrolling inside */
   .rterm .chp { grid-column: 2; grid-row: 1; }
   .rterm .mxp { grid-column: 2; grid-row: 2; }
-  .rterm .card-h { padding: 8px 12px; min-height: 0; border-bottom: 1px solid var(--border-strong); }
+  .rterm .card-h { padding: 8px 12px; min-height: 0; border-bottom: 1px solid var(--border); }
   .rterm .card-h h3 { font-size: 13.5px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
-  .rterm .tbar { padding: 4px 6px; border-bottom: 1px solid var(--border-strong); }
+  .rterm .tbar { padding: 4px 6px; border-bottom: 1px solid var(--border); }
   .rterm .wl { border-top: 0; }
   .rterm .rbar { padding: 6px 10px 2px; }
   .rterm .chips { padding: 6px 10px 2px; }
@@ -284,17 +282,17 @@
   .rterm table.watch tr.grp td, .rterm table.watch tr.grp th { height: 30px; }
   .rterm .mxs { flex: 1; }
   .rterm table.matrix { font-size: 12.5px; }
-  .rterm table.matrix th, .rterm table.matrix td { padding: 6px 10px; border-right: 1px solid var(--border); }
+  .rterm table.matrix th, .rterm table.matrix td { padding: 6px 10px; border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
   .rterm table.matrix thead th { text-align: center; }
-  .rterm table.matrix td.heat { background: color-mix(in srgb, var(--c) calc(var(--i) * .6%), transparent); }
-  .rterm table.matrix td.na { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+  .rterm table.matrix td.heat { background: color-mix(in srgb, var(--c) calc(var(--i) * .42%), transparent); }
+  .rterm table.matrix td.na { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   @media (max-width: 1024px) { .rterm { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; } .rterm .wlp, .rterm .chp, .rterm .mxp { grid-column: 1; grid-row: auto; } .rterm .wlp { contain: none; height: 70vh; } .rterm .chp { min-height: 420px; } }
   /* matrices & heat tables */
   table.matrix td { text-align: right; padding: 7px 12px; }
   table.matrix thead th { text-align: right; }
   table.matrix thead th:first-child { text-align: left; }
   table.matrix tbody th { font-weight: 600; position: sticky; left: 0; background: var(--surface); z-index: 1; }
-  table.matrix td.heat { --c: var(--primary); background: color-mix(in srgb, var(--c) calc(var(--i) * .32%), transparent); }
+  table.matrix td.heat { --c: var(--primary); background: color-mix(in srgb, var(--c) calc(var(--i) * .28%), transparent); }
   table.matrix td.heat.neg { --c: var(--down); }
   table.matrix td.zc { color: var(--muted); border-left: 1px solid var(--border); }
   table.matrix td.na { color: var(--muted); text-align: center; }
@@ -347,7 +345,7 @@
   table.weekly thead th:first-child { text-align: left; left: 0; z-index: 3; }
   table.weekly tr.cur > * { background: linear-gradient(var(--tint-primary), var(--tint-primary)) var(--surface); }
   .curtag { font-size: 10px; font-weight: 600; color: var(--primary-ink); margin-left: 6px; text-transform: uppercase; letter-spacing: .06em; }
-  .stathead { padding: 8px 16px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--border-strong); }
+  .stathead { padding: 8px 16px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--border); }
   .statwrap { overflow-x: auto; scrollbar-width: none; }
   .statwrap::-webkit-scrollbar { display: none; }
   table.weekly.stats th, table.weekly.stats td { background: var(--surface-2); font-weight: 600; padding: 6px 10px; }
@@ -414,7 +412,7 @@
 <header class="topbar"><div class="wrap">
   <div class="brand"><h1>Velour <b>Macro</b></h1><span class="sub">Rates · Dollar · Gold · Positioning · FX</span></div>
   <div class="meta">
-    <span>Latest data <b>2026-10-22</b></span><span>Built 2026-10-22 08:47 UTC</span>
+    <span>Latest data <b>2026-10-22</b></span><span>Built 2026-10-22 08:51 UTC</span>
     <a class="btn" href="Macro_Dashboard.xlsx" download><svg class="ico"><use href="#i-dl"/></svg>Download Excel</a>
     <span class="themes" role="group" aria-label="Color theme">
       <button type="button" data-theme-btn="auto" aria-pressed="true">Auto</button>
