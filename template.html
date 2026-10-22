@@ -267,7 +267,7 @@
   /* ---------- Rates: terminal layout kept from the reference (list left, chart top-right, matrix bottom-right) ---------- */
   .rterm { grid-template-columns: minmax(360px, 34%) minmax(0, 1fr); grid-template-rows: minmax(420px, 56vh) auto; gap: 8px; }
   .rterm .card { border-radius: 6px; }
-  .rterm .wlp { grid-row: 1 / span 2; max-height: calc(100vh - 70px); min-height: 640px; }
+  .rterm .wlp { grid-row: 1 / span 2; max-height: none; min-height: 0; contain: size; }  /* list takes exactly the height of chart + matrix, scrolling inside */
   .rterm .chp { grid-column: 2; grid-row: 1; }
   .rterm .mxp { grid-column: 2; grid-row: 2; }
   .rterm .card-h { padding: 8px 12px; min-height: 0; border-bottom: 1px solid var(--border-strong); }
@@ -288,7 +288,7 @@
   .rterm table.matrix thead th { text-align: center; }
   .rterm table.matrix td.heat { background: color-mix(in srgb, var(--c) calc(var(--i) * .6%), transparent); }
   .rterm table.matrix td.na { background: color-mix(in srgb, var(--accent) 18%, transparent); }
-  @media (max-width: 1024px) { .rterm { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; } .rterm .wlp, .rterm .chp, .rterm .mxp { grid-column: 1; grid-row: auto; } .rterm .wlp { max-height: 70vh; min-height: 0; } .rterm .chp { min-height: 420px; } }
+  @media (max-width: 1024px) { .rterm { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; } .rterm .wlp, .rterm .chp, .rterm .mxp { grid-column: 1; grid-row: auto; } .rterm .wlp { contain: none; height: 70vh; } .rterm .chp { min-height: 420px; } }
   /* matrices & heat tables */
   table.matrix td { text-align: right; padding: 7px 12px; }
   table.matrix thead th { text-align: right; }
@@ -466,8 +466,8 @@
       </div>
     </div>
     <div class="grid" style="margin-top:12px">
-      <div class="card" style="--w:7"><div class="card-h"><h3>Reading: last spread you clicked</h3></div><div class="card-b reading" id="reading"></div></div>
-      <details class="card collapse" style="--w:5" open data-mobile-closed>
+      <div class="card" style="--w:5"><div class="card-h"><h3>Reading: last spread you clicked</h3></div><div class="card-b reading" id="reading"></div></div>
+      <details class="card collapse" style="--w:7" open data-mobile-closed>
         <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>US spreads across time (bp)</h3></span></summary>
         <div class="scroll">__MATRIX__</div>
       </details>

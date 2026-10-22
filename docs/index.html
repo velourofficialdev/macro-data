@@ -267,7 +267,7 @@
   /* ---------- Rates: terminal layout kept from the reference (list left, chart top-right, matrix bottom-right) ---------- */
   .rterm { grid-template-columns: minmax(360px, 34%) minmax(0, 1fr); grid-template-rows: minmax(420px, 56vh) auto; gap: 8px; }
   .rterm .card { border-radius: 6px; }
-  .rterm .wlp { grid-row: 1 / span 2; max-height: calc(100vh - 70px); min-height: 640px; }
+  .rterm .wlp { grid-row: 1 / span 2; max-height: none; min-height: 0; contain: size; }  /* list takes exactly the height of chart + matrix, scrolling inside */
   .rterm .chp { grid-column: 2; grid-row: 1; }
   .rterm .mxp { grid-column: 2; grid-row: 2; }
   .rterm .card-h { padding: 8px 12px; min-height: 0; border-bottom: 1px solid var(--border-strong); }
@@ -288,7 +288,7 @@
   .rterm table.matrix thead th { text-align: center; }
   .rterm table.matrix td.heat { background: color-mix(in srgb, var(--c) calc(var(--i) * .6%), transparent); }
   .rterm table.matrix td.na { background: color-mix(in srgb, var(--accent) 18%, transparent); }
-  @media (max-width: 1024px) { .rterm { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; } .rterm .wlp, .rterm .chp, .rterm .mxp { grid-column: 1; grid-row: auto; } .rterm .wlp { max-height: 70vh; min-height: 0; } .rterm .chp { min-height: 420px; } }
+  @media (max-width: 1024px) { .rterm { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; } .rterm .wlp, .rterm .chp, .rterm .mxp { grid-column: 1; grid-row: auto; } .rterm .wlp { contain: none; height: 70vh; } .rterm .chp { min-height: 420px; } }
   /* matrices & heat tables */
   table.matrix td { text-align: right; padding: 7px 12px; }
   table.matrix thead th { text-align: right; }
@@ -414,7 +414,7 @@
 <header class="topbar"><div class="wrap">
   <div class="brand"><h1>Velour <b>Macro</b></h1><span class="sub">Rates · Dollar · Gold · Positioning · FX</span></div>
   <div class="meta">
-    <span>Latest data <b>2026-10-22</b></span><span>Built 2026-10-22 08:41 UTC</span>
+    <span>Latest data <b>2026-10-22</b></span><span>Built 2026-10-22 08:44 UTC</span>
     <a class="btn" href="Macro_Dashboard.xlsx" download><svg class="ico"><use href="#i-dl"/></svg>Download Excel</a>
     <span class="themes" role="group" aria-label="Color theme">
       <button type="button" data-theme-btn="auto" aria-pressed="true">Auto</button>
@@ -466,8 +466,8 @@
       </div>
     </div>
     <div class="grid" style="margin-top:12px">
-      <div class="card" style="--w:7"><div class="card-h"><h3>Reading: last spread you clicked</h3></div><div class="card-b reading" id="reading"></div></div>
-      <details class="card collapse" style="--w:5" open data-mobile-closed>
+      <div class="card" style="--w:5"><div class="card-h"><h3>Reading: last spread you clicked</h3></div><div class="card-b reading" id="reading"></div></div>
+      <details class="card collapse" style="--w:7" open data-mobile-closed>
         <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>US spreads across time (bp)</h3></span></summary>
         <div class="scroll"><div class="scroll"><table class="matrix"><thead><tr><th>US spread (bp)</th><th>Now</th><th>1D ago</th><th>1W ago</th><th>1M ago</th><th>3M ago</th><th>6M ago</th><th>1Y ago</th><th>Z (1y)</th></tr></thead><tbody><tr><th scope="row">30Y vs 10Y</th><td class="heat pos" style="--i:36">30.0</td><td class="heat pos" style="--i:38">33.0</td><td class="heat pos" style="--i:40">35.0</td><td class="heat pos" style="--i:38">33.0</td><td class="heat pos" style="--i:51">50.0</td><td class="heat pos" style="--i:60">62.0</td><td class="heat pos" style="--i:58">59.0</td><td class="zc">-2.65</td></tr><tr><th scope="row">30Y vs 5Y</th><td class="heat pos" style="--i:50">48.0</td><td class="heat pos" style="--i:54">54.0</td><td class="heat pos" style="--i:55">56.0</td><td class="heat pos" style="--i:50">48.0</td><td class="heat pos" style="--i:69">76.0</td><td class="heat pos" style="--i:84">102.0</td><td class="heat pos" style="--i:85">103.0</td><td class="zc">-2.30</td></tr><tr><th scope="row">30Y vs 2Y</th><td class="heat pos" style="--i:60">63.0</td><td class="heat pos" style="--i:65">71.0</td><td class="heat pos" style="--i:69">77.0</td><td class="heat pos" style="--i:57">58.0</td><td class="heat pos" style="--i:75">87.0</td><td class="heat pos" style="--i:92">116.0</td><td class="heat pos" style="--i:93">117.0</td><td class="zc">-2.08</td></tr><tr><th scope="row">30Y vs 3M</th><td class="heat pos" style="--i:92">116.0</td><td class="heat pos" style="--i:95">121.0</td><td class="heat pos" style="--i:100">130.0</td><td class="heat pos" style="--i:95">120.0</td><td class="heat pos" style="--i:98">126.0</td><td class="heat pos" style="--i:93">117.0</td><td class="heat pos" style="--i:55">56.0</td><td class="zc">+0.03</td></tr><tr><th scope="row">20Y vs 10Y</th><td class="heat pos" style="--i:40">35.0</td><td class="heat pos" style="--i:42">38.0</td><td class="heat pos" style="--i:43">39.0</td><td class="heat pos" style="--i:41">37.0</td><td class="heat pos" style="--i:52">51.0</td><td class="heat pos" style="--i:58">59.0</td><td class="heat pos" style="--i:56">57.0</td><td class="zc">-2.78</td></tr><tr><th scope="row">10Y vs 5Y</th><td class="heat pos" style="--i:25">18.0</td><td class="heat pos" style="--i:28">21.0</td><td class="heat pos" style="--i:28">21.0</td><td class="heat pos" style="--i:22">15.0</td><td class="heat pos" style="--i:32">26.0</td><td class="heat pos" style="--i:44">40.0</td><td class="heat pos" style="--i:47">44.0</td><td class="zc">-1.87</td></tr><tr><th scope="row">10Y vs 2Y</th><td class="heat pos" style="--i:38">33.0</td><td class="heat pos" style="--i:42">38.0</td><td class="heat pos" style="--i:45">42.0</td><td class="heat pos" style="--i:32">25.0</td><td class="heat pos" style="--i:41">37.0</td><td class="heat pos" style="--i:54">54.0</td><td class="heat pos" style="--i:57">58.0</td><td class="zc">-1.47</td></tr><tr><th scope="row">10Y vs 3M</th><td class="heat pos" style="--i:75">86.0</td><td class="heat pos" style="--i:76">88.0</td><td class="heat pos" style="--i:80">95.0</td><td class="heat pos" style="--i:75">87.0</td><td class="heat pos" style="--i:69">76.0</td><td class="heat pos" style="--i:55">55.0</td><td class="heat neg" style="--i:7">-3.0</td><td class="zc">+1.05</td></tr><tr><th scope="row">5Y vs 2Y</th><td class="heat pos" style="--i:22">15.0</td><td class="heat pos" style="--i:24">17.0</td><td class="heat pos" style="--i:28">21.0</td><td class="heat pos" style="--i:17">10.0</td><td class="heat pos" style="--i:18">11.0</td><td class="heat pos" style="--i:21">14.0</td><td class="heat pos" style="--i:21">14.0</td><td class="zc">-0.13</td></tr><tr><th scope="row">5Y vs 3M</th><td class="heat pos" style="--i:64">68.0</td><td class="heat pos" style="--i:63">67.0</td><td class="heat pos" style="--i:67">74.0</td><td class="heat pos" style="--i:66">72.0</td><td class="heat pos" style="--i:51">50.0</td><td class="heat pos" style="--i:22">15.0</td><td class="heat neg" style="--i:49">-47.0</td><td class="zc">+1.35</td></tr><tr><th scope="row">2Y vs 3M</th><td class="heat pos" style="--i:53">53.0</td><td class="heat pos" style="--i:51">50.0</td><td class="heat pos" style="--i:53">53.0</td><td class="heat pos" style="--i:60">62.0</td><td class="heat pos" style="--i:43">39.0</td><td class="heat pos" style="--i:3">1.0</td><td class="heat neg" style="--i:59">-61.0</td><td class="zc">+1.36</td></tr></tbody></table></div></div>
       </details>
