@@ -18,7 +18,7 @@
      DESIGN TOKENS
      Brand palette (dark = reference design), used exactly:
        --primary #90BFF9  --secondary #B96AC9  --accent #787779
-       --background #2E2E2E  --surface #35383C  --text #F8FAFC  --muted #94A3B8  --border #334155
+       --background #202020 (darkened from #2E2E2E on request)  --surface #35383C  --text #F8FAFC  --muted #94A3B8  --border #334155
      Added tokens (only what the palette lacks):
        --border-strong  #475569  #334155 is ~1.1:1 against #35383C, so card/table outlines use this (1.55:1)
        --surface-2      #3A3D42  raised band (table heads, group rows); body text only, never muted text
@@ -28,7 +28,7 @@
      ===================================================================== */
   :root {
     --primary: #90bff9; --secondary: #b96ac9; --accent: #787779;
-    --background: #2e2e2e; --surface: #35383c; --text: #f8fafc; --muted: #94a3b8; --border: #334155;
+    --background: #202020; --surface: #35383c; --text: #f8fafc; --muted: #94a3b8; --border: #334155;
     --border-strong: #475569; --surface-2: #3a3d42; --secondary-ink: #d29bdc; --primary-ink: #90bff9;
     --up: #7bc8a4; --down: #e8908a; --warn: #e3b661; --on-primary: #1f2933;
     --s1: var(--primary); --s2: var(--secondary); --s3: var(--accent); --s4: #c7defc; --s5: #ddb3e6;
@@ -414,7 +414,7 @@
 <header class="topbar"><div class="wrap">
   <div class="brand"><h1>Velour <b>Macro</b></h1><span class="sub">Rates · Dollar · Gold · Positioning · FX</span></div>
   <div class="meta">
-    <span>Latest data <b>2026-10-22</b></span><span>Built 2026-10-22 08:44 UTC</span>
+    <span>Latest data <b>2026-10-22</b></span><span>Built 2026-10-22 08:47 UTC</span>
     <a class="btn" href="Macro_Dashboard.xlsx" download><svg class="ico"><use href="#i-dl"/></svg>Download Excel</a>
     <span class="themes" role="group" aria-label="Color theme">
       <button type="button" data-theme-btn="auto" aria-pressed="true">Auto</button>
