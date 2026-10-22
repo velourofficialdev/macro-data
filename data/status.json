@@ -1,364 +1,364 @@
 {
   "DGS3MO": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DGS2": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DGS5": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DGS10": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DGS20": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DGS30": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DFII10": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "ECON_CPIAUCSL": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_CPILFESL": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_PCEPI": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-08-01",
     "error": null,
     "note": null
   },
   "ECON_PCEPILFE": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-08-01",
     "error": null,
     "note": null
   },
   "ECON_GDPDEF": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-04-01",
     "error": null,
     "note": null
   },
   "ECON_GDP": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-04-01",
     "error": null,
     "note": null
   },
   "ECON_GDPC1": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-04-01",
     "error": null,
     "note": null
   },
   "ECON_GDIC1": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-04-01",
     "error": null,
     "note": null
   },
   "ECON_INDPRO": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_RRSFS": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_PCE": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-08-01",
     "error": null,
     "note": null
   },
   "ECON_UNRATE": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_CIVPART": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_EMRATIO": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_CLF16OV": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_CE16OV": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_UNEMPLOY": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_PAYEMS": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_CES0500000003": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_ICSA": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-10",
     "error": null,
     "note": null
   },
   "ECON_CCSA": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-03",
     "error": null,
     "note": null
   },
   "ECON_JTSJOL": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-08-01",
     "error": null,
     "note": null
   },
   "ECON_JTSQUR": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-08-01",
     "error": null,
     "note": null
   },
   "ECON_SP500": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-21",
     "error": null,
     "note": null
   },
   "ECON_DCOILWTICO": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "ECON_VIXCLS": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "ECON_CBBTCUSD": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-21",
     "error": null,
     "note": null
   },
   "COT_GOLD_LEGACY": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-13",
     "error": null,
     "note": null
   },
   "COT_USD_INDEX": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-13",
     "error": null,
     "note": null
   },
   "DXY": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "source: Yahoo"
   },
   "GOLD_PRICE": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "source: Yahoo GC=F"
   },
   "YC_CA": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": "Canada government yields"
   },
   "YC_DE": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-21",
     "error": null,
     "note": "Germany government yields"
   },
   "YC_JP": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-21",
     "error": null,
     "note": "Japan government yields"
   },
   "YC_AU": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-14",
     "error": null,
     "note": "Australia government yields"
   },
   "FX_EURUSD": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "Yahoo EURUSD=X"
   },
   "FX_GBPUSD": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "Yahoo GBPUSD=X"
   },
   "FX_USDJPY": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "Yahoo JPY=X"
   },
   "FX_USDCAD": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "Yahoo CAD=X"
   },
   "FX_AUDUSD": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "Yahoo AUDUSD=X"
   },
   "FX_USDCHF": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "Yahoo CHF=X"
   },
   "FX_NZDUSD": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "Yahoo NZDUSD=X"
   },
   "FED_ZQ": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "ZQ via Yahoo Finance (manual prices in data/fed/zq_manual.csv override)"
   },
   "FED_ODDS": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "Kalshi, 11 meetings"
   },
   "FX_MACRO": {
     "ok": true,
-    "checked_utc": "2026-10-22 10:06 UTC",
+    "checked_utc": "2026-10-22 10:15 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "source: fx-macro-confluence data.json"
