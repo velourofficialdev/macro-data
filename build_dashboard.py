@@ -510,7 +510,7 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
 def build_watch_html(rows: list[dict]) -> str:
     """Left panel of the Rates block: spreads only, grouped by country (same layout as the reference terminal)."""
     rows = [r_ for r_ in rows if r_["family"] == "spreads"]
-    cols = ('<th class="cb"><span class="sr-only">Select</span></th><th>Name</th><th class="c-tk">Ticker</th><th>Yield diff</th>'
+    cols = ('<th class="cb"><span class="sr-only">Select</span></th><th>Name</th><th class="c-tk">Ticker</th><th>Yield diff <small>pp</small></th>'
             '<th>1D <small>bp</small></th><th class="c-d5">1W <small>bp</small></th><th class="c-d20">1M <small>bp</small></th>'
             '<th class="c-d252">1Y <small>bp</small></th><th class="c-z">Z</th>')
     out = [f'<table class="watch" id="watch"><thead><tr>{cols}</tr></thead>']
@@ -528,7 +528,7 @@ def build_watch_html(rows: list[dict]) -> str:
                 f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="spreads">'
                 f'<td class="cb"><span class="pick" aria-hidden="true"></span></td>'
                 f'<th scope="row"><span class="plus">+</span>{esc(r_["label"])}</th><td class="c-tk tk"><span class="plus">+</span>{esc(r_["ticker"])}</td>'
-                f'<td class="yd">{esc(r_["latest"][:-1])}<small>%</small></td><td class="{chg_class(r_["d1"])}{hm(r_["d1"], 10)}">{esc(r_["d1"])}</td>'
+                f'<td class="yd">{esc(r_["latest"][:-1])}<small>pp</small></td><td class="{chg_class(r_["d1"])}{hm(r_["d1"], 10)}">{esc(r_["d1"])}</td>'
                 f'<td class="c-d5 {chg_class(r_["d5"])}{hm(r_["d5"], 20)}">{esc(r_["d5"])}</td><td class="c-d20 {chg_class(r_["d20"])}{hm(r_["d20"], 30)}">{esc(r_["d20"])}</td>'
                 f'<td class="c-d252 {chg_class(r_["d252"])}{hm(r_["d252"], 80)}">{esc(r_["d252"])}</td><td class="c-z{hm(r_["z"], 2.5)}">{esc(r_["z"])}</td></tr>')
         out.append("</tbody>")
@@ -1306,7 +1306,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
                "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
                "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed), "curve": curve_payload(data), "cot": build_cot_charts(data),
                "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
-               "unit": {"spreads": "%", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
+               "unit": {"spreads": " pp", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
 
     page = TEMPLATE
     rep = {
