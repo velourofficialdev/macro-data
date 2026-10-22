@@ -400,9 +400,10 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
         dyn = playbook["dynamics"]["types"].get(m.get("dynamics") or "")
         lg, sh = name.upper().split("-")
         title = f"{COUNTRIES[cc]} {lg} vs {sh}"
+        bp = lambda n: None if delta(s, n) is None else delta(s, n) * 100
         rows.append({"id": f"S:{key}", "group": COUNTRIES[cc], "family": "spreads", "label": title, "ticker": f"{cc}YC{lg}{sh}",
-                     "latest": fmt(s.iloc[-1], 2), "d1": fmt(delta(s, 1), 2, True), "d5": fmt(delta(s, 5), 2, True),
-                     "d20": fmt(delta(s, 20), 2, True), "z": fmt(m["z"], 2, True), "date": m["date"],
+                     "latest": fmt(s.iloc[-1], 3) + "%", "d1": fmt(bp(1), 1, True), "d5": fmt(bp(5), 1, True),
+                     "d20": fmt(bp(21), 1, True), "d252": fmt(bp(252), 1, True), "z": fmt(m["z"], 2, True), "date": m["date"],
                      "info": {"title": title + " spread", "what": spec["what"], "band": band_info(pick_band(spec["bands"], m["value"])),
                               "dyn": band_info(dyn) if dyn else None, "z": m["z"]}})
     family("spreads", {f"S:{k}": v for k, v in ss.items()}, 3)
@@ -455,7 +456,11 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
 
 
 def build_watch_html(rows: list[dict]) -> str:
-    cols = ('<th>Name</th><th class="c-tk">Ticker</th><th>Latest</th><th>1D</th><th class="c-d5">5D</th><th class="c-d20">20D</th><th class="c-z">Z</th>')
+    """Left panel of the Rates block: spreads only, grouped by country (same layout as the reference terminal)."""
+    rows = [r_ for r_ in rows if r_["family"] == "spreads"]
+    cols = ('<th class="cb"><span class="sr-only">Select</span></th><th>Name</th><th class="c-tk">Ticker</th><th>Yield diff</th>'
+            '<th>1D <small>bp</small></th><th class="c-d5">1W <small>bp</small></th><th class="c-d20">1M <small>bp</small></th>'
+            '<th class="c-d252">1Y <small>bp</small></th><th class="c-z">Z</th>')
     out = [f'<table class="watch" id="watch"><thead><tr>{cols}</tr></thead>']
     groups: list[str] = []
     for r_ in rows:
@@ -463,14 +468,17 @@ def build_watch_html(rows: list[dict]) -> str:
             groups.append(r_["group"])
     for g in groups:
         members = [r_ for r_ in rows if r_["group"] == g]
-        out.append(f'<tbody data-group="{esc(g)}"><tr class="grp" tabindex="0" role="button" aria-expanded="true"><th colspan="7"><span class="car"></span>{esc(g)} <small>{len(members)}</small></th></tr>')
+        out.append(f'<tbody data-group="{esc(g)}"><tr class="grp"><td class="cb"><span class="gbox" role="checkbox" aria-checked="false" tabindex="0" aria-label="Plot all {esc(g)} spreads"></span></td>'
+                   f'<th colspan="7"><button type="button" class="gt" aria-expanded="true"><span class="car"></span>{esc(g)}</button></th>'
+                   f'<td class="gmove"><button type="button" class="mv up" aria-label="Move {esc(g)} up">&#9650;</button><button type="button" class="mv dn" aria-label="Move {esc(g)} down">&#9660;</button></td></tr>')
         for r_ in members:
             out.append(
-                f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="{esc(r_["family"] or "")}">'
-                f'<th scope="row"><span class="pick" aria-hidden="true"></span>{esc(r_["label"])}</th><td class="c-tk tk">{esc(r_["ticker"])}</td>'
-                f'<td>{esc(r_["latest"])}</td><td class="{chg_class(r_["d1"])}">{esc(r_["d1"])}</td>'
+                f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="spreads">'
+                f'<td class="cb"><span class="pick" aria-hidden="true"></span></td>'
+                f'<th scope="row"><span class="plus">+</span>{esc(r_["label"])}</th><td class="c-tk tk"><span class="plus">+</span>{esc(r_["ticker"])}</td>'
+                f'<td class="yd">{esc(r_["latest"][:-1])}<small>%</small></td><td class="{chg_class(r_["d1"])}">{esc(r_["d1"])}</td>'
                 f'<td class="c-d5 {chg_class(r_["d5"])}">{esc(r_["d5"])}</td><td class="c-d20 {chg_class(r_["d20"])}">{esc(r_["d20"])}</td>'
-                f'<td class="c-z">{esc(r_["z"])}</td></tr>')
+                f'<td class="c-d252 {chg_class(r_["d252"])}">{esc(r_["d252"])}</td><td class="c-z">{esc(r_["z"])}</td></tr>')
         out.append("</tbody>")
     out.append("</table>")
     return "".join(out)
@@ -860,8 +868,8 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
 
     dates = [m["date"] for m in metrics.values() if m.get("date")]
     as_of = max(dates) if dates else "n/a"
-    default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y") if any(r_["id"] == x for r_ in rows)]
-    payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "info": r_["info"]} for r_ in rows},
+    default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y", "S:5y-2y") if any(r_["id"] == x for r_ in rows)]
+    payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows},
                "default": default_sel, "matrix": matrix_payload(computed), "curve": curve_payload(data), "cot": build_cot_charts(data),
                "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2}, "unit": {"spreads": " pp", "yields": "%", "dxy": "", "gold": ""}}
 
