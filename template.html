@@ -616,7 +616,7 @@
 
   <footer>
     <p>__DISCLAIMER__</p>
-    <p>Sources: FRED, Bank of Canada, Bundesbank, Japan MoF, RBA (yields); CFTC (COT); Kalshi (Fed odds); ECB reference rates (FX pairs; DXY computed with ICE's published formula, Yahoo fallback); Yahoo Finance (gold futures); fx-macro-confluence feed (economy tiles, news).</p>
+    <p>Sources: FRED, Bank of Canada, Bundesbank, Japan MoF, RBA, ChinaBond, FBIL (India) and CNBC (France, Italy benchmark yields) (yields); CFTC (COT); Kalshi (Fed odds); ECB reference rates (FX pairs; DXY computed with ICE's published formula, Yahoo fallback); Yahoo Finance (gold futures); fx-macro-confluence feed (economy tiles, news).</p>
   </footer>
 </main>
 
@@ -901,7 +901,7 @@ Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, range
 /* Spreads matrix by country */
 (function () {
   const M = P.matrix, tbl = document.getElementById("cmx"); if (!M || !tbl) return;
-  const NAMES = { US: "US", CA: "CA", DE: "DE", JP: "JP", AU: "AU" };
+  const NAMES = { US: "US", CA: "CA", DE: "DE", FR: "FR", IT: "IT", JP: "JP", AU: "AU", CN: "CN", IN: "IN" };
   const hz = document.getElementById("hz"); let cur = 0;
   M.horizons.forEach((h, i) => { const b = document.createElement("button"); b.type = "button"; b.textContent = h; b.addEventListener("click", () => { cur = i; paint(); }); hz.appendChild(b); });
   let peak = 1; M.vals.forEach(g => g.forEach(r => r.forEach(v => { if (v !== null) peak = Math.max(peak, Math.abs(v)); })));

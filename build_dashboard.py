@@ -38,7 +38,8 @@ SPREADS = {  # name: (long leg, short leg); order = order on the page and in the
     "5y-3m": ("DGS5", "DGS3MO"),
     "2y-3m": ("DGS2", "DGS3MO"),
 }
-COUNTRIES = {"US": "United States", "CA": "Canada", "DE": "Germany", "JP": "Japan", "AU": "Australia"}
+COUNTRIES = {"US": "United States", "CA": "Canada", "DE": "Germany", "FR": "France", "IT": "Italy", "JP": "Japan",
+             "AU": "Australia", "CN": "China", "IN": "India"}
 INTL_TENORS = ["2Y", "5Y", "10Y", "30Y"]
 INTL_PAIRS = ["30y-10y", "30y-5y", "30y-2y", "10y-5y", "10y-2y", "5y-2y"]
 MATRIX_ORDER = ["30y-10y", "30y-5y", "30y-2y", "30y-3m", "20y-10y", "10y-5y", "10y-2y", "10y-3m", "5y-2y", "5y-3m", "2y-3m"]
