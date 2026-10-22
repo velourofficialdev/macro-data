@@ -242,8 +242,20 @@ def load_everything(data_dir: Path) -> dict:
         es = read_series(data_dir / "econ" / f"{code}.csv", "date", code)
         if es is not None and len(es) > 8:
             econ[code] = es
+    fed = None
+    fp = data_dir / "fed" / "fed_odds.json"
+    if fp.exists():
+        try:
+            fed = json.loads(fp.read_text())
+            fed["hist"] = {}
+            for m in fed["meetings"]:
+                hp = data_dir / "fed" / f"{m['event']}.csv"
+                if hp.exists():
+                    fed["hist"][m["event"]] = pd.read_csv(hp, parse_dates=["date"]).set_index("date").sort_index()
+        except (json.JSONDecodeError, KeyError):
+            fed = None
     mkt = {c: x for c in ("SP500", "DCOILWTICO", "VIXCLS", "CBBTCUSD") if (x := read_series(data_dir / "econ" / f"{c}.csv", "date", c)) is not None}
-    return {"mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
+    return {"fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
 
 
 def compute(data: dict, playbook: dict) -> dict:
@@ -854,7 +866,7 @@ def build_status(data: dict, today: date) -> str:
 TEMPLATE = (ROOT / "template.html").read_text(encoding="utf-8") if (ROOT / "template.html").exists() else None
 
 
-def build_quick(playbook: dict, metrics: dict) -> str:
+def build_quick(playbook: dict, metrics: dict, fedq: str | None = None) -> str:
     """One-line regime reads for the overview: value plus the playbook band it falls in."""
     rows = []
     def add(label, value, band):
@@ -874,6 +886,9 @@ def build_quick(playbook: dict, metrics: dict) -> str:
         m = metrics.get(f"COT:{key}")
         if m:
             add(label, "idx " + fmt(m["index"], 0), pick_band(playbook["cot"][key]["bands"], m["index"]))
+    if fedq:
+        a, b, c = fedq.split("|")
+        rows.insert(0, f'<li><span class="ql">{esc(a)}</span><span class="qv">{esc(b)}</span><span class="qb">{esc(c)}</span></li>')
     return f'<ul class="quick">{"".join(rows)}</ul>' if rows else ""
 
 
@@ -963,6 +978,97 @@ def build_econ_watch_html(rows: list[dict]) -> str:
     return "".join(out)
 
 
+FED_OUT = ["C26", "C25", "H0", "H25", "H26"]
+FED_NAMES = {"C26": "Cut >25bp", "C25": "Cut 25bp", "H0": "Hold", "H25": "Hike 25bp", "H26": "Hike >25bp"}
+
+
+def fed_norm(raw: dict) -> dict | None:
+    vals = {k: float(raw[k]) for k in FED_OUT if raw.get(k) is not None and not (isinstance(raw[k], float) and math.isnan(raw[k]))}
+    tot = sum(vals.values())
+    if tot <= 0:
+        return None
+    p = {k: 100 * vals.get(k, 0) / tot for k in FED_OUT}
+    p["cut"], p["hold"], p["hike"] = p["C26"] + p["C25"], p["H0"], p["H25"] + p["H26"]
+    return p
+
+
+def fed_hist_norm(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.reindex(columns=FED_OUT).ffill()
+    tot = df.sum(axis=1).replace(0, np.nan)
+    out = df.div(tot, axis=0) * 100
+    out["cut"], out["hold"], out["hike"] = out["C26"] + out["C25"], out["H0"], out["H25"] + out["H26"]
+    return out.dropna(subset=["hold"])
+
+
+def build_fed(data: dict, today: date) -> tuple[dict, dict | None, str | None]:
+    fed = data.get("fed")
+    empty = '<p class="muted-text pad">No Fed odds saved yet. They appear after the next data update.</p>'
+    out = {"next": empty, "table": empty}
+    if not fed or not fed.get("meetings"):
+        return out, None, None
+    meets = []
+    for m in fed["meetings"]:
+        p = fed_norm(m["raw"])
+        if p:
+            d = datetime.strptime(m["date"], "%Y-%m-%d").date()
+            meets.append({**m, "p": p, "d": d, "label": d.strftime("%b %Y"), "long": d.strftime("%d %b %Y")})
+    if not meets:
+        return out, None, None
+    hists = {e: fed_hist_norm(h) for e, h in fed.get("hist", {}).items() if len(h)}
+
+    def ago(event, days, key):
+        h = hists.get(event)
+        if h is None or not len(h):
+            return None
+        cut = pd.Timestamp(today) - pd.Timedelta(days=days)
+        h2 = h[h.index <= cut]
+        return num(h2[key].iloc[-1]) if len(h2) else None
+
+    nx = meets[0]
+    lean = max(("cut", "hold", "hike"), key=lambda k: nx["p"][k])
+    rows = []
+    for key, lab, cls in (("cut", "Cut", "down"), ("hold", "Hold", "flat"), ("hike", "Hike", "up")):
+        v = nx["p"][key]
+        cells = ""
+        for days in (1, 7, 30):
+            a = ago(nx["event"], days, key)
+            if a is None:
+                cells += '<td class="muted-text">n/a</td>'
+            else:
+                ch = v - a
+                cells += f'<td><span class="was">{a:.0f}%</span> <span class="{"up" if ch > 0.5 else "down" if ch < -0.5 else "muted-text"}">{int(round(ch)):+d}</span></td>'
+        rows.append(f'<tr><th scope="row"><span class="fdot {cls}"></span>{lab}</th><td class="fbar"><div class="bar {cls}" style="--v:{v:.1f}%"><b>{v:.0f}%</b></div></td>{cells}</tr>')
+    days_to = (nx["d"] - today).days
+    out["next"] = (f'<div class="fnext"><div class="fmeet"><div class="kl">Next FOMC decision</div><div class="kv">{esc(nx["long"])}</div>'
+                   f'<div class="kc">{"today" if days_to == 0 else f"in {days_to} days" if days_to > 0 else ""} · market leans <b>{lean.capitalize()} {nx["p"][lean]:.0f}%</b></div></div>'
+                   '<table class="ftab"><thead><tr><th></th><th>Odds now</th><th>1 day ago <small>(chg pp)</small></th><th>1 week ago</th><th>1 month ago</th></tr></thead><tbody>'
+                   + "".join(rows) + "</tbody></table></div>")
+    trs = []
+    for m in meets[:8]:
+        p = m["p"]
+        cells = "".join(f'<td class="heat pos" style="--i:{min(100, round(p[k]))}">{p[k]:.0f}%</td>' for k in FED_OUT)
+        w, mo = ago(m["event"], 7, "hike"), ago(m["event"], 30, "hike")
+        w2, mo2 = ago(m["event"], 7, "cut"), ago(m["event"], 30, "cut")
+        lk = max(FED_OUT, key=lambda k: p[k])
+        fmt_ch = lambda now, then: "n/a" if then is None else f'{then:.0f}% <span class="{"up" if now - then > 0.5 else "down" if now - then < -0.5 else "muted-text"}">({int(round(now - then)):+d})</span>'
+        trs.append(f'<tr><th scope="row">{esc(m["label"])}<small>{esc(m["long"])}</small></th>{cells}'
+                   f'<td>{p["hike"]:.0f}%</td><td>{fmt_ch(p["hike"], w)}</td><td>{fmt_ch(p["hike"], mo)}</td>'
+                   f'<td>{p["cut"]:.0f}%</td><td>{fmt_ch(p["cut"], w2)}</td><td>{fmt_ch(p["cut"], mo2)}</td><td class="lefttd"><b>{FED_NAMES[lk]}</b></td></tr>')
+    out["table"] = ('<table class="matrix ftable"><thead><tr><th>Meeting</th>' + "".join(f"<th>{FED_NAMES[k]}</th>" for k in FED_OUT)
+                    + '<th>Hike total</th><th>Hike 1W ago</th><th>Hike 1M ago</th><th>Cut total</th><th>Cut 1W ago</th><th>Cut 1M ago</th><th>Most likely</th></tr></thead><tbody>'
+                    + "".join(trs) + "</tbody></table>")
+    pay = {"meetings": [], "hist": {}}
+    for m in meets[:4]:
+        h = hists.get(m["event"])
+        if h is None or not len(h):
+            continue
+        pay["meetings"].append({"event": m["event"], "label": m["label"]})
+        pay["hist"][m["event"]] = {"dates": [x.strftime("%Y-%m-%d") for x in h.index],
+                                   "cut": [r(v, 1) for v in h["cut"]], "hold": [r(v, 1) for v in h["hold"]], "hike": [r(v, 1) for v in h["hike"]]}
+    quick = f'Next FOMC ({nx["d"].strftime("%d %b")})|{lean.capitalize()} {nx["p"][lean]:.0f}%|Hike {nx["p"]["hike"]:.0f}% · Cut {nx["p"]["cut"]:.0f}%'
+    return out, pay, quick
+
+
 def read_fx_feed(data_dir: Path) -> dict | None:
     p = data_dir / "fx_macro.json"
     if not p.exists():
@@ -978,6 +1084,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     fired = eval_cross_signals(playbook, metrics)
     rows, fam = build_watch(playbook, data, computed)
     erows, efam, etable = build_econ(data)
+    fedh, fedp, fedq = build_fed(data, today)
     fam.update(efam)
     fx = build_fx(feed, data)
     cot_t = build_cot_tables(data)
@@ -988,14 +1095,14 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         sig_html = f'<ul class="signals">{sig_html}</ul>'
     else:
         sig_html = '<p class="quiet">No cross-indicator signals active right now.</p>'
-    sig_html = build_quick(playbook, metrics) + sig_html
+    sig_html = build_quick(playbook, metrics, fedq) + sig_html
 
     dates = [m["date"] for m in metrics.values() if m.get("date")]
     as_of = max(dates) if dates else "n/a"
     default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y", "S:5y-2y") if any(r_["id"] == x for r_ in rows)]
     payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows + erows},
                "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
-               "default": default_sel, "matrix": matrix_payload(computed), "curve": curve_payload(data), "cot": build_cot_charts(data),
+               "default": default_sel, "fed": fedp, "matrix": matrix_payload(computed), "curve": curve_payload(data), "cot": build_cot_charts(data),
                "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
                "unit": {"spreads": "%", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
 
@@ -1005,7 +1112,8 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__TILES__": fx["tiles"], "__SIGNALS__": sig_html, "__WATCHLIST__": build_watch_html(rows), "__MATRIX__": build_matrix(data, computed),
         "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_GOLD_TABLE__": cot_t["gold"], "__COT_USD_TABLE__": cot_t["usd_index"],
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
-        "__FX_CARDS__": fx["fx"], "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
+        "__FX_CARDS__": fx["fx"], "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__FED_TABLE__": fedh["table"],
+        "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
         "__STATUS__": build_status(data, today), "__DISCLAIMER__": esc(playbook["meta"]["disclaimer"]),
     }
     for k, v in rep.items():

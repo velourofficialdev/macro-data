@@ -269,6 +269,27 @@
   .term table.etab tbody th { text-align: left; width: auto; }
   .term table.etab td.lefttd { text-align: left; color: var(--muted); }
   .term table.etab thead th { text-align: right; } .term table.etab thead th:first-child { text-align: left; }
+
+  /* Fed odds */
+  .fnext .fmeet { margin-bottom: 10px; }
+  .ftab { font-size: 13px; }
+  .ftab th, .ftab td { padding: 7px 8px; }
+  .ftab thead th { text-transform: none; letter-spacing: 0; font-size: 11px; text-align: right; }
+  .ftab thead th:nth-child(2) { text-align: left; }
+  .ftab td { text-align: right; } .ftab td.fbar { width: 42%; text-align: left; }
+  .ftab tbody th { font-weight: 600; white-space: nowrap; }
+  .fdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; background: var(--muted); }
+  .fdot.up, .bar.up { --fc: var(--accent2); } .fdot.down, .bar.down { --fc: var(--s4); } .fdot.flat, .bar.flat { --fc: var(--s1); }
+  .fdot { background: var(--fc); }
+  .bar { position: relative; height: 22px; border-radius: 5px; background: var(--tint); overflow: hidden; }
+  .bar::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--v); background: color-mix(in srgb, var(--fc) 55%, transparent); border-radius: 5px; }
+  .bar b { color: var(--ink); position: relative; padding-left: 8px; line-height: 22px; font-size: 12.5px; }
+  .was { color: var(--muted); }
+  table.ftable td { text-align: right; } table.ftable thead th { text-align: right; text-transform: none; letter-spacing: 0; font-size: 11px; }
+  table.ftable thead th:first-child { text-align: left; }
+  table.ftable tbody th small { display: block; color: var(--muted); font-weight: 400; font-size: 10.5px; }
+  table.ftable td.heat { --c: var(--accent); }
+  table.ftable td.lefttd { text-align: left; }
   /* COT */
   .card h3 { display: none; }
   .big { font: 600 30px/1.15 Georgia, serif; }
@@ -343,7 +364,7 @@
   <div class="meta"><span>Latest data <b>__ASOF__</b></span><span>Built __BUILT__</span><a class="dl" href="Macro_Dashboard.xlsx" download>Download Excel</a></div>
 </div></header>
 <nav>
-  <a href="#overview">Overview</a><a href="#rates">Rates</a><a href="#positioning">Positioning</a><a href="#fx">FX</a><a href="#economy">Economy</a>
+  <a href="#overview">Overview</a><a href="#rates">Rates</a><a href="#fed">Fed odds</a><a href="#positioning">Positioning</a><a href="#fx">FX</a><a href="#economy">Economy</a>
   <span class="themes" role="group" aria-label="Color theme">
     <button type="button" data-theme-btn="auto" aria-pressed="true">Auto</button>
     <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
@@ -391,6 +412,15 @@
     <div class="bento" style="margin-top:10px">
       <div class="t" style="--w:7"><div class="th"><h3>Reading: last spread you clicked</h3></div><div class="tb reading" id="reading"></div></div>
       <div class="t wide" style="--w:5"><div class="th"><h3>US spreads across time (bp)</h3></div>__MATRIX__</div>
+    </div>
+  </section>
+
+  <section id="fed">
+    <div class="sec"><h2>Fed policy odds</h2><span>Market-implied chance of a cut, hold or hike at each FOMC meeting, from Kalshi prediction markets (bid/ask midpoint, rescaled to 100%). Updated __FED_UPD__.</span></div>
+    <div class="bento">
+      <div class="t" style="--w:5"><div class="th"><h3>Next meeting</h3></div><div class="tb">__FED_NEXT__</div></div>
+      <div class="t" style="--w:7"><div class="th"><h3>How the odds moved</h3><div class="ranges" id="fedm" role="group" aria-label="Meeting"></div></div><div class="legend" data-for="fed"></div><div class="cv sm" id="ch-fed" style="height:260px"></div></div>
+      <div class="t" style="--w:12"><div class="th"><h3>Meeting path</h3><span class="note" style="margin:0">Each cell = probability of that outcome. Columns on the right compare today's total hike and cut odds with 1 week and 1 month ago (change in percentage points).</span></div><div class="scroll">__FED_TABLE__</div></div>
     </div>
   </section>
 
@@ -753,6 +783,23 @@ document.querySelectorAll(".cotpair").forEach(p => {
     const lg = document.querySelector('.legend[data-for="curve"]');
     lg.innerHTML = sets.map(s => `<span><i style="border-color:${s.color};border-top-style:${s.dash ? "dashed" : "solid"}"></i>${esc(s.name)}</span>`).join("");
     draw(host, { labels: C.labels, sets, dec: 2, axDec: 1, unit: "%", markers: true, allLabels: true, title: "Yield curve" });
+  }
+  render(); let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(render, 120); });
+})();
+
+
+/* Fed odds history (cut / hold / hike) for the chosen meeting */
+(function () {
+  const F = P.fed, host = document.getElementById("ch-fed"), box = document.getElementById("fedm"); if (!host) return;
+  if (!F || !F.meetings.length) { host.closest(".t").style.display = "none"; return; }
+  let cur = F.meetings[0].event;
+  F.meetings.forEach(m => { const b = document.createElement("button"); b.type = "button"; b.textContent = m.label; b.dataset.e = m.event; b.addEventListener("click", () => { cur = m.event; render(); }); box.appendChild(b); });
+  function render() {
+    box.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.e === cur)));
+    const h = F.hist[cur];
+    const sets = [{ name: "Hike", data: h.hike, color: "var(--accent2)" }, { name: "Hold", data: h.hold, color: "var(--s1)" }, { name: "Cut", data: h.cut, color: "var(--s4)" }];
+    document.querySelector('.legend[data-for="fed"]').innerHTML = sets.map(s => `<span><i style="border-color:${s.color}"></i>${s.name}</span>`).join("");
+    draw(host, { labels: h.dates, sets, dec: 0, axDec: 0, unit: "%", yMin: 0, yMax: 100, shortX: d => MON[+d.slice(5, 7) - 1] + " " + (+d.slice(8, 10)), endLabels: true, title: "Fed odds" });
   }
   render(); let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(render, 120); });
 })();

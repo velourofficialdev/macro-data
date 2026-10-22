@@ -7,6 +7,7 @@ Sources (all free, no API key):
   - CFTC  : Gold and USD Index COT, both from the Legacy Futures Only report (Non-Commercial)
             -> data/COT_GOLD_LEGACY.csv, data/COT_USD_INDEX.csv
   - Canada (Bank of Canada), Germany (Bundesbank), Japan (MoF), Australia (RBA): 2y/5y/10y/30y yields -> data/YC_<CC>.csv
+  - Kalshi  : Fed decision market odds (next meetings) + daily history -> data/fed/
   - FX dashboard feed (deiruuuu/fx-macro-confluence data.json) -> data/fx_macro.json
   - Yahoo : DXY price (fallback: Stooq)          -> data/DXY.csv
             Gold futures price (GC=F)            -> data/GOLD.csv   (used for the weekly price change next to Gold COT)
@@ -223,6 +224,83 @@ def fetch_yc_au() -> pd.DataFrame:
     return out.dropna(subset=["date"])
 
 
+# ---- Fed decision odds from Kalshi's public market data (CME FedWatch has no free API)
+KALSHI = "https://api.elections.kalshi.com/trade-api/v2"
+FED_SERIES = "KXFEDDECISION"
+FED_OUTCOMES = ["C26", "C25", "H0", "H25", "H26"]   # cut >25bp, cut 25, hold, hike 25, hike >25
+FED_HISTORY_MEETINGS = 4                          # daily odds history kept for the next N meetings
+FED_HISTORY_DAYS = 180
+
+
+def _kalshi(path: str, params: dict | None = None) -> dict:
+    import time
+    for attempt in range(5):
+        r = requests.get(f"{KALSHI}{path}", params=params or {}, headers=HEADERS, timeout=TIMEOUT)
+        if r.status_code == 429:
+            time.sleep(1.5 * (attempt + 1))
+            continue
+        r.raise_for_status()
+        time.sleep(0.4)
+        return r.json()
+    raise RuntimeError("Kalshi rate limit")
+
+
+def _mid(bid, ask, last):
+    b, a, l = (float(x) if x not in (None, "") else None for x in (bid, ask, last))
+    if b is not None and a is not None and a > 0 and a >= b:
+        return (a + b) / 2
+    return l
+
+
+def fetch_fed_odds() -> tuple[dict, dict[str, pd.DataFrame]]:
+    markets, cursor = [], None
+    while True:
+        p = {"series_ticker": FED_SERIES, "status": "open", "limit": 200}
+        if cursor:
+            p["cursor"] = cursor
+        d = _kalshi("/markets", p)
+        markets += d.get("markets", [])
+        cursor = d.get("cursor")
+        if not cursor:
+            break
+    events: dict[str, dict] = {}
+    for m in markets:
+        code = m["ticker"].split("-")[-1]
+        if code not in FED_OUTCOMES:
+            continue
+        e = events.setdefault(m["event_ticker"], {"event": m["event_ticker"], "date": (m.get("expected_expiration_time") or m["close_time"])[:10], "raw": {}})
+        e["raw"][code] = _mid(m.get("yes_bid_dollars"), m.get("yes_ask_dollars"), m.get("last_price_dollars"))
+    meetings = sorted((e for e in events.values() if len(e["raw"]) >= 3), key=lambda e: e["date"])
+    if not meetings:
+        raise ValueError("no open Fed decision markets")
+    hist: dict[str, pd.DataFrame] = {}
+    end = int(datetime.now(timezone.utc).timestamp())
+    start = end - FED_HISTORY_DAYS * 86400
+    for e in meetings[:FED_HISTORY_MEETINGS]:
+        cols = {}
+        for code in FED_OUTCOMES:
+            try:
+                c = _kalshi(f"/series/{FED_SERIES}/markets/{e['event']}-{code}/candlesticks",
+                            {"start_ts": start, "end_ts": end, "period_interval": 1440}).get("candlesticks", [])
+            except Exception:  # noqa: BLE001 - one missing outcome should not drop the meeting
+                continue
+            vals = {}
+            for k in c:
+                day = datetime.fromtimestamp(k["end_period_ts"], timezone.utc).strftime("%Y-%m-%d")
+                v = _mid((k.get("yes_bid") or {}).get("close_dollars"), (k.get("yes_ask") or {}).get("close_dollars"),
+                         (k.get("price") or {}).get("close_dollars"))
+                if v is not None:
+                    vals[day] = v
+            cols[code] = pd.Series(vals)
+        if cols:
+            df = pd.DataFrame(cols).sort_index()
+            df.index.name = "date"
+            hist[e["event"]] = df.reset_index()
+    snap = {"updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"), "source": "Kalshi KXFEDDECISION",
+            "meetings": [{"event": e["event"], "date": e["date"], "raw": e["raw"]} for e in meetings]}
+    return snap, hist
+
+
 def main() -> int:
     status: dict[str, dict] = {}
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -282,6 +360,22 @@ def main() -> int:
             record(f"YC_{cc}", True, saved["date"].iloc[-1], note=f"{INTL[cc]} government yields")
         except Exception as exc:  # noqa: BLE001
             record(f"YC_{cc}", False, error=f"{type(exc).__name__}: {exc}"[:200])
+
+    try:
+        snap, hist = fetch_fed_odds()
+        (DATA / "fed").mkdir(exist_ok=True)
+        (DATA / "fed" / "fed_odds.json").write_text(json.dumps(snap, indent=1))
+        for ev, df in hist.items():
+            merge_save(DATA / "fed" / f"{ev}.csv", df, "date", 1000)
+        # our own daily snapshot of every open meeting, so history keeps building even past the candle window
+        rows = [{"date": snap["updated"][:10], "event": m["event"], **{k: m["raw"].get(k) for k in FED_OUTCOMES}} for m in snap["meetings"]]
+        p = DATA / "fed" / "snapshots.csv"
+        old = pd.read_csv(p) if p.exists() else pd.DataFrame()
+        allr = pd.concat([old, pd.DataFrame(rows)], ignore_index=True).drop_duplicates(["date", "event"], keep="last")
+        allr.to_csv(p, index=False)
+        record("FED_ODDS", True, snap["updated"][:10], note=f"Kalshi, {len(snap['meetings'])} meetings")
+    except Exception as exc:  # noqa: BLE001
+        record("FED_ODDS", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
     try:
         r = requests.get(FX_FEED_URL, timeout=30)
