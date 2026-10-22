@@ -1,6 +1,6 @@
 {
  "meta": {
-  "disclaimer": "These are rules of thumb used by macro traders to frame what the data is saying. They describe conditions, not predictions or trading advice. Edit any text or threshold below; the dashboard rebuilds from this file.",
+  "disclaimer": "These are rules of thumb used by macro traders to frame what the data is saying. They describe conditions, not predictions or trading advice. The wording and thresholds come from playbook.json in the data repo; the dashboard rebuilds from that file.",
   "how_bands_work": "A band applies when the value is below its 'lt' number. Bands are checked top to bottom; the last band has no 'lt' and catches everything above."
  },
  "spreads": {
