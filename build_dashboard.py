@@ -392,7 +392,7 @@ def card(title, big, sub, band, extra_rows, what, dyn=None, gauge_html=""):
             f'<p class="sowhat"><strong>So what:</strong> {esc(dyn["so_what"])}</p></div>'
         )
     return (
-        f'<article class="card"><h3>{esc(title)}</h3>'
+        f'<article class="cotinner"><h3 class="sr-only">{esc(title)}</h3>'
         f'<div class="big">{esc(big)}<span class="sub">{esc(sub)}</span></div>'
         f"{gauge_html}<dl>{rows}</dl>{band_html}{dyn_html}"
         f'<details><summary>What is this?</summary><p>{esc(what)}</p></details></article>'
@@ -521,12 +521,23 @@ def build_watch_html(rows: list[dict]) -> str:
                 f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="spreads">'
                 f'<td class="cb"><span class="pick" aria-hidden="true"></span></td>'
                 f'<th scope="row"><span class="plus">+</span>{esc(r_["label"])}</th><td class="c-tk tk"><span class="plus">+</span>{esc(r_["ticker"])}</td>'
-                f'<td class="yd">{esc(r_["latest"][:-1])}<small>%</small></td><td class="{chg_class(r_["d1"])}">{esc(r_["d1"])}</td>'
-                f'<td class="c-d5 {chg_class(r_["d5"])}">{esc(r_["d5"])}</td><td class="c-d20 {chg_class(r_["d20"])}">{esc(r_["d20"])}</td>'
-                f'<td class="c-d252 {chg_class(r_["d252"])}">{esc(r_["d252"])}</td><td class="c-z">{esc(r_["z"])}</td></tr>')
+                f'<td class="yd">{esc(r_["latest"][:-1])}<small>%</small></td><td class="{chg_class(r_["d1"])}{hm(r_["d1"], 10)}">{esc(r_["d1"])}</td>'
+                f'<td class="c-d5 {chg_class(r_["d5"])}{hm(r_["d5"], 20)}">{esc(r_["d5"])}</td><td class="c-d20 {chg_class(r_["d20"])}{hm(r_["d20"], 30)}">{esc(r_["d20"])}</td>'
+                f'<td class="c-d252 {chg_class(r_["d252"])}{hm(r_["d252"], 80)}">{esc(r_["d252"])}</td><td class="c-z{hm(r_["z"], 2.5)}">{esc(r_["z"])}</td></tr>')
         out.append("</tbody>")
     out.append("</table>")
     return "".join(out)
+
+
+def hm(text: str, scale: float) -> str:
+    """Soft heatmap tint for a signed number cell: class + intensity (0-100) as a CSS variable."""
+    try:
+        v = float(str(text).replace("+", "").replace(",", "").strip())
+    except ValueError:
+        return ""
+    if v == 0:
+        return ""
+    return f' hm {"up" if v > 0 else "down"}" style="--i:{min(100, round(abs(v) / scale * 100))}'
 
 
 def chg_class(text: str) -> str:
@@ -603,7 +614,7 @@ def signed(v, nd=2, suffix=""):
     return "n/a" if v is None else f"{fmt(v, nd, True)}{suffix}"
 
 
-def tile(label, display, chg_pct, vals, sub=""):
+def tile(label, display, chg_pct, vals, sub=""):  # sub = as-of date
     up = None if chg_pct is None else chg_pct >= 0
     cls = "" if chg_pct is None else ("up" if chg_pct >= 0 else "down")
     return (f'<div class="tile"><div class="tl">{esc(label)}</div><div class="tv">{esc(display)}</div>'
@@ -641,15 +652,19 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
 
     fx = feed.get("fx") or {}
     cards, confs = [], []
+    live = 0
     for sym, d in fx.items():
         cf = d.get("confluence")
         tone = "flat" if not cf else ("up" if cf["score"] >= 60 else "down" if cf["score"] <= 40 else "mid")
-        tag = cf["label"].split(" ")[0].upper() if cf else "N/A"
+        has = d.get("value") is not None and str(d.get("display", "")).strip() not in ("", "-")
+        live += has
+        tag = f'<span class="tag {tone}">{esc(cf["label"].split(" ")[0].upper())}</span>' if cf else ""
         ch = d.get("changePct")
         cards.append(
-            f'<div class="tile fxc"><div class="tl"><span>{esc(sym)}</span><span class="tag {tone}">{esc(tag)}</span></div>'
-            f'<div class="tv">{esc(d.get("display", ""))}</div><div class="tc {"" if ch is None else ("up" if ch >= 0 else "down")}">{esc(signed(ch, 3, "%"))}</div>'
-            f'{spark(d.get("spark"), None if ch is None else ch >= 0)}</div>')
+            f'<div class="tile fxc{"" if has else " empty"}"><div class="tl"><span>{esc(sym)}</span>{tag}</div>'
+            f'<div class="tv">{esc(d.get("display", "")) if has else "&ndash;"}</div>'
+            f'<div class="tc {"" if ch is None else ("up" if ch >= 0 else "down")}">{esc(signed(ch, 3, "%")) if ch is not None else "&nbsp;"}</div>'
+            f'{spark(d.get("spark"), None if ch is None else ch >= 0) if has else ""}</div>')
         if cf:
             sg = cf.get("signals", {})
             rows = [("Daily price momentum", "D1", signed((sg.get("momentum") or {}).get("pct"), 1, "%"), (sg.get("momentum") or {}).get("bull")),
@@ -667,9 +682,13 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
                 f'<div class="chead">{gauge_ring(cf["score"], tone)}<div class="verdict {tone}">{esc(cf["label"].split(" ")[0])} confluence<small>Confluence score</small></div></div>'
                 f'<h5>Signals</h5>{sig_html}<h5>Support / resistance</h5>{sr_html}</article>')
     if cards:
-        out["fx"] = '<div class="tiles">' + "".join(cards) + "</div>"
+        note = "" if live else '<p class="emptystate">No FX feed saved yet. It appears after the first successful update.</p>'
+        out["fx"] = note + '<div class="tiles fxtiles">' + "".join(cards) + "</div>"
     if confs:
         out["conf"] = '<div class="confgrid">' + "".join(confs) + "</div>"
+    else:
+        out["conf"] = ('<p class="emptystate">No FX feed saved yet. It appears after the first successful update.</p>'
+                       '<p class="note">Each pair will show a confluence score (0-100), its momentum, RSI, trend (price vs EMA) and Z-score signals, and nearby support and resistance.</p>')
 
     econ = feed.get("econ") or {}
     items = []
@@ -703,7 +722,7 @@ def build_cot_cards(playbook: dict, metrics: dict, split: bool = False):
         spec = playbook["cot"][key]
         m = metrics.get(f"COT:{key}")
         if not m:
-            cards.append(f'<article class="card muted"><h3>{esc(spec["title"])}</h3><p>No data yet. It appears after the first successful CFTC update.</p></article>')
+            cards.append(f'<article class="cotinner muted"><h3>{esc(spec["title"])}</h3><p>No data yet. It appears after the first successful CFTC update.</p></article>')
             continue
         band = pick_band(spec["bands"], m["index"])
         cards.append(card(spec["title"], fmt(m["net"], 0, True), f' net contracts · {m["date"]}', band,
@@ -778,7 +797,7 @@ def build_cot_tables(data: dict) -> dict[str, str]:
                 txt = fmt(num(row[col]), nd, sg)
                 cls = chg_class(txt) if sg else ""
                 tds += f'<td class="{cls}">{esc(txt)}</td>'
-            rows.append(f'<tr><th scope="row">{d.strftime("%Y-%m-%d")}</th>{tds}</tr>')
+            rows.append(f'<tr{" class=\"cur\"" if not rows else ""}><th scope="row">{d.strftime("%Y-%m-%d")}{" <span class=\"curtag\">latest</span>" if not rows else ""}</th>{tds}</tr>')
 
         def zval(s_):
             s_ = s_.dropna()
@@ -827,7 +846,7 @@ def build_kpis(data: dict, computed: dict) -> str:
         up = None if ch is None else ch >= 0
         chs = signed(ch, 2, "%" if pct else (" pp" if unit else ""))
         html_.append(f'<div class="kpi"><div class="kl">{esc(label)}</div><div class="kv">{esc(fmt(s_.iloc[-1], nd))}<small>{esc(unit.strip())}</small></div>'
-                     f'<div class="kc {"" if up is None else ("up" if up else "down")}">{esc(chs)} <span>1D</span></div>{spark([round(x, 4) for x in s_.tail(60)], up)}</div>')
+                     f'<div class="kc"><span class="chip-chg {"" if up is None else ("up" if up else "down")}">{"&#9650;" if up else "&#9660;" if up is not None else ""} {esc(chs)} <span>1D</span></span></div>{spark([round(x, 4) for x in s_.tail(60)], up)}</div>')
     return "".join(html_)
 
 
@@ -957,7 +976,7 @@ def build_econ(data: dict) -> tuple[list[dict], dict, str]:
 def build_econ_watch_html(rows: list[dict]) -> str:
     cols = ('<th class="cb"><span class="sr-only">Select</span></th><th>Name</th><th class="c-tk">Ticker</th><th>Latest</th>'
             '<th>Chg</th><th class="c-d252">1Y chg</th><th class="c-per">Period</th><th class="c-z">Z</th>')
-    out = [f'<table class="watch"><thead><tr>{cols}</tr></thead>']
+    out = [f'<table class="watch econ"><thead><tr>{cols}</tr></thead>']
     groups: list[str] = []
     for r_ in rows:
         if r_["group"] not in groups:
@@ -1011,7 +1030,7 @@ def build_fed(data: dict, today: date) -> tuple[dict, dict | None, str | None]:
         p = fed_norm(m["raw"])
         if p:
             d = datetime.strptime(m["date"], "%Y-%m-%d").date()
-            meets.append({**m, "p": p, "d": d, "label": d.strftime("%b %Y"), "long": d.strftime("%d %b %Y")})
+            meets.append({**m, "p": p, "d": d, "label": d.strftime("%b %Y"), "long": d.strftime("%d %b %Y"), "short": f"{d.day} {d.strftime('%b')}"})
     if not meets:
         return out, None, None
     hists = {e: fed_hist_norm(h) for e, h in fed.get("hist", {}).items() if len(h)}
@@ -1039,8 +1058,12 @@ def build_fed(data: dict, today: date) -> tuple[dict, dict | None, str | None]:
                 cells += f'<td><span class="was">{a:.0f}%</span> <span class="{"up" if ch > 0.5 else "down" if ch < -0.5 else "muted-text"}">{int(round(ch)):+d}</span></td>'
         rows.append(f'<tr><th scope="row"><span class="fdot {cls}"></span>{lab}</th><td class="fbar"><div class="bar {cls}" style="--v:{v:.1f}%"><b>{v:.0f}%</b></div></td>{cells}</tr>')
     days_to = (nx["d"] - today).days
+    p = nx["p"]
+    stack = ('<div class="stack3" role="img" aria-label="Cut {:.0f}%, hold {:.0f}%, hike {:.0f}%">'.format(p["cut"], p["hold"], p["hike"])
+             + "".join(f'<span class="seg {k}" style="flex-basis:{p[k]:.2f}%" title="{k.capitalize()} {p[k]:.0f}%">{(k.capitalize() + " " + format(p[k], ".0f") + "%") if p[k] >= 9 else ""}</span>' for k in ("cut", "hold", "hike"))
+             + '</div><div class="stacklegend">' + "".join(f'<span><i class="seg {k}"></i>{k.capitalize()} {p[k]:.0f}%</span>' for k in ("cut", "hold", "hike")) + "</div>")
     out["next"] = (f'<div class="fnext"><div class="fmeet"><div class="kl">Next FOMC decision</div><div class="kv">{esc(nx["long"])}</div>'
-                   f'<div class="kc">{"today" if days_to == 0 else f"in {days_to} days" if days_to > 0 else ""} · market leans <b>{lean.capitalize()} {nx["p"][lean]:.0f}%</b></div></div>'
+                   f'<div class="kc">{"today" if days_to == 0 else f"in {days_to} days" if days_to > 0 else ""} · market leans <b>{lean.capitalize()} {nx["p"][lean]:.0f}%</b></div></div>{stack}'
                    '<table class="ftab"><thead><tr><th></th><th>Odds now</th><th>1 day ago <small>(chg pp)</small></th><th>1 week ago</th><th>1 month ago</th></tr></thead><tbody>'
                    + "".join(rows) + "</tbody></table></div>")
     trs = []
@@ -1051,7 +1074,7 @@ def build_fed(data: dict, today: date) -> tuple[dict, dict | None, str | None]:
         w2, mo2 = ago(m["event"], 7, "cut"), ago(m["event"], 30, "cut")
         lk = max(FED_OUT, key=lambda k: p[k])
         fmt_ch = lambda now, then: "n/a" if then is None else f'{then:.0f}% <span class="{"up" if now - then > 0.5 else "down" if now - then < -0.5 else "muted-text"}">({int(round(now - then)):+d})</span>'
-        trs.append(f'<tr><th scope="row">{esc(m["label"])}<small>{esc(m["long"])}</small></th>{cells}'
+        trs.append(f'<tr><th scope="row">{esc(m["label"])} <span class="muted-text">&middot; {esc(m["short"])}</span></th>{cells}'
                    f'<td>{p["hike"]:.0f}%</td><td>{fmt_ch(p["hike"], w)}</td><td>{fmt_ch(p["hike"], mo)}</td>'
                    f'<td>{p["cut"]:.0f}%</td><td>{fmt_ch(p["cut"], w2)}</td><td>{fmt_ch(p["cut"], mo2)}</td><td class="lefttd"><b>{FED_NAMES[lk]}</b></td></tr>')
     out["table"] = ('<table class="matrix ftable"><thead><tr><th>Meeting</th>' + "".join(f"<th>{FED_NAMES[k]}</th>" for k in FED_OUT)

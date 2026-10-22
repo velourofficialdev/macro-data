@@ -13,7 +13,7 @@ legacy/             the original notebook, kept for reference
 
 ## Look and feel
 
-Colors follow the Velour base `#42070E` (CSS variables at the top of `template.html`). The four chart colors were checked for colorblind separation and contrast in both light and dark mode, so change them there only if you re-run the check. The page has an Auto / Light / Dark switch in the top bar (Auto follows the device, and the browser remembers the choice). Charts are drawn by a small script inside `template.html`, so the page needs no internet connection or external libraries.
+Colors come from the design tokens at the top of `template.html` (primary #90BFF9, secondary #B96AC9, accent #787779, background #2E2E2E, surface #35383C, text #F8FAFC, muted #94A3B8, border #334155, plus up/down/warn and a derived light theme). The page has an Auto / Light / Dark switch in the top bar (Auto follows the device, and the browser remembers the choice). Charts are drawn by a small script inside `template.html`, so the page needs no internet connection or external libraries.
 
 ## How it is hosted
 
