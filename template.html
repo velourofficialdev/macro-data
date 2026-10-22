@@ -263,6 +263,32 @@
   details.more summary, .reading details summary, .card details summary { cursor: pointer; color: var(--primary-ink); font-size: 12px; font-weight: 500; }
   .reading details, .card .cotcard details { margin-top: 8px; font-size: 13px; color: var(--muted); }
 
+
+  /* ---------- Rates: terminal layout kept from the reference (list left, chart top-right, matrix bottom-right) ---------- */
+  .rterm { grid-template-columns: minmax(360px, 34%) minmax(0, 1fr); grid-template-rows: minmax(420px, 56vh) auto; gap: 8px; }
+  .rterm .card { border-radius: 6px; }
+  .rterm .wlp { grid-row: 1 / span 2; max-height: calc(100vh - 70px); min-height: 640px; }
+  .rterm .chp { grid-column: 2; grid-row: 1; }
+  .rterm .mxp { grid-column: 2; grid-row: 2; }
+  .rterm .card-h { padding: 8px 12px; min-height: 0; border-bottom: 1px solid var(--border-strong); }
+  .rterm .card-h h3 { font-size: 13.5px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
+  .rterm .tbar { padding: 4px 6px; border-bottom: 1px solid var(--border-strong); }
+  .rterm .wl { border-top: 0; }
+  .rterm .rbar { padding: 6px 10px 2px; }
+  .rterm .chips { padding: 6px 10px 2px; }
+  .rterm .chip { border-radius: 3px; }
+  .rterm .cv.main { flex: 1; height: auto; min-height: 300px; margin: 2px 4px 6px 8px; }
+  .rterm table.watch { font-size: 12px; }
+  .rterm table.watch th, .rterm table.watch td { padding: 4px 7px; height: 26px; }
+  .rterm table.watch td.hm { background: none; }
+  .rterm table.watch tr.grp td, .rterm table.watch tr.grp th { height: 30px; }
+  .rterm .mxs { flex: 1; }
+  .rterm table.matrix { font-size: 12.5px; }
+  .rterm table.matrix th, .rterm table.matrix td { padding: 6px 10px; border-right: 1px solid var(--border); }
+  .rterm table.matrix thead th { text-align: center; }
+  .rterm table.matrix td.heat { background: color-mix(in srgb, var(--c) calc(var(--i) * .6%), transparent); }
+  .rterm table.matrix td.na { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+  @media (max-width: 1024px) { .rterm { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; } .rterm .wlp, .rterm .chp, .rterm .mxp { grid-column: 1; grid-row: auto; } .rterm .wlp { max-height: 70vh; min-height: 0; } .rterm .chp { min-height: 420px; } }
   /* matrices & heat tables */
   table.matrix td { text-align: right; padding: 7px 12px; }
   table.matrix thead th { text-align: right; }
@@ -415,7 +441,7 @@
   <!-- ============ RATES ============ -->
   <section class="sec" id="rates">
     <div class="sechead"><h2>Rates</h2><p>Click rows, or a country's box, to plot up to five spreads. Yield diff = long minus short yield; changes in basis points.</p></div>
-    <div class="term">
+    <div class="term rterm">
       <div class="card wlp">
         <div class="card-h"><h3>Yield Spreads</h3><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></div>
         <div class="tbar">
@@ -434,15 +460,13 @@
         <div class="chips" aria-label="Plotted series"></div>
         <div class="cv main" role="img" aria-label="Historical yield spreads for the selected rows"></div>
       </div>
-      <div class="card rdp"><div class="card-h"><h3>Reading: last spread you clicked</h3></div><div class="card-b reading" id="reading"></div></div>
+      <div class="card mxp">
+        <div class="card-h"><h3>Yield Spreads Matrix</h3><div class="ranges" id="hz" role="group" aria-label="Matrix date"></div></div>
+        <div class="scroll mxs"><table class="matrix" id="cmx"></table></div>
+      </div>
     </div>
     <div class="grid" style="margin-top:12px">
-      <details class="card collapse" style="--w:7" open data-mobile-closed>
-        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Yield Spreads Matrix</h3></span><span class="note">bp · Rose = inverted · Blue = positive</span></summary>
-        <div class="rbar" style="padding-bottom:8px"><div class="ranges" id="hz" role="group" aria-label="Matrix date"></div></div>
-        <div class="scroll"><table class="matrix" id="cmx"></table></div>
-        <p class="note" style="padding:8px 16px 0">Dash = maturity not published by that country.</p>
-      </details>
+      <div class="card" style="--w:7"><div class="card-h"><h3>Reading: last spread you clicked</h3></div><div class="card-b reading" id="reading"></div></div>
       <details class="card collapse" style="--w:5" open data-mobile-closed>
         <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>US spreads across time (bp)</h3></span></summary>
         <div class="scroll">__MATRIX__</div>
