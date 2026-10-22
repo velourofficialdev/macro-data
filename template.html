@@ -357,6 +357,7 @@
   table.ftable td { text-align: right; } table.ftable thead th { text-align: right; } table.ftable thead th:first-child { text-align: left; }
   table.ftable td.heat { --c: var(--primary); }
   table.ftable td.lefttd { text-align: left; }
+  table.zqtable td .badge { margin-left: 6px; }
 
   /* COT */
   .cotcard .big { font-size: 24px; font-weight: 600; }
@@ -532,6 +533,13 @@
       <div class="card" style="--w:5"><div class="card-h"><h3>Next meeting</h3></div><div class="card-b">__FED_NEXT__</div></div>
       <div class="card" style="--w:7"><div class="card-h"><h3>How the odds moved</h3><div class="ranges" id="fedm" role="group" aria-label="Meeting"></div></div><div class="legend" data-for="fed"></div><div class="cv tall" id="ch-fed" role="img" aria-label="Cut, hold and hike odds over time for the selected meeting"></div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>Meeting path</h3><p class="note">Probability of each outcome. Right-hand columns compare today's total hike and cut odds with 1 week and 1 month ago (change in pp).</p></div><div class="scroll">__FED_TABLE__</div></div>
+    </div>
+    <div class="sechead" style="margin-top:20px"><h2>Fed Rate Odds</h2><p>Market-implied probability of a Fed rate hike, hold, or cut at the next FOMC meeting, calculated from 30-Day Fed Funds futures and compared with previous daily snapshots. Latest snapshot __ZQ_UPD__.</p></div>
+    <div class="grid">
+      <div class="card" style="--w:4"><div class="card-h"><h3>Next meeting · futures</h3></div><div class="card-b">__ZQ_NEXT__</div></div>
+      <div class="card" style="--w:4"><div class="card-h"><h3>Cut probability over time</h3></div><div class="legend" data-for="zqcut"></div><div class="cv tall" id="ch-zqcut" role="img" aria-label="Probability of a 25 bp cut over time for each upcoming meeting"></div><p class="note" style="padding:0 16px 12px">Dashed lines mark days when odds moved 10 pp or more; labels show a CPI, jobs report, PCE or FOMC release that day.</p></div>
+      <div class="card" style="--w:4"><div class="card-h"><h3>Hike probability over time</h3></div><div class="legend" data-for="zqhike"></div><div class="cv tall" id="ch-zqhike" role="img" aria-label="Probability of a 25 bp hike over time for each upcoming meeting"></div></div>
+      <div class="card" style="--w:12"><div class="card-h"><h3>All upcoming meetings · 30-Day Fed Funds futures</h3><p class="note">Market-implied probabilities derived from 30-Day Fed Funds futures; not an official Fed forecast.</p></div><div class="scroll">__ZQ_TABLE__</div></div>
     </div>
   </section>
 
@@ -712,6 +720,13 @@ function draw(host, spec) {
       const t = el("text", { x: W - m.r + 4 + (m.r - 4) / 2, y: e.y + 4, "text-anchor": "middle", fill: "var(--onser)", "font-size": 11, "font-weight": 600 }, svg); t.textContent = f(e.v, spec.dec);
     });
   }
+  (spec.marks || []).forEach(mk => {   /* event markers: dashed vertical line + short label */
+    const i = spec.labels.indexOf(mk.date); if (i < 0) return;
+    const g = el("g", {}, svg);
+    el("line", { x1: x(i), x2: x(i), y1: m.t, y2: m.t + ih, stroke: "var(--warn)", "stroke-width": 1, "stroke-dasharray": "3 3", opacity: .8 }, g);
+    if (mk.label) el("text", { x: x(i) + 3, y: m.t + 9, fill: "var(--warn)", "font-size": 9.5, "font-weight": 600 }, g).textContent = mk.label;
+    el("title", {}, g).textContent = mk.title;
+  });
   const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: "var(--muted)", opacity: 0 }, svg);
   const dots = spec.sets.map(s => el("circle", { r: 4, fill: s.color, stroke: "var(--tile)", "stroke-width": 2, opacity: 0 }, svg));
   const tip = document.createElement("div"); tip.className = "tip"; host.appendChild(tip);
@@ -922,6 +937,25 @@ document.querySelectorAll(".cotpair").forEach(p => {
     const sets = [{ name: "Hold", data: h.hold, color: "var(--primary)" }, { name: "Hike", data: h.hike, color: "var(--secondary)" }, { name: "Cut", data: h.cut, color: "var(--accent)" }];
     document.querySelector('.legend[data-for="fed"]').innerHTML = sets.map(s => `<span><i style="border-color:${s.color}"></i>${s.name}</span>`).join("");
     draw(host, { labels: h.dates, sets, dec: 0, axDec: 0, unit: "%", yMin: 0, yMax: 100, shortX: d => MON[+d.slice(5, 7) - 1] + " " + (+d.slice(8, 10)), endLabels: true, title: "Fed odds" });
+  }
+  render(); let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(render, 120); });
+})();
+
+/* Fed Rate Odds (30-Day Fed Funds futures): cut and hike probability per meeting, with big-move markers */
+(function () {
+  const Z = P.zq;
+  ["zqcut", "zqhike"].forEach(key => {
+    const host = document.getElementById("ch-" + key); if (!host) return;
+    if (!Z || !Z.dates.length) { host.closest(".card").style.display = "none"; return; }
+  });
+  if (!Z || !Z.dates.length) return;
+  function render() {
+    [["zqcut", "cut"], ["zqhike", "hike"]].forEach(([key, f]) => {
+      const host = document.getElementById("ch-" + key);
+      const sets = Z.meetings.map((mt, k) => ({ name: mt.label, data: mt[f], color: colorOf(k) }));
+      document.querySelector(`.legend[data-for="${key}"]`).innerHTML = sets.map(s => `<span><i style="border-color:${s.color}"></i>${esc(s.name)}</span>`).join("");
+      draw(host, { labels: Z.dates, sets, dec: 0, axDec: 0, unit: "%", yMin: 0, yMax: 100, marks: Z.marks, shortX: d => MON[+d.slice(5, 7) - 1] + " " + (+d.slice(8, 10)), title: key });
+    });
   }
   render(); let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(render, 120); });
 })();

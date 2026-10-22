@@ -138,6 +138,7 @@ def export(path: Path, playbook: dict, data: dict, computed: dict) -> None:
         "Gold_Price": price_sheet(data.get("gold_px"), "Gold", True),
         "COT_Gold": cot_sheet(data["cot"].get("gold"), "Gold"),
         "COT_USD_Index": cot_sheet(data["cot"].get("usd_index"), "DXY"),
+        "Fed_Rate_Odds": data.get("zq"),          # daily snapshots from 30-Day Fed Funds futures (fed_rate_odds.py)
     }
     with pd.ExcelWriter(path, engine="openpyxl") as xw:
         for name, df in sheets.items():

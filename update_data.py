@@ -398,6 +398,16 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             record(f"FX_{pair}", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
+    try:   # Fed Rate Odds from 30-Day Fed Funds futures (ZQ) + EFFR + Fed calendar; see fed_rate_odds.py
+        import fed_rate_odds
+        zq, zq_warn = fed_rate_odds.update_snapshots()
+        fed_rate_odds.fetch_event_calendar()
+        for w in zq_warn:
+            print("WARN FED_ZQ", w)
+        record("FED_ZQ", True, str(zq["snapshot_date"].max()), note="; ".join(zq_warn)[:300] or "ZQ via Yahoo Finance (manual prices in data/fed/zq_manual.csv override)")
+    except Exception as exc:  # noqa: BLE001
+        record("FED_ZQ", False, error=f"{type(exc).__name__}: {exc}"[:200])
+
     try:
         snap, hist = fetch_fed_odds()
         (DATA / "fed").mkdir(exist_ok=True)
