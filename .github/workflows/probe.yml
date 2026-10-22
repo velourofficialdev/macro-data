@@ -10,10 +10,9 @@ jobs:
         run: |
           mkdir -p out
           UA="Mozilla/5.0 (X11; Linux x86_64)"
-          for c in FR IT; do for t in 2 5 10 30; do for r in 1Y 5Y 10Y; do
-            curl -s -m 30 -A "$UA" "https://ts-api.cnbc.com/harmony/app/charts/$r.json?symbol=${c}${t}Y-${c}" -o out/cnbc_${c}${t}_$r.json; done; done; done
-          curl -s -m 30 -A "$UA" "https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols=FR2Y-FR|FR5Y-FR|FR10Y-FR|FR30Y-FR|IT2Y-IT|IT5Y-IT|IT10Y-IT|IT30Y-IT|CN10Y-CN|IN10Y-IN&requestMethod=itv&noform=1&partnerId=2&fund=1&exthrs=1&output=json" -o out/cnbc_quote.json
-          curl -s -m 60 -A "$UA" -X POST "https://yield.chinabond.com.cn/cbweb-mn/yc/queryYz?bjlx=no&&dcq=2,2y;5,5y;10,10y;30,30y;&&startTime=2025-10-01&&endTime=2026-10-22&&qxlx=0,&&yqqxN=N&&yqqxK=K&&par=day&&ycDefIds=2c9081e50a2f9606010a3068cae70001,&&locale=en_US" -o out/chinabond.json -w "chinabond %{http_code} %{size_download}\n"
+          for s in DE10Y-DE DE2Y-DE US10Y US2Y FR10Y-FR; do for r in 1Y 1M 5D; do
+            curl -s -m 30 -A "$UA" "https://ts-api.cnbc.com/harmony/app/charts/$r.json?symbol=$s" -o "out/cnbc_${s}_$r.json"; done; done
+          curl -s -m 30 -A "$UA" "https://www.worldgovernmentbonds.com/country/france/" -o out/wgb_fr.html
           ls -la out
       - uses: actions/upload-artifact@v4
-        with: { name: probe, path: out }
+        with: { name: probe2, path: out }
