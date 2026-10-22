@@ -253,6 +253,10 @@
 
   .rbar { padding: 0 16px 4px; }
   .ranges { display: flex; flex-wrap: wrap; gap: 2px; }
+  .mxctl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .mxnote { margin: 0; padding: 6px 12px 8px; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--border); }
+  .kindsw { padding-right: 10px; border-right: 1px solid var(--border); }
+  details .kindsw { border-right: 0; padding: 8px 12px 0; }
   .ranges button { font: inherit; font-size: 12px; font-weight: 500; border: 0; background: transparent; color: var(--muted); padding: 4px 9px; border-radius: 6px; cursor: pointer; }
   .ranges button:hover { color: var(--text); background: var(--surface-2); }
   .ranges button[aria-pressed="true"] { background: var(--tint-primary); color: var(--primary-ink); font-weight: 600; }
@@ -523,15 +527,16 @@
         <div class="cv main" role="img" aria-label="Historical yield spreads for the selected rows"></div>
       </div>
       <div class="card mxp">
-        <div class="card-h"><h3>Yield Spreads Matrix</h3><div class="ranges" id="hz" role="group" aria-label="Matrix date"></div></div>
+        <div class="card-h"><h3 id="mxt">Yield Spreads Matrix</h3><div class="mxctl"><div class="ranges kindsw" id="mxk" role="group" aria-label="Show yields or spreads"><button type="button" data-kind="yields" aria-pressed="false">Yields</button><button type="button" data-kind="spreads" aria-pressed="true">Spreads</button></div><div class="ranges" id="hz" role="group" aria-label="Matrix date"></div></div></div>
         <div class="scroll mxs"><table class="matrix" id="cmx"></table></div>
+        <p class="mxnote" id="mxn" hidden>Yield in % on the selected date. Shading = move since then (Now: last day); blue higher now, red lower. Hover for bp.</p>
       </div>
     </div>
     <div class="grid" style="margin-top:12px">
       <div class="card" style="--w:5"><div class="card-h"><h3>Reading: last row you clicked</h3></div><div class="card-b reading" id="reading"></div></div>
       <details class="card collapse" style="--w:7" open data-mobile-closed>
-        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>US spreads across time (bp)</h3></span></summary>
-        <div class="scroll">__MATRIX__</div>
+        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>US yields and spreads across time</h3></span></summary>
+        __MATRIX__
       </details>
     </div>
   </section>
@@ -899,22 +904,38 @@ function Terminal(root, cfg) {
 Terminal(document.querySelector("#rates .term"), { defaults: P.default, ranges: ["MTD", "1M", "QTD", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "10Y"], range: "1Y", store: "macro-watchlist", reading: "reading", csv: "yield_spreads", title: "Historical yields" });
 Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, ranges: ["YTD", "1Y", "2Y", "3Y", "5Y", "10Y"], range: "5Y", store: "macro-econ-watchlist", reading: "ereading", csv: "us_economy", title: "US economy", openWhat: true });
 
-/* Spreads matrix by country */
+/* Yields / spreads matrix by country */
 (function () {
   const M = P.matrix, tbl = document.getElementById("cmx"); if (!M || !tbl) return;
   const NAMES = { US: "US", CA: "CA", DE: "DE", FR: "FR", IT: "IT", JP: "JP", AU: "AU", CN: "CN", IN: "IN" };
-  const hz = document.getElementById("hz"); let cur = 0;
+  const hz = document.getElementById("hz"), kb = document.getElementById("mxk"), ttl = document.getElementById("mxt"); let cur = 0, kind = "spreads";
   M.horizons.forEach((h, i) => { const b = document.createElement("button"); b.type = "button"; b.textContent = h; b.addEventListener("click", () => { cur = i; paint(); }); hz.appendChild(b); });
-  let peak = 1; M.vals.forEach(g => g.forEach(r => r.forEach(v => { if (v !== null) peak = Math.max(peak, Math.abs(v)); })));
+  if (kb) { if (!M.y) kb.hidden = true; kb.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { kind = b.dataset.kind; paint(); })); }
+  const peakOf = g => { let p = 1; g.forEach(x => x.forEach(r => r.forEach(v => { if (v !== null) p = Math.max(p, Math.abs(v)); }))); return p; };
+  const peakS = peakOf(M.vals), peakY = M.y ? M.y.chg.map(g => peakOf([g])) : [];   /* yields: shade each date on its own scale */
+  const nf = (v, d) => v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+  const tint = (v, peak) => Math.min(100, Math.round(100 * Math.pow(Math.abs(v) / peak, .7)));
   function paint() {
     hz.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === cur)));
+    if (kb) kb.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.kind === kind)));
+    const Y = kind === "yields" && M.y;
+    if (ttl) ttl.textContent = Y ? "Yields Matrix" : "Yield Spreads Matrix";
+    const nt = document.getElementById("mxn"); if (nt) nt.hidden = !Y;
+    const rows = Y ? M.y.rows : M.rows;
     let h = "<thead><tr><th></th>" + M.cols.map(c => `<th>${NAMES[c] || c}</th>`).join("") + "</tr></thead><tbody>";
-    M.rows.forEach((name, i) => {
+    rows.forEach((name, i) => {
       h += `<tr><th scope="row">${name}</th>`;
       M.cols.forEach((c, j) => {
-        const v = M.vals[cur][i][j];
-        if (v === null) h += '<td class="na">-</td>';
-        else { const k = Math.min(100, Math.round(100 * Math.pow(Math.abs(v) / peak, .7))); h += `<td class="heat ${v < 0 ? "neg" : "pos"}" style="--i:${k}">${v.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}${i === 0 ? "<small>bp</small>" : ""}</td>`; }
+        if (Y) {
+          const v = M.y.vals[cur][i][j], d = M.y.chg[cur][i][j];
+          if (v === null) { h += '<td class="na">-</td>'; return; }
+          const tip = cur === 0 ? `1-day change: ${d > 0 ? "+" : ""}${nf(d, 1)} bp` : `Change from ${M.horizons[cur]} to now: ${d > 0 ? "+" : ""}${nf(d, 1)} bp`;
+          h += `<td class="heat ${d < 0 ? "neg" : "pos"}" style="--i:${tint(d, peakY[cur])}" title="${tip}">${nf(v, 2)}${i === 0 ? "<small>%</small>" : ""}</td>`;
+        } else {
+          const v = M.vals[cur][i][j];
+          if (v === null) { h += '<td class="na">-</td>'; return; }
+          h += `<td class="heat ${v < 0 ? "neg" : "pos"}" style="--i:${tint(v, peakS)}">${nf(v, 1)}${i === 0 ? "<small>bp</small>" : ""}</td>`;
+        }
       });
       h += "</tr>";
     });
@@ -922,6 +943,15 @@ Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, range
   }
   paint();
 })();
+
+/* US across-time table: yields / spreads switch */
+document.querySelectorAll("details .kindsw").forEach(sw => {
+  const box = sw.parentElement;
+  sw.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    sw.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    box.querySelectorAll("table.matrix[data-kind], .mxnote[data-kind]").forEach(tb => { tb.hidden = tb.dataset.kind !== b.dataset.kind; });
+  }));
+});
 
 /* COT: keep the statistics block (outside the scroll box) aligned with the weekly table when scrolling sideways */
 document.querySelectorAll(".cotpair").forEach(p => {
