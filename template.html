@@ -12,16 +12,18 @@
   /* Theme: soft sky blue #90bff9, orchid #ba68c8 and white on calm navy-charcoal (dark) or white (light).
      Supporting colors: amber #e9b65c and mint #4fc7a8 for extra chart lines; coral for falls. Nothing saturated fills a large area. */
   :root {
-    --page: #0f131c;
-    --bg: #0f131c; --tile: #151a26; --tile2: #151a26; --tint: #1c2232; --head: #19202e;
-    --ink: #eef2fb; --muted: #9aa5bd; --line: rgba(255, 255, 255, .07); --line2: rgba(255, 255, 255, .12);
-    --accent: #90bff9; --accent2: #ba68c8; --rule: #90bff9;
-    --hero: linear-gradient(120deg, rgba(144, 191, 249, .20) 0%, rgba(186, 104, 200, .18) 100%), #121826; --hero-ink: #ffffff; --hero-muted: #c9d3e8;
-    --grad-soft: rgba(144, 191, 249, .18); --act-ink: #cfe3ff;
-    --warn-bg: rgba(242, 139, 130, .15); --warn-ink: #f6b1aa; --neutral-bg: rgba(255, 255, 255, .06); --neutral-ink: #c9d0df;
+    /* Dark (default): your scheme. Primary #90BFF9, secondary #B96AC9, accent #787779, background #2E2E2E,
+       surface #35383C, text #F8FAFC, muted #94A3B8, border #334155. */
+    --page: #2e2e2e;
+    --bg: #2e2e2e; --tile: #35383c; --tile2: #35383c; --tint: #3d4146; --head: #303337;
+    --ink: #f8fafc; --muted: #94a3b8; --line: #334155; --line2: #475569;
+    --accent: #90bff9; --accent2: #b96ac9; --accent3: #787779; --rule: #90bff9;
+    --hero: linear-gradient(120deg, rgba(144, 191, 249, .16) 0%, rgba(185, 106, 201, .14) 100%), #2e2e2e; --hero-ink: #f8fafc; --hero-muted: #94a3b8;
+    --grad-soft: rgba(144, 191, 249, .16); --act-ink: #cfe3ff;
+    --warn-bg: rgba(242, 139, 130, .15); --warn-ink: #f6b1aa; --neutral-bg: rgba(120, 119, 121, .28); --neutral-ink: #cbd5e1;
     --up: #4fc7a8; --down: #f28b82; --heat-pos: #90bff9;
-    --s1: #90bff9; --s2: #e9b65c; --s3: #ba68c8; --s4: #4fc7a8; --s5: #eef2fb; --onser: #0f131c;
-    --qr: linear-gradient(160deg, rgba(144, 191, 249, .08), rgba(186, 104, 200, .08)), #151a26; --qr-edge: #ba68c8; --qr-ink: var(--ink); --qr-muted: var(--muted); --qr-band: #d9a4e2; --qr-line: rgba(255, 255, 255, .07);
+    --s1: #90bff9; --s2: #e9b65c; --s3: #b96ac9; --s4: #4fc7a8; --s5: #f8fafc; --onser: #2e2e2e;
+    --qr: linear-gradient(160deg, rgba(144, 191, 249, .07), rgba(185, 106, 201, .07)), #35383c; --qr-edge: #b96ac9; --qr-ink: var(--ink); --qr-muted: var(--muted); --qr-band: #d9a4e2; --qr-line: #334155;
     --shadow: none;
     color-scheme: dark;
   }
@@ -34,8 +36,8 @@
     --grad-soft: #2f72c9; --act-ink: #fff;
     --warn-bg: #fbe3e1; --warn-ink: #a23a31; --neutral-bg: #eef1f7; --neutral-ink: #4d566d;
     --up: #0e8a6b; --down: #c2453b; --heat-pos: #2f72c9;
-    --s1: #2f72c9; --s2: #a8740f; --s3: #9b45ab; --s4: #0e8a6b; --s5: #4a5368; --onser: #fff;
-    --qr: linear-gradient(160deg, #eaf2fe, #f4eafa); --qr-edge: #ba68c8; --qr-ink: var(--ink); --qr-muted: var(--muted); --qr-band: #7f3a8c; --qr-line: #e0e5f0;
+    --s1: #2f72c9; --s2: #a8740f; --s3: #9a4fab; --s4: #0e8a6b; --s5: #4a5368; --onser: #fff;
+    --qr: linear-gradient(160deg, #eaf2fe, #f4eafa); --qr-edge: #b96ac9; --qr-ink: var(--ink); --qr-muted: var(--muted); --qr-band: #7f3a8c; --qr-line: #e0e5f0;
     --shadow: 0 1px 2px rgba(23, 32, 51, .05), 0 6px 18px rgba(23, 32, 51, .05);
     color-scheme: light;
   }
@@ -49,13 +51,13 @@
     --grad-soft: #2f72c9; --act-ink: #fff;
     --warn-bg: #fbe3e1; --warn-ink: #a23a31; --neutral-bg: #eef1f7; --neutral-ink: #4d566d;
     --up: #0e8a6b; --down: #c2453b; --heat-pos: #2f72c9;
-    --s1: #2f72c9; --s2: #a8740f; --s3: #9b45ab; --s4: #0e8a6b; --s5: #4a5368; --onser: #fff;
-    --qr: linear-gradient(160deg, #eaf2fe, #f4eafa); --qr-edge: #ba68c8; --qr-ink: var(--ink); --qr-muted: var(--muted); --qr-band: #7f3a8c; --qr-line: #e0e5f0;
+    --s1: #2f72c9; --s2: #a8740f; --s3: #9a4fab; --s4: #0e8a6b; --s5: #4a5368; --onser: #fff;
+    --qr: linear-gradient(160deg, #eaf2fe, #f4eafa); --qr-edge: #b96ac9; --qr-ink: var(--ink); --qr-muted: var(--muted); --qr-band: #7f3a8c; --qr-line: #e0e5f0;
     --shadow: 0 1px 2px rgba(23, 32, 51, .05), 0 6px 18px rgba(23, 32, 51, .05);
     color-scheme: light;
     }
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; scrollbar-color: var(--accent3, #787779) transparent; }
   html { scroll-behavior: smooth; background: var(--bg); }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   body { margin: 0; background: var(--page); background-attachment: fixed; color: var(--ink); font: 14px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-height: 100vh; }
@@ -242,7 +244,7 @@
   .gt { font: inherit; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); background: none; border: 0; cursor: pointer; padding: 4px 6px; display: inline-flex; align-items: center; }
   .gt[aria-expanded="false"] .car { transform: none; }
   .gmove { text-align: right !important; white-space: nowrap; position: sticky; right: 0; background: var(--head); box-shadow: -8px 0 8px -6px rgba(0,0,0,.35); }
-  .mv { font-size: 8px; line-height: 1; border: 1px solid var(--line2); background: var(--tint); color: var(--muted); width: 18px; height: 16px; border-radius: 3px; cursor: pointer; margin-left: 3px; }
+  .mv { font-size: 8px; line-height: 1; border: 1px solid var(--accent3, var(--line2)); background: var(--tint); color: var(--muted); width: 18px; height: 16px; border-radius: 3px; cursor: pointer; margin-left: 3px; }
   .mv:hover { color: var(--ink); }
   .gbox, .pick { display: inline-block; width: 12px; height: 12px; border: 1.5px solid var(--muted); border-radius: 2px; vertical-align: -2px; margin: 0; cursor: pointer; }
   .gbox[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
