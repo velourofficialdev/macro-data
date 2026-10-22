@@ -690,19 +690,19 @@ COT_READ = ["Net pos", "Spec WoW change", "OI change", "OI normalized net", "Nor
 
 
 def z_band(z) -> tuple[str, str]:
-    """Same wording as the Excel sheet: neutral / mild / (plain) / extreme, bullish or bearish."""
+    """Z-score scale used everywhere on the page:
+    below -2 extremely low | -2 to -1 below normal | -1 to +1 normal | +1 to +2 above normal | above +2 extremely high."""
     if z is None or (isinstance(z, float) and math.isnan(z)):
         return "", ""
-    side = "bullish" if z > 0 else "bearish"
-    a = abs(z)
-    if a < 0.5:
-        return "Neutral", "flat"
-    tone = "up" if z > 0 else "down"
-    if a < 1:
-        return f"Mild {side}", tone
-    if a < 2:
-        return side.capitalize(), tone
-    return f"Extreme {side}", tone
+    if z <= -2:
+        return "Extremely low", "down"
+    if z < -1:
+        return "Below normal", "down"
+    if z <= 1:
+        return "Normal", "flat"
+    if z < 2:
+        return "Above normal", "up"
+    return "Extremely high", "up"
 
 
 def build_cot_tables(data: dict) -> dict[str, str]:
