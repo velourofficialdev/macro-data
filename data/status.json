@@ -1,112 +1,112 @@
 {
   "DGS3MO": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DGS2": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DGS5": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DGS10": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DGS20": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DGS30": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "DFII10": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": null
   },
   "COT_GOLD_LEGACY": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-13",
     "error": null,
     "note": null
   },
   "COT_USD_INDEX": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-13",
     "error": null,
     "note": null
   },
   "DXY": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "source: Yahoo"
   },
   "GOLD_PRICE": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "source: Yahoo GC=F"
   },
   "YC_CA": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-20",
     "error": null,
     "note": "Canada government yields"
   },
   "YC_DE": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-21",
     "error": null,
     "note": "Germany government yields"
   },
   "YC_JP": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-21",
     "error": null,
     "note": "Japan government yields"
   },
   "YC_AU": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-14",
     "error": null,
     "note": "Australia government yields"
   },
   "FX_MACRO": {
     "ok": true,
-    "checked_utc": "2026-10-22 07:40 UTC",
+    "checked_utc": "2026-10-22 07:45 UTC",
     "last_data_date": "2026-10-22",
     "error": null,
     "note": "source: fx-macro-confluence data.json"
