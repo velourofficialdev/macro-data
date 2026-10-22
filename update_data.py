@@ -7,6 +7,7 @@ Sources (all free, no API key):
   - CFTC  : Gold and USD Index COT, both from the Legacy Futures Only report (Non-Commercial)
             -> data/COT_GOLD_LEGACY.csv, data/COT_USD_INDEX.csv
   - Canada (Bank of Canada), Germany (Bundesbank), Japan (MoF), Australia (RBA): 2y/5y/10y/30y yields -> data/YC_<CC>.csv
+  - FX      : 7 major pairs (Yahoo, FRED H.10 fallback) -> data/fx/<PAIR>.csv; XAUUSD uses the gold futures series
   - Kalshi  : Fed decision market odds (next meetings) + daily history -> data/fed/
   - FX dashboard feed (deiruuuu/fx-macro-confluence data.json) -> data/fx_macro.json
   - Yahoo : DXY price (fallback: Stooq)          -> data/DXY.csv
@@ -301,6 +302,27 @@ def fetch_fed_odds() -> tuple[dict, dict[str, pd.DataFrame]]:
     return snap, hist
 
 
+# ---- FX pairs for the confluence panel: Yahoo daily closes, FRED H.10 noon rates as fallback (no key needed)
+FX_PAIRS = {   # pair: (Yahoo symbol, FRED series)
+    "EURUSD": ("EURUSD=X", "DEXUSEU"), "GBPUSD": ("GBPUSD=X", "DEXUSUK"), "USDJPY": ("JPY=X", "DEXJPUS"),
+    "USDCAD": ("CAD=X", "DEXCAUS"), "AUDUSD": ("AUDUSD=X", "DEXUSAL"), "USDCHF": ("CHF=X", "DEXSZUS"),
+    "NZDUSD": ("NZDUSD=X", "DEXUSNZ"),
+}
+
+
+def fetch_fx_pair(pair: str) -> tuple[pd.DataFrame, str]:
+    ysym, fred = FX_PAIRS[pair]
+    try:
+        df = fetch_yahoo(ysym, "Close").rename(columns={"Date": "date"})
+        df = df[df["date"] >= pd.Timestamp.today() - pd.Timedelta(days=3 * 365)]
+        if len(df) > 60:
+            return df, f"Yahoo {ysym}"
+    except Exception:  # noqa: BLE001 - fall back to FRED
+        pass
+    df = fetch_fred(fred, 3).rename(columns={fred: "Close"})
+    return df, f"FRED {fred}"
+
+
 def main() -> int:
     status: dict[str, dict] = {}
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -360,6 +382,21 @@ def main() -> int:
             record(f"YC_{cc}", True, saved["date"].iloc[-1], note=f"{INTL[cc]} government yields")
         except Exception as exc:  # noqa: BLE001
             record(f"YC_{cc}", False, error=f"{type(exc).__name__}: {exc}"[:200])
+
+    (DATA / "fx").mkdir(exist_ok=True)
+    for pair in FX_PAIRS:
+        try:
+            df, src = fetch_fx_pair(pair)
+            p = DATA / "fx" / f"{pair}.csv"
+            if p.exists():   # keep one source per file so the history stays consistent
+                old = pd.read_csv(p)
+                if "source" in old and str(old["source"].iloc[-1]) != src:
+                    p.unlink()
+            df["source"] = src
+            saved = merge_save(p, df, "date", 800)
+            record(f"FX_{pair}", True, saved["date"].iloc[-1], note=src)
+        except Exception as exc:  # noqa: BLE001
+            record(f"FX_{pair}", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
     try:
         snap, hist = fetch_fed_odds()

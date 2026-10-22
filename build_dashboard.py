@@ -254,8 +254,13 @@ def load_everything(data_dir: Path) -> dict:
                     fed["hist"][m["event"]] = pd.read_csv(hp, parse_dates=["date"]).set_index("date").sort_index()
         except (json.JSONDecodeError, KeyError):
             fed = None
+    fxp = {}
+    for pair in ("EURUSD", "GBPUSD", "USDJPY", "USDCAD", "AUDUSD", "USDCHF", "NZDUSD"):
+        x = read_series(data_dir / "fx" / f"{pair}.csv", "date", "Close")
+        if x is not None and len(x) > 60:
+            fxp[pair] = x
     mkt = {c: x for c in ("SP500", "DCOILWTICO", "VIXCLS", "CBBTCUSD") if (x := read_series(data_dir / "econ" / f"{c}.csv", "date", c)) is not None}
-    return {"fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
+    return {"fxp": fxp, "fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
 
 
 def compute(data: dict, playbook: dict) -> dict:
@@ -628,6 +633,79 @@ def gauge_ring(score: float, cls: str) -> str:
             f'<div class="rn"><b>{score:.0f}</b><small>/100</small></div></div>')
 
 
+FX_DEC = {"USDJPY": 3, "XAUUSD": 2}
+
+
+def rsi(s: pd.Series, n: int = 14) -> float | None:
+    d = s.diff().dropna()
+    if len(d) < n + 1:
+        return None
+    up = d.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
+    dn = (-d.clip(upper=0)).ewm(alpha=1 / n, adjust=False).mean()
+    rs = up.iloc[-1] / dn.iloc[-1] if dn.iloc[-1] else float("inf")
+    return num(100 - 100 / (1 + rs))
+
+
+def sr_levels(s: pd.Series, price: float, dec: int, lookback: int = 120, win: int = 5) -> list[dict]:
+    """Support/resistance from swing highs and lows (local extremes over +-win days) in the last `lookback` days,
+    merged when within 0.3% of each other. Strength = how many swings formed the level."""
+    x = s.tail(lookback)
+    piv = []
+    for i in range(win, len(x) - win):
+        w = x.iloc[i - win:i + win + 1]
+        if x.iloc[i] == w.max() or x.iloc[i] == w.min():
+            piv.append(float(x.iloc[i]))
+    piv += [float(x.max()), float(x.min())]
+    clusters: list[list[float]] = []
+    for v in sorted(piv):
+        if clusters and abs(v / clusters[-1][-1] - 1) < 0.003:
+            clusters[-1].append(v)
+        else:
+            clusters.append([v])
+    lv = [(sum(c) / len(c), len(c)) for c in clusters]
+    above = sorted([l for l in lv if l[0] > price], key=lambda l: l[0])[:2]
+    below = sorted([l for l in lv if l[0] <= price], key=lambda l: -l[0])[:2]
+    out = []
+    for lvl, n in sorted(above, key=lambda l: -l[0]) + below:
+        out.append({"level": f"{lvl:,.{dec}f}", "strength": "Strong" if n >= 3 else "Moderate",
+                    "distPct": round((lvl / price - 1) * 100, 2)})
+    return out
+
+
+def fx_confluence(sym: str, s: pd.Series) -> dict:
+    """Daily confluence: D1 momentum, RSI(14), price vs EMA(20), 20-day Z-score. Score 0-100 = equal-weight average of
+    four sub-scores (momentum 100/0, RSI value, EMA 100/0, Z mapped 50+20*z), so 50 = mixed."""
+    s = s.dropna()
+    price, prev = float(s.iloc[-1]), float(s.iloc[-2])
+    mom = (price / prev - 1) * 100
+    r = rsi(s)
+    ema = float(s.ewm(span=20, adjust=False).mean().iloc[-1])
+    w = s.tail(20)
+    z = num((price - w.mean()) / w.std(ddof=1)) if w.std(ddof=1) else 0.0
+    parts = [100 if mom > 0 else 0, r if r is not None else 50, 100 if price > ema else 0, max(0, min(100, 50 + 20 * (z or 0)))]
+    score = round(sum(parts) / len(parts))
+    label = "Bullish confluence" if score >= 60 else "Bearish confluence" if score <= 40 else "Neutral confluence"
+    dec = FX_DEC.get(sym, 5 if sym != "XAUUSD" else 2)
+    return {"score": score, "label": label,
+            "signals": {"momentum": {"pct": round(mom, 2), "bull": mom > 0}, "rsi": {"value": None if r is None else round(r, 1), "bull": (r or 50) > 50},
+                        "ema": {"above": price > ema}, "zscore": {"value": z, "bull": (z or 0) > 0}},
+            "sr": sr_levels(s, price, dec)}
+
+
+def fx_from_data(data: dict) -> dict:
+    out = {}
+    series = dict(data.get("fxp", {}))
+    if data.get("gold_px") is not None and len(data["gold_px"]) > 60:
+        series["XAUUSD"] = data["gold_px"]
+    for sym, s in series.items():
+        dec = FX_DEC.get(sym, 5)
+        price, prev = float(s.iloc[-1]), float(s.iloc[-2])
+        out[sym] = {"display": f"{price:,.{dec}f}", "value": price, "changePct": round((price / prev - 1) * 100, 3),
+                    "date": s.index[-1].strftime("%Y-%m-%d"), "spark": [round(float(v), 6) for v in s.tail(30)],
+                    "confluence": fx_confluence(sym, s)}
+    return out
+
+
 def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
     empty = '<p class="muted-text">No FX feed saved yet. It appears after the first successful update.</p>'
     out = {"tiles": "", "fx": empty, "conf": empty, "econ": empty, "news": empty, "upd": "n/a"}
@@ -650,7 +728,11 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
             tiles.append(tile(d["label"], d.get("display", ""), d.get("changePct"), d.get("spark"), (d.get("date") or "")[5:]))
     out["tiles"] = "".join(tiles)
 
-    fx = feed.get("fx") or {}
+    own = fx_from_data(data)                     # our own pairs + XAUUSD, computed from saved closes
+    fx = own if own else (feed.get("fx") or {})
+    if own:
+        dates = sorted({d["date"] for d in own.values()})
+        out["upd"] = dates[-1]
     cards, confs = [], []
     live = 0
     for sym, d in fx.items():

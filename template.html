@@ -401,7 +401,10 @@
   table.weekly td.lefttd { text-align: left; }
 
   /* FX confluence */
-  .confgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .confgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .fxtiles { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  @media (max-width: 1200px) { .confgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fxtiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .confgrid { grid-template-columns: minmax(0, 1fr); } .fxtiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .conf { border: 1px solid var(--border-strong); border-radius: 8px; padding: 12px; }
   .conf .ctop { display: flex; justify-content: space-between; }
   .conf .chead { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
@@ -554,7 +557,7 @@
 
   <!-- ============ FX ============ -->
   <section class="sec" id="fx">
-    <div class="sechead"><h2>FX confluence</h2><p>Momentum, RSI, trend and Z-score signals per pair. Updated __FXUPD__.</p></div>
+    <div class="sechead"><h2>FX confluence</h2><p>Daily timeframe. Score 0-100 averages four signals: day-on-day momentum, RSI(14), price vs 20-day EMA and 20-day Z-score (60+ bullish, 40 or less bearish). Support and resistance come from swing highs and lows over the last 120 days. Pairs from Yahoo Finance (FRED fallback); XAUUSD uses COMEX gold futures. Latest close __FXUPD__.</p></div>
     <div class="grid">
       <div class="card" style="--w:12"><div class="card-h"><h3>Spot</h3></div><div class="card-b">__FX_CARDS__</div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>Confluence</h3></div><div class="card-b">__CONFLUENCE__</div></div>
