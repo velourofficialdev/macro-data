@@ -287,6 +287,9 @@
   .rterm table.watch tr.row:not(.on) td.hm { background: none; }
   .rterm table.watch tr.grp td, .rterm table.watch tr.grp th { height: 30px; }
   .rterm .mxs { flex: 1; }
+  .rterm .etabwrap { max-height: 520px; }
+  .rterm table.etab td, .rterm table.etab th { padding: 5px 10px; }
+  .rterm table.etab tbody th { white-space: nowrap; }
   .rterm table.matrix { font-size: 12.5px; }
   .rterm table.matrix th, .rterm table.matrix td { padding: 6px 10px; border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
   .rterm table.matrix thead th { text-align: center; }
@@ -354,8 +357,23 @@
   .stathead { padding: 8px 16px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--border); }
   .statwrap { overflow-x: auto; scrollbar-width: none; }
   .statwrap::-webkit-scrollbar { display: none; }
-  table.weekly.stats th, table.weekly.stats td { background: var(--surface-2); font-weight: 600; padding: 6px 10px; }
-  table.weekly.stats th { position: sticky; left: 0; text-align: left; z-index: 1; }
+  /* statistics block: quiet base, emphasis only where it carries meaning (average, z-score, reading, COT index) */
+  .stathead { color: var(--primary-ink) !important; background: color-mix(in srgb, var(--primary) 5%, var(--surface)); }
+  table.weekly.stats th, table.weekly.stats td { background: color-mix(in srgb, var(--primary) 3%, var(--surface)); font-weight: 400; padding: 6px 10px; color: var(--muted); }
+  table.weekly.stats th { position: sticky; left: 0; text-align: left; z-index: 1; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  table.weekly.stats tr.st-avg td { color: var(--text); font-weight: 600; }
+  table.weekly.stats tr.st-avg th { color: var(--primary-ink); }
+  table.weekly.stats tr.st-z td, table.weekly.stats tr.st-z th { border-top: 1px solid var(--border-strong); }
+  table.weekly.stats tr.st-z th { color: var(--secondary-ink); }
+  table.weekly.stats tr.st-z td { color: var(--text); font-weight: 600; }
+  table.weekly.stats tr.st-z td.zhi { background: color-mix(in srgb, var(--c) 14%, var(--surface)); }
+  table.weekly.stats tr.st-z td.zhi.up { --c: var(--up); color: var(--up); } table.weekly.stats tr.st-z td.zhi.down { --c: var(--down); color: var(--down); }
+  table.weekly.stats tr.readrow th { color: var(--secondary-ink); }
+  table.weekly.stats tr.st-ci td, table.weekly.stats tr.st-ci th { border-top: 1px solid var(--border-strong); }
+  table.weekly.stats tr.st-ci th { color: var(--primary-ink); }
+  .cimeter { display: inline-block; width: 120px; height: 6px; border-radius: 3px; background: var(--surface-2); vertical-align: middle; margin-right: 10px; overflow: hidden; }
+  .cifill { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--secondary), var(--primary)); }
+  .cival { color: var(--text); margin-right: 8px; font-size: 14px; }
   table.weekly td.lefttd { text-align: left; }
 
   /* FX confluence */
@@ -520,7 +538,7 @@
   <!-- ============ ECONOMY ============ -->
   <section class="sec" id="economy">
     <div class="sechead"><h2>US economy</h2><p>FRED. Inflation and spending series are shown as % change from a year earlier; rates in %; counts in thousands. Z = latest vs its 5-year history.</p></div>
-    <div class="term">
+    <div class="term rterm">
       <div class="card wlp">
         <div class="card-h"><h3>US Economy</h3><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></div>
         <div class="tbar">
@@ -539,14 +557,14 @@
         <div class="chips" aria-label="Plotted series"></div>
         <div class="cv main" role="img" aria-label="Historical values for the selected economic series"></div>
       </div>
-      <div class="card rdp"><div class="card-h"><h3>Reading: last series you clicked</h3></div><div class="card-b reading" id="ereading"></div></div>
+      <div class="card mxp">
+        <div class="card-h"><h3>Latest Releases</h3><span class="note" style="margin:0">Raw levels as published · Z shading: blue above, coral below the 5-year average</span></div>
+        <div class="scroll mxs etabwrap">__ETABLE__</div>
+      </div>
     </div>
     <div class="grid" style="margin-top:12px">
-      <details class="card collapse" style="--w:12">
-        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Latest releases</h3></span><span class="note">Raw levels as published; Z shading: blue above, coral below the 5-year average</span></summary>
-        <div class="scroll">__ETABLE__</div>
-      </details>
-      <div class="card" style="--w:12"><div class="card-h"><h3>Headlines</h3></div><div class="newsbox">__NEWS__</div></div>
+      <div class="card" style="--w:5"><div class="card-h"><h3>Reading: last series you clicked</h3></div><div class="card-b reading" id="ereading"></div></div>
+      <div class="card" style="--w:7"><div class="card-h"><h3>Headlines</h3></div><div class="newsbox">__NEWS__</div></div>
     </div>
   </section>
 

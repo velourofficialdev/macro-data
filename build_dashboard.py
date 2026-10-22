@@ -804,15 +804,19 @@ def build_cot_tables(data: dict) -> dict[str, str]:
             sd = s_.std(ddof=1)
             return num((s_.iloc[-1] - s_.mean()) / sd) if len(s_) > 2 and sd else None
 
-        def stat_row(label, fn, nd=None, sign=False):
+        def stat_row(label, fn, nd=None, sign=False, cls=""):
             cells = ""
             for col in v.columns:
                 d_, _ = COT_DEC[col]
-                cells += f"<td>{esc(fmt(num(fn(v[col].dropna())), d_ if nd is None else nd, sign))}</td>"
-            return f'<tr><th scope="row">{label}</th>{cells}</tr>'
-        stats = [stat_row("Average", lambda s_: s_.mean()), stat_row("Std dev", lambda s_: s_.std(ddof=1)),
-                 stat_row("Min", lambda s_: s_.min()), stat_row("Max", lambda s_: s_.max()),
-                 stat_row("Z-score", lambda s_: zval(s_) if zval(s_) is not None else float("nan"), 2, True)]
+                val = num(fn(v[col].dropna()))
+                tcls = ""
+                if cls == "st-z" and val is not None and abs(val) >= 1:
+                    tcls = f' class="zhi {"up" if val > 0 else "down"}"'
+                cells += f"<td{tcls}>{esc(fmt(val, d_ if nd is None else nd, sign))}</td>"
+            return f'<tr class="{cls}"><th scope="row">{label}</th>{cells}</tr>'
+        stats = [stat_row("Average", lambda s_: s_.mean(), cls="st-avg"), stat_row("Std dev", lambda s_: s_.std(ddof=1), cls="st-sd"),
+                 stat_row("Min", lambda s_: s_.min(), cls="st-mm"), stat_row("Max", lambda s_: s_.max(), cls="st-mm"),
+                 stat_row("Z-score", lambda s_: zval(s_) if zval(s_) is not None else float("nan"), 2, True, cls="st-z")]
         read = ""
         for col in v.columns:
             if col in COT_READ:
@@ -821,8 +825,10 @@ def build_cot_tables(data: dict) -> dict[str, str]:
             else:
                 read += "<td></td>"
         stats.append(f'<tr class="readrow"><th scope="row">Reading</th>{read}</tr>')
-        cot_cells = f'<td colspan="{len(v.columns)}" class="lefttd"><b>{esc(fmt(num(c["index"].iloc[-1]), 1))}</b> <span class="muted-text">(0 = most short, 100 = most long over 52 reports)</span></td>'
-        stats.append(f'<tr><th scope="row">COT Index</th>{cot_cells}</tr>')
+        ci = num(c["index"].iloc[-1])
+        cot_cells = (f'<td colspan="{len(v.columns)}" class="lefttd"><span class="cimeter"><span class="cifill" style="width:{0 if ci is None else max(0, min(100, ci)):.1f}%"></span></span>'
+                     f'<b class="cival">{esc(fmt(ci, 1))}</b> <span class="muted-text">0 = most short, 100 = most long over 52 reports</span></td>')
+        stats.append(f'<tr class="st-ci"><th scope="row">COT Index</th>{cot_cells}</tr>')
         heads = ["Report date"] + list(v.columns)
         cols = '<colgroup><col class="cd">' + "<col>" * len(v.columns) + "</colgroup>"
         out[key] = ('<div class="cotpair"><div class="scroll tall"><table class="weekly">' + cols + "<thead><tr>" + "".join(f"<th>{h}</th>" for h in heads)
