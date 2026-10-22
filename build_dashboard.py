@@ -797,7 +797,8 @@ def build_cot_tables(data: dict) -> dict[str, str]:
                 txt = fmt(num(row[col]), nd, sg)
                 cls = chg_class(txt) if sg else ""
                 tds += f'<td class="{cls}">{esc(txt)}</td>'
-            rows.append(f'<tr{" class=\"cur\"" if not rows else ""}><th scope="row">{d.strftime("%Y-%m-%d")}{" <span class=\"curtag\">latest</span>" if not rows else ""}</th>{tds}</tr>')
+            dot = '<span class="curdot" title="Latest report"><span class="sr-only">Latest report: </span></span>' if not rows else ""
+            rows.append(f'<tr{" class=\"cur\"" if not rows else ""}><th scope="row">{dot}{d.strftime("%Y-%m-%d")}</th>{tds}</tr>')
 
         def zval(s_):
             s_ = s_.dropna()
