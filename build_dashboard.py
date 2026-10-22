@@ -582,7 +582,7 @@ def chg_class(text: str) -> str:
 HORIZONS = [("Now", 0), ("1D ago", 1), ("1W ago", 5), ("1M ago", 21), ("3M ago", 63), ("6M ago", 126), ("1Y ago", 252)]
 
 
-def matrix_payload(computed: dict) -> dict:
+def matrix_payload(computed: dict, data: dict | None = None) -> dict:
     """Spread levels in bp for every country x pair x horizon (the JS draws and re-draws the heat map)."""
     ss = computed["spread_series"]
     cols = [cc for cc in COUNTRIES if any((n if cc == "US" else f"{cc}:{n}") in ss for n in MATRIX_ORDER)]
@@ -596,8 +596,38 @@ def matrix_payload(computed: dict) -> dict:
                 row.append(num(round(s_.iloc[-1 - n] * 100, 1)) if s_ is not None and len(s_) > n else None)
             grid.append(row)
         vals.append(grid)
-    return {"cols": cols, "rows": [" vs ".join(x.upper() for x in nm.split("-")) for nm in MATRIX_ORDER],
-            "horizons": [h for h, _ in HORIZONS], "vals": vals}
+    out = {"cols": cols, "rows": [" vs ".join(x.upper() for x in nm.split("-")) for nm in MATRIX_ORDER],
+           "horizons": [h for h, _ in HORIZONS], "vals": vals}
+    if data is not None:
+        out["y"] = yields_matrix(data, cols)
+    return out
+
+
+MATRIX_YIELDS = [("3M", "DGS3MO"), ("2Y", "DGS2"), ("5Y", "DGS5"), ("10Y", "DGS10"), ("20Y", "DGS20"), ("30Y", "DGS30"), ("10Y real", "DFII10")]
+
+
+def yields_matrix(data: dict, cols: list[str]) -> dict:
+    """Yield levels (%) for every country x tenor x horizon, plus the change from that date to today in bp
+    (for "Now", the 1-day change), which the JS uses for the shading."""
+    def series(cc: str, ten: str, code: str):
+        if cc == "US":
+            return data["yields"].get(code)
+        return (data.get("intl", {}).get(cc) or {}).get(ten)
+    lv, ch = [], []
+    for _, n in HORIZONS:
+        g_lv, g_ch = [], []
+        for ten, code in MATRIX_YIELDS:
+            r_lv, r_ch = [], []
+            for cc in cols:
+                s_ = series(cc, ten, code)
+                if s_ is None or len(s_) <= max(n, 1):
+                    r_lv.append(None); r_ch.append(None); continue
+                then = s_.iloc[-1 - n]
+                r_lv.append(num(round(then, 3)))
+                r_ch.append(num(round((s_.iloc[-1] - (s_.iloc[-2] if n == 0 else then)) * 100, 1)))
+            g_lv.append(r_lv); g_ch.append(r_ch)
+        lv.append(g_lv); ch.append(g_ch)
+    return {"rows": [t for t, _ in MATRIX_YIELDS], "vals": lv, "chg": ch}
 
 
 def build_matrix(data: dict, computed: dict) -> str:
@@ -624,8 +654,36 @@ def build_matrix(data: dict, computed: dict) -> str:
             i = min(100, round(100 * (abs(v) / peak) ** 0.7))
             cells += f'<td class="heat {"neg" if v < 0 else "pos"}" style="--i:{i}">{v:,.1f}</td>'
         body.append(f'<tr><th scope="row">{esc(spread_title(name))}</th>{cells}<td class="zc">{esc(fmt(z, 2, True))}</td></tr>')
-    return ('<div class="scroll"><table class="matrix"><thead><tr><th>US spread (bp)</th>' + head + '<th>Z (1y)</th></tr></thead><tbody>'
-            + "".join(body) + "</tbody></table></div>")
+    spreads_tbl = ('<table class="matrix" data-kind="spreads"><thead><tr><th>US spread (bp)</th>' + head + '<th>Z (1y)</th></tr></thead><tbody>'
+                   + "".join(body) + "</tbody></table>")
+    yrows = []
+    for ten, code in MATRIX_YIELDS:
+        s = data["yields"].get(code)
+        if s is None:
+            continue
+        vals = [num(s.iloc[-1 - n]) if len(s) > n else None for _, n in HORIZONS]
+        chg = [None if v is None else (s.iloc[-1] - (s.iloc[-2] if n == 0 else v)) * 100 for v, (_, n) in zip(vals, HORIZONS)]
+        yrows.append((ten, vals, chg, computed["metrics"].get(f"Y:{code}", {}).get("z")))
+    ypeak = [max((abs(cs[k]) for _, _, cs, _ in yrows if cs[k] is not None), default=1) or 1 for k in range(len(HORIZONS))]   # per column
+    ybody = []
+    for ten, vals, chg, z in yrows:
+        cells = ""
+        for k, ((h, n), v, c) in enumerate(zip(HORIZONS, vals, chg)):
+            if v is None:
+                cells += '<td class="na">-</td>'
+                continue
+            i = min(100, round(100 * (abs(c) / ypeak[k]) ** 0.7))
+            tip = f"1-day change: {c:+.1f} bp" if n == 0 else f"Change from {h} to now: {c:+.1f} bp"
+            cells += f'<td class="heat {"neg" if c < 0 else "pos"}" style="--i:{i}" title="{esc(tip)}">{v:.2f}</td>'
+        ybody.append(f'<tr><th scope="row">{esc(ten)} yield</th>{cells}<td class="zc">{esc(fmt(z, 2, True))}</td></tr>')
+    yields_tbl = ('<table class="matrix" data-kind="yields" hidden><thead><tr><th>US yield (%)</th>' + head + '<th>Z (1y)</th></tr></thead><tbody>'
+                  + "".join(ybody) + "</tbody></table>")
+    toggle = ('<div class="ranges kindsw" role="group" aria-label="Show yields or spreads">'
+              '<button type="button" data-kind="yields" aria-pressed="false">Yields</button>'
+              '<button type="button" data-kind="spreads" aria-pressed="true">Spreads</button></div>')
+    note = ('<p class="mxnote" data-kind="yields" hidden>Shading shows the move from that date to today (for Now, the last day): '
+            'blue = higher now, red = lower now. Hover a cell for the change in bp.</p>')
+    return toggle + '<div class="scroll">' + spreads_tbl + yields_tbl + "</div>" + note
 
 
 # ----------------------------------------------------------------- FX Macro Confluence (merged from the user's own dashboard)
@@ -1361,7 +1419,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y", "S:5y-2y") if any(r_["id"] == x for r_ in rows)]
     payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows + erows},
                "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
-               "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed), "curve": curve_payload(data), "cot": build_cot_charts(data),
+               "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed, data), "curve": curve_payload(data), "cot": build_cot_charts(data),
                "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
                "unit": {"spreads": " pp", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
 
