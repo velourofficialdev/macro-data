@@ -12,10 +12,6 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <script>
   try { var t = localStorage.getItem("macro-theme"); if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
-
-/* header height -> section anchor offset */
-(function () { const h = document.querySelector(".stickyhead"); if (!h) return;
-  const set = () => document.documentElement.style.setProperty("--hh", h.offsetHeight + "px"); set(); window.addEventListener("resize", set); })();
 </script>
 <style>
   /* =====================================================================
@@ -112,7 +108,7 @@
 
   /* ---------- sections & grid ---------- */
   main { padding: 8px 0 32px; }
-  section.sec { scroll-margin-top: calc(var(--hh, 104px) + 8px); padding-top: 24px; }
+  section.sec { scroll-margin-top: calc(var(--hh, 104px) - 14px);  /* the section's top padding tucks under the header, so nothing from the section above peeks through */ padding-top: 24px; }
   .sechead { display: flex; align-items: baseline; gap: 8px 12px; flex-wrap: wrap; margin: 0 0 12px; }
   .sechead h2 { margin: 0; font-size: 16px; font-weight: 600; }
   .sechead p { margin: 0; color: var(--muted); font-size: 12px; }
@@ -309,6 +305,10 @@
   .rterm table.matrix td.heat { background: color-mix(in srgb, var(--c) calc(var(--i) * .42%), transparent); }
   .rterm table.matrix td.na { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   @media (max-width: 1024px) { .rterm { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; } .rterm .wlp, .rterm .chp, .rterm .mxp { grid-column: 1; grid-row: auto; } .rterm .wlp { contain: none; height: 70vh; } .rterm .chp { min-height: 420px; } }
+  /* every table: the first column (header and body) stays put when scrolling sideways */
+  table thead th:first-child { position: sticky; left: 0; z-index: 4; background: var(--surface-2); }
+  table tbody th:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
+  table.watch thead th.cb, table.watch tbody td.cb { position: sticky; left: 0; }
   /* matrices & heat tables */
   table.matrix td { text-align: right; padding: 7px 12px; }
   table.matrix thead th { text-align: right; }
@@ -450,7 +450,7 @@
 <header class="topbar"><div class="wrap">
   <div class="brand"><h1>Velour <b>Macro</b></h1><span class="sub">Rates · Dollar · Gold · Positioning · FX</span></div>
   <div class="meta">
-    <span>Latest data <b>2026-10-22</b></span><span class="built">Built 2026-10-22 09:02 UTC</span>
+    <span>Latest data <b>2026-10-22</b></span><span class="built">Built 2026-10-22 09:07 UTC</span>
     <a class="btn" href="Macro_Dashboard.xlsx" download><svg class="ico"><use href="#i-dl"/></svg>Download Excel</a>
     <span class="themes" role="group" aria-label="Color theme">
       <button type="button" data-theme-btn="auto" aria-pressed="true">Auto</button>
@@ -936,6 +936,12 @@ document.querySelectorAll(".cotpair").forEach(p => {
   window.addEventListener("afterprint", () => { opened.forEach(d => d.removeAttribute("open")); opened.length = 0; });
   document.querySelectorAll("details.card").forEach(d => d.addEventListener("toggle", () => { if (d.open) window.dispatchEvent(new Event("resize")); }));
 })();
+
+/* header height -> section anchor offset */
+(function () { const h = document.querySelector(".stickyhead"); if (!h) return;
+  const set = () => document.documentElement.style.setProperty("--hh", h.offsetHeight + "px"); set(); window.addEventListener("resize", set);
+  if (window.ResizeObserver) new ResizeObserver(set).observe(h); if (document.fonts) document.fonts.ready.then(set); })();
+
 </script>
 </body>
 </html>
