@@ -104,9 +104,9 @@ def summary_sheet(playbook: dict, metrics: dict) -> pd.DataFrame:
 def _format(ws, df: pd.DataFrame) -> None:
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
-    head_fill = PatternFill("solid", fgColor="E9DEDB")
+    head_fill = PatternFill("solid", fgColor="DCE9FB")   # light tint of primary #90BFF9
     for c in ws[1]:
-        c.font = Font(bold=True, color="42070E")
+        c.font = Font(bold=True, color="1E293B")             # slate text, AA on the tint
         c.fill = head_fill
         c.alignment = Alignment(wrap_text=True, vertical="center")
     ws.freeze_panes = "B2"
