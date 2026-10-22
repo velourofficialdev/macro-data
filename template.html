@@ -200,6 +200,8 @@
   @media (max-width: 1024px) { .term { grid-template-columns: minmax(0, 1fr); } .term .wlp, .term .chp, .term .rdp { grid-column: 1; grid-row: auto; } .term .wlp { max-height: 70vh; } }
   .tbar { display: flex; align-items: center; gap: 2px; padding: 0 8px 8px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .tbar .sp { flex: 1; }
+  .ctools { display: inline-flex; gap: 2px; }
+  .embedok { color: var(--up) !important; }
   .tbar button, .card-h .tool { font: inherit; font-size: 12px; font-weight: 500; border: 1px solid transparent; background: transparent; color: var(--muted); padding: 4px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
   .tbar button:hover, .card-h .tool:hover { color: var(--text); background: var(--surface-2); }
   .tbar button[aria-pressed="true"], .tbar button[aria-expanded="true"] { color: var(--primary-ink); border-color: color-mix(in srgb, var(--primary) 35%, transparent); background: var(--tint-primary); }
@@ -228,6 +230,7 @@
   table.watch td.cb, table.watch th.cb { padding: 0 0 0 10px; text-align: left; }
   table.watch .plus { color: var(--accent); margin-right: 6px; font-size: 10px; }
   table.watch .tk { color: var(--muted); font-size: 12px; text-align: left; }
+  table.watch small.cu { color: var(--muted); font-size: 10px; margin-left: 2px; }
   table.watch td.yd small { color: var(--muted); font-size: 10px; margin-left: 1px; }
   table.watch.hide-c-tk .c-tk, table.watch.hide-c-d5 .c-d5, table.watch.hide-c-d20 .c-d20, table.watch.hide-c-d252 .c-d252, table.watch.hide-c-z .c-z, table.watch.hide-c-per .c-per { display: none; }
   table.watch tr.grp td, table.watch tr.grp th { background: color-mix(in srgb, var(--surface-2) 55%, var(--surface)); height: 32px; border-bottom: 1px solid var(--border); }
@@ -278,8 +281,8 @@
 
 
   /* ---------- Rates: terminal layout kept from the reference (list left, chart top-right, matrix bottom-right) ---------- */
-  .rterm { grid-template-columns: minmax(360px, 34%) minmax(0, 1fr); grid-template-rows: minmax(180px, 1fr) auto; gap: 8px;
-           height: max(640px, calc(100vh - var(--hh, 104px) - 48px)); }  /* the whole block fits in one screen under the header */
+  .rterm { grid-template-columns: minmax(360px, 34%) minmax(0, 1fr); grid-template-rows: minmax(150px, 1fr) auto; gap: 8px;
+           height: max(560px, calc(100vh - var(--hh, 104px) - 48px)); }  /* the whole block fits in one screen under the header */
   .rterm .card { border-radius: 6px; }
   .rterm .wlp { grid-row: 1 / span 2; max-height: none; min-height: 0; contain: size; }  /* list takes exactly the height of chart + matrix, scrolling inside */
   .rterm .chp { grid-column: 2; grid-row: 1; }
@@ -291,9 +294,15 @@
   .rterm .rbar { padding: 6px 10px 2px; }
   .rterm .chips { padding: 6px 10px 2px; }
   .rterm .chip { border-radius: 3px; }
-  .rterm .cv.main { flex: 1; height: auto; min-height: 180px; margin: 2px 4px 4px 8px; }
+  .rterm .cv.main { flex: 1; height: auto; min-height: 130px; margin: 2px 4px 4px 8px; }
   .rterm .chp { min-height: 0; }
   .rterm .chp > :not(.cv) { flex-shrink: 0; }
+  @media (max-height: 800px) {   /* very short screens: slimmer toolbars too */
+    .rterm .card-h { padding-top: 5px; padding-bottom: 5px; }
+    .rterm .tbar { padding-top: 2px; padding-bottom: 2px; }
+    .rterm .chips { padding-top: 2px; min-height: 0; }
+    .rterm .rbar .ranges button { padding-top: 2px; padding-bottom: 2px; }
+  }
   @media (max-height: 880px) {   /* short screens: tighter matrix rows and a one-line chip strip so the chart keeps its room */
     .rterm table.matrix th, .rterm table.matrix td { padding: 2px 10px !important; }
     .rterm .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
@@ -492,10 +501,10 @@
 
   <!-- ============ RATES ============ -->
   <section class="sec" id="rates">
-    <div class="sechead"><h2>Rates</h2><p>Click rows, or a country's box, to plot up to five spreads. Yield diff = long minus short yield; changes in basis points.</p></div>
+    <div class="sechead"><h2>Rates</h2><p>Click rows, or a country's box, to plot up to five spreads. Yield diff = long minus short yield in percentage points (pp); changes in basis points (1 pp = 100 bp).</p></div>
     <div class="term rterm">
       <div class="card wlp">
-        <div class="card-h"><h3>Yield Spreads</h3><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></div>
+        <div class="card-h"><h3>Yield Spreads</h3><span class="ctools"><button type="button" class="tool" data-embed="rates" title="Copy code to embed this section in another page">&lt;/&gt; Embed</button><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></span></div>
         <div class="tbar">
           <button type="button" data-act="cols" aria-expanded="false"><svg class="ico"><use href="#i-cols"/></svg>Columns</button>
           <button type="button" data-act="save" title="Remember the selected rows in this browser"><svg class="ico"><use href="#i-save"/></svg>Save as watchlist</button>
@@ -537,7 +546,7 @@
     <div class="sechead" style="margin-top:20px"><h2>Fed Rate Odds</h2><p>Market-implied probability of a Fed rate hike, hold, or cut at the next FOMC meeting, calculated from 30-Day Fed Funds futures and compared with previous daily snapshots. Latest snapshot __ZQ_UPD__.</p></div>
     <div class="grid">
       <div class="card" style="--w:4"><div class="card-h"><h3>Next meeting · futures</h3></div><div class="card-b">__ZQ_NEXT__</div></div>
-      <div class="card" style="--w:4"><div class="card-h"><h3>Cut probability over time</h3></div><div class="legend" data-for="zqcut"></div><div class="cv tall" id="ch-zqcut" role="img" aria-label="Probability of a 25 bp cut over time for each upcoming meeting"></div><p class="note" style="padding:0 16px 12px">Dashed lines mark days when odds moved 10 pp or more; labels show a CPI, jobs report, PCE or FOMC release that day.</p></div>
+      <div class="card" style="--w:4"><div class="card-h"><h3>Cut probability over time</h3></div><div class="legend" data-for="zqcut"></div><div class="cv tall" id="ch-zqcut" role="img" aria-label="Probability of a 25 bp cut over time for each upcoming meeting"></div><p class="note" style="padding:0 16px 12px">Dashed lines mark days when odds moved 10 pp or more; labels show a CPI, jobs report, PCE, FOMC decision or Fed speech that day.</p></div>
       <div class="card" style="--w:4"><div class="card-h"><h3>Hike probability over time</h3></div><div class="legend" data-for="zqhike"></div><div class="cv tall" id="ch-zqhike" role="img" aria-label="Probability of a 25 bp hike over time for each upcoming meeting"></div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>All upcoming meetings · 30-Day Fed Funds futures</h3><p class="note">Market-implied probabilities derived from 30-Day Fed Funds futures; not an official Fed forecast.</p></div><div class="scroll">__ZQ_TABLE__</div></div>
     </div>
@@ -577,7 +586,7 @@
     <div class="sechead"><h2>US economy</h2><p>FRED. Inflation and spending series are shown as % change from a year earlier; rates in %; counts in thousands. Z = latest vs its 5-year history.</p></div>
     <div class="term rterm">
       <div class="card wlp">
-        <div class="card-h"><h3>US Economy</h3><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></div>
+        <div class="card-h"><h3>US Economy</h3><span class="ctools"><button type="button" class="tool" data-embed="economy" title="Copy code to embed this section in another page">&lt;/&gt; Embed</button><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></span></div>
         <div class="tbar">
           <button type="button" data-act="cols" aria-expanded="false"><svg class="ico"><use href="#i-cols"/></svg>Columns</button>
           <button type="button" data-act="save" title="Remember the selected rows in this browser"><svg class="ico"><use href="#i-save"/></svg>Save as watchlist</button>
@@ -662,7 +671,7 @@ function niceTicks(min, max, n) {
 function draw(host, spec) {
   host.innerHTML = "";
   const W = host.clientWidth || 320, H = host.clientHeight || 240;
-  const m = spec.term ? { l: 8, r: 132, t: 10, b: 24 } : { l: 46, r: spec.endLabels ? 62 : 12, t: 10, b: 24 };
+  const m = spec.term ? { l: 8, r: 150, t: 10, b: 24 } : { l: 46, r: spec.endLabels ? 62 : 12, t: 10, b: 24 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b, n = spec.labels.length;
   const all = spec.sets.flatMap(s => s.data).filter(v => v !== null && v !== undefined);
   if (!all.length || n < 2) { host.textContent = "No data for this range."; host.style.color = "var(--muted)"; return; }
@@ -940,6 +949,16 @@ document.querySelectorAll(".cotpair").forEach(p => {
   }
   render(); let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(render, 120); });
 })();
+
+/* Embed: copy an iframe snippet that shows this section of the live site */
+document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click", async () => {
+  const base = location.protocol.startsWith("http") ? location.href.split("#")[0] : "https://velourofficialdev.github.io/macro-dashboard/";
+  const code = `<iframe src="${base}#${b.dataset.embed}" title="Velour Macro ${b.dataset.embed}" width="100%" height="900" style="border:0" loading="lazy"></iframe>`;
+  const label = b.innerHTML;
+  try { await navigator.clipboard.writeText(code); b.textContent = "Copied embed code"; b.classList.add("embedok"); }
+  catch (e) { window.prompt("Copy this embed code:", code); }
+  setTimeout(() => { b.innerHTML = label; b.classList.remove("embedok"); }, 1800);
+}));
 
 /* Fed Rate Odds (30-Day Fed Funds futures): cut and hike probability per meeting, with big-move markers */
 (function () {

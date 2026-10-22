@@ -367,8 +367,29 @@ EVENTS_CSV = FED_DIR / "events.csv"
 FRED_RELEASES = {10: "CPI", 50: "Jobs report (NFP)", 54: "PCE"}
 
 
+def fetch_fed_speeches() -> list[dict]:
+    """Speeches by the Fed Chair, Vice Chairs and Governors from the Board's public speeches feed (US Eastern date)."""
+    try:
+        r = requests.get("https://www.federalreserve.gov/json/ne-speeches.json", headers=HEADERS, timeout=60)
+        r.raise_for_status()
+        import html as _html, json as _json
+        items = _json.loads(r.content.decode("utf-8-sig"))
+    except Exception:  # noqa: BLE001 - speeches are optional labels
+        return []
+    out = []
+    for it in items:
+        try:
+            d = datetime.strptime(it["d"], "%m/%d/%Y %I:%M:%S %p").date()
+        except (KeyError, ValueError):
+            continue
+        speaker = _html.unescape(it.get("s", "")).strip()
+        last = speaker.split()[-1] if speaker else "Fed"
+        out.append({"date": d.isoformat(), "event": f"Fed speech ({last})", "detail": speaker})
+    return out
+
+
 def fetch_event_calendar(years: list[int] | None = None) -> pd.DataFrame:
-    """Release dates for CPI, the jobs report and PCE (FRED release calendar pages) plus FOMC decision dates.
+    """Release dates for CPI, the jobs report and PCE (FRED release calendar pages), FOMC decision dates and Fed speeches.
     Falls back to the saved copy if the pages cannot be read."""
     years = years or [date.today().year - 1, date.today().year]
     rows = []
@@ -381,7 +402,8 @@ def fetch_event_calendar(years: list[int] | None = None) -> pd.DataFrame:
                     rows.append({"date": datetime.strptime(txt, "%B %d, %Y").date().isoformat(), "event": name})
         for d in fetch_fomc_dates():
             rows.append({"date": d.isoformat(), "event": "FOMC decision"})
-        df = pd.DataFrame(rows).drop_duplicates().sort_values("date")
+        rows += fetch_fed_speeches()
+        df = pd.DataFrame(rows).drop_duplicates(["date", "event"]).sort_values("date")
         FED_DIR.mkdir(parents=True, exist_ok=True)
         df.to_csv(EVENTS_CSV, index=False)
         return df

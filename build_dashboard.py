@@ -510,7 +510,7 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
 def build_watch_html(rows: list[dict]) -> str:
     """Left panel of the Rates block: spreads only, grouped by country (same layout as the reference terminal)."""
     rows = [r_ for r_ in rows if r_["family"] == "spreads"]
-    cols = ('<th class="cb"><span class="sr-only">Select</span></th><th>Name</th><th class="c-tk">Ticker</th><th>Yield diff</th>'
+    cols = ('<th class="cb"><span class="sr-only">Select</span></th><th>Name</th><th class="c-tk">Ticker</th><th>Yield diff <small>pp</small></th>'
             '<th>1D <small>bp</small></th><th class="c-d5">1W <small>bp</small></th><th class="c-d20">1M <small>bp</small></th>'
             '<th class="c-d252">1Y <small>bp</small></th><th class="c-z">Z</th>')
     out = [f'<table class="watch" id="watch"><thead><tr>{cols}</tr></thead>']
@@ -528,7 +528,7 @@ def build_watch_html(rows: list[dict]) -> str:
                 f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="spreads">'
                 f'<td class="cb"><span class="pick" aria-hidden="true"></span></td>'
                 f'<th scope="row"><span class="plus">+</span>{esc(r_["label"])}</th><td class="c-tk tk"><span class="plus">+</span>{esc(r_["ticker"])}</td>'
-                f'<td class="yd">{esc(r_["latest"][:-1])}<small>%</small></td><td class="{chg_class(r_["d1"])}{hm(r_["d1"], 10)}">{esc(r_["d1"])}</td>'
+                f'<td class="yd">{esc(r_["latest"][:-1])}<small>pp</small></td><td class="{chg_class(r_["d1"])}{hm(r_["d1"], 10)}">{esc(r_["d1"])}</td>'
                 f'<td class="c-d5 {chg_class(r_["d5"])}{hm(r_["d5"], 20)}">{esc(r_["d5"])}</td><td class="c-d20 {chg_class(r_["d20"])}{hm(r_["d20"], 30)}">{esc(r_["d20"])}</td>'
                 f'<td class="c-d252 {chg_class(r_["d252"])}{hm(r_["d252"], 80)}">{esc(r_["d252"])}</td><td class="c-z{hm(r_["z"], 2.5)}">{esc(r_["z"])}</td></tr>')
         out.append("</tbody>")
@@ -842,6 +842,7 @@ def build_cot_cards(playbook: dict, metrics: dict, split: bool = False):
             cards.append(f'<article class="cotinner muted"><h3>{esc(spec["title"])}</h3><p>No data yet. It appears after the first successful CFTC update.</p></article>')
             continue
         band = pick_band(spec["bands"], m["index"])
+        band = dict(band, label="COT Index: " + band["label"]) if band else band   # names the measure, so it is not read as the Z reading
         cards.append(card(spec["title"], fmt(m["net"], 0, True), f' net contracts · {m["date"]}', band,
                           [("COT Index (0-100, 52w)", fmt(m["index"], 1)), ("Z-score (52w)", fmt(m["z"], 2, True)),
                            ("Spec net % of OI", fmt(m["net_pct"], 1) + "%"), ("Weekly change", fmt(m["wchg"], 0, True))], spec["what"], gauge_html=gauge(m["index"])))
@@ -942,7 +943,7 @@ def build_cot_tables(data: dict) -> dict[str, str]:
                 read += f'<td><span class="pill {tone}">{esc(lab)}</span></td>' if lab else "<td></td>"
             else:
                 read += "<td></td>"
-        stats.append(f'<tr class="readrow"><th scope="row">Reading</th>{read}</tr>')
+        stats.append(f'<tr class="readrow"><th scope="row" title="Reading of each column\'s Z-score">Z reading</th>{read}</tr>')
         ci = num(c["index"].iloc[-1])
         cot_cells = (f'<td colspan="{len(v.columns)}" class="lefttd"><span class="cimeter"><span class="cifill" style="width:{0 if ci is None else max(0, min(100, ci)):.1f}%"></span></span>'
                      f'<b class="cival">{esc(fmt(ci, 1))}</b> <span class="muted-text">0 = most short, 100 = most long over 52 reports</span></td>')
@@ -968,7 +969,7 @@ def build_kpis(data: dict, computed: dict) -> str:
             continue
         ch = delta(s_, 1, pct)
         up = None if ch is None else ch >= 0
-        chs = signed(ch, 2, "%" if pct else (" pp" if unit else ""))
+        chs = signed(ch, 2, "%") if pct else signed(None if ch is None else ch * 100, 1, " bp")   # yields and spreads move in basis points, as in the tables
         html_.append(f'<div class="kpi"><div class="kl">{esc(label)}</div><div class="kv">{esc(fmt(s_.iloc[-1], nd))}<small>{esc(unit.strip())}</small></div>'
                      f'<div class="kc"><span class="chip-chg {"" if up is None else ("up" if up else "down")}">{"&#9650;" if up else "&#9660;" if up is not None else ""} {esc(chs)} <span>1D</span></span></div>{spark([round(x, 4) for x in s_.tail(60)], up)}</div>')
     return "".join(html_)
@@ -1070,6 +1071,7 @@ def build_econ(data: dict) -> tuple[list[dict], dict, str]:
         fam = ECON_FAMILY[kind]
         chg_nd = 2 if kind != "k" else 0
         rows.append({"id": rid, "group": group, "family": fam, "label": name, "ticker": code,
+                     "cu": "k" if kind == "k" else "pp",        # unit of the change columns (pp of the shown % value, or thousands)
                      "latest": fmt(last, nd) + unit, "d1": fmt(num(last - prev), chg_nd, True),
                      "d252": "" if y_ago is None else fmt(num(last - y_ago), chg_nd, True), "z": fmt(z, 2, True), "period": period,
                      "info": {"title": f"{name} ({code})", "what": what + (" Shown as % change from a year earlier." if kind == "yoy" else ""),
@@ -1093,7 +1095,7 @@ def build_econ(data: dict) -> tuple[list[dict], dict, str]:
         fams[fam] = {"dates": [x.strftime("%Y-%m-%d") for x in frame.index],
                      "series": {k: [r(v, 3) for v in frame[k]] for k in frame.columns}}
     html_table = ('<table class="matrix etab"><thead><tr><th>Series</th><th>Period</th><th>Latest</th><th>Prior</th><th>Change</th>'
-                  '<th>Y/Y</th><th>5Y avg <small>(as charted)</small></th><th>Z (5y)</th><th>Reading</th></tr></thead><tbody>' + "".join(table) + "</tbody></table>")
+                  '<th>Y/Y % <small>of published level</small></th><th>5Y avg <small>(as charted)</small></th><th>Z (5y)</th><th>Reading</th></tr></thead><tbody>' + "".join(table) + "</tbody></table>")
     return rows, fams, html_table
 
 
@@ -1114,8 +1116,8 @@ def build_econ_watch_html(rows: list[dict]) -> str:
                 f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="{esc(r_["family"])}">'
                 f'<td class="cb"><span class="pick" aria-hidden="true"></span></td>'
                 f'<th scope="row"><span class="plus">+</span>{esc(r_["label"])}</th><td class="c-tk tk"><span class="plus">+</span>{esc(r_["ticker"])}</td>'
-                f'<td class="yd">{esc(r_["latest"])}</td><td class="{chg_class(r_["d1"])}">{esc(r_["d1"])}</td>'
-                f'<td class="c-d252 {chg_class(r_["d252"])}">{esc(r_["d252"])}</td><td class="c-per tk">{esc(r_["period"])}</td><td class="c-z">{esc(r_["z"])}</td></tr>')
+                f'<td class="yd">{esc(r_["latest"])}</td><td class="{chg_class(r_["d1"])}">{esc(r_["d1"])}<small class="cu">{r_["cu"]}</small></td>'
+                f'<td class="c-d252 {chg_class(r_["d252"])}">{esc(r_["d252"])}{"<small class=cu>" + r_["cu"] + "</small>" if r_["d252"] else ""}</td><td class="c-per tk">{esc(r_["period"])}</td><td class="c-z">{esc(r_["z"])}</td></tr>')
         out.append("</tbody>")
     out.append("</table>")
     return "".join(out)
@@ -1294,8 +1296,10 @@ def build_zq(data: dict, today: date) -> tuple[dict, dict | None]:
                 if v is not None and abs(v) >= ZQ_BIG_MOVE:
                     big.setdefault(x, []).append(f'{d.strftime("%b")} {"cut" if k.startswith("cut") else "hike"} {v:+.0f} pp')
     for x in sorted(big):
-        evs = evmap.get(x, [])
-        pay["marks"].append({"date": x, "label": evs[0].split(" ")[0] if evs else "", "title": f'{x}: ' + ", ".join(big[x]) + (f' ({", ".join(evs)})' if evs else "")})
+        order = ("FOMC", "CPI", "Jobs", "PCE", "Fed")
+        evs = sorted(evmap.get(x, []), key=lambda e: next((i for i, o in enumerate(order) if e.startswith(o)), 9))
+        short = {"FOMC": "FOMC", "CPI": "CPI", "Jobs": "Jobs", "PCE": "PCE", "Fed": "Fed"}
+        pay["marks"].append({"date": x, "label": next((short[o] for o in order if evs and evs[0].startswith(o)), "") if evs else "", "title": f'{x}: ' + ", ".join(big[x]) + (f' ({", ".join(evs)})' if evs else "")})
     return out, pay
 
 
@@ -1335,7 +1339,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
                "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
                "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed), "curve": curve_payload(data), "cot": build_cot_charts(data),
                "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
-               "unit": {"spreads": "%", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
+               "unit": {"spreads": " pp", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
 
     page = TEMPLATE
     rep = {
