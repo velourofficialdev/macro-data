@@ -43,6 +43,33 @@ INTL_TENORS = ["2Y", "5Y", "10Y", "30Y"]
 INTL_PAIRS = ["30y-10y", "30y-5y", "30y-2y", "10y-5y", "10y-2y", "5y-2y"]
 MATRIX_ORDER = ["30y-10y", "30y-5y", "30y-2y", "30y-3m", "20y-10y", "10y-5y", "10y-2y", "10y-3m", "5y-2y", "5y-3m", "2y-3m"]
 YIELD_LABELS = {"DGS3MO": "3M", "DGS2": "2Y", "DGS5": "5Y", "DGS10": "10Y", "DGS20": "20Y", "DGS30": "30Y", "DFII10": "10Y real"}
+# US macro from FRED. kind: yoy = shown as % change from a year earlier; rate = level in %; k = level in thousands.
+ECON = [
+    ("CPIAUCSL", "CPI, all items", "Inflation", "yoy", "Consumer prices paid by urban households for a broad basket of goods and services."),
+    ("CPILFESL", "Core CPI (ex food and energy)", "Inflation", "yoy", "CPI without the volatile food and energy parts; the cleaner read on underlying inflation."),
+    ("PCEPI", "PCE price index", "Inflation", "yoy", "Prices of everything households consume, including what is paid on their behalf. The Fed's 2% target uses this measure."),
+    ("PCEPILFE", "Core PCE (ex food and energy)", "Inflation", "yoy", "The Fed's preferred underlying inflation gauge."),
+    ("GDPDEF", "GDP implicit price deflator", "Inflation", "yoy", "Price level of everything produced in the US (quarterly)."),
+    ("GDP", "GDP, nominal", "Economic growth", "yoy", "Total value of US output in current dollars (quarterly, annualised)."),
+    ("GDPC1", "Real GDP", "Economic growth", "yoy", "Inflation-adjusted output (quarterly)."),
+    ("GDIC1", "Real GDI", "Economic growth", "yoy", "Inflation-adjusted income earned from production; should match real GDP in theory (quarterly)."),
+    ("INDPRO", "Industrial production", "Economic growth", "yoy", "Output of factories, mines and utilities."),
+    ("RRSFS", "Real retail and food services sales", "Economic growth", "yoy", "Retail spending adjusted for inflation."),
+    ("PCE", "Personal consumption expenditures", "Economic growth", "yoy", "Total household spending in current dollars."),
+    ("UNRATE", "Unemployment rate", "Labor force and employment", "rate", "Share of the labour force without a job and looking for one."),
+    ("CIVPART", "Labor force participation rate", "Labor force and employment", "rate", "Share of the population aged 16+ that is working or looking for work."),
+    ("EMRATIO", "Employment-population ratio", "Labor force and employment", "rate", "Share of the population aged 16+ with a job."),
+    ("CLF16OV", "Civilian labor force", "Labor force and employment", "k", "People working or looking for work, thousands."),
+    ("CE16OV", "Employment level", "Labor force and employment", "k", "Employed people (household survey), thousands."),
+    ("UNEMPLOY", "Unemployment level", "Labor force and employment", "k", "Unemployed people, thousands."),
+    ("PAYEMS", "Nonfarm payrolls", "Labor force and employment", "k", "Jobs on business payrolls (establishment survey), thousands. The monthly change is the headline jobs number."),
+    ("CES0500000003", "Average hourly earnings", "Labor force and employment", "yoy", "Average hourly pay, private sector; a wage-inflation gauge."),
+    ("ICSA", "Initial jobless claims", "Labor force and employment", "k", "New unemployment-insurance claims per week, thousands. Rising claims are an early sign of layoffs."),
+    ("CCSA", "Continued claims", "Labor force and employment", "k", "People still claiming unemployment benefits, thousands. Rising = harder to find a new job."),
+    ("JTSJOL", "Job openings (JOLTS)", "Labor force and employment", "k", "Unfilled job openings, thousands."),
+    ("JTSQUR", "Quits rate (JOLTS)", "Labor force and employment", "rate", "Share of workers quitting each month; high = workers confident they can find a better job."),
+]
+ECON_FAMILY = {"yoy": "e_yoy", "rate": "e_rate", "k": "e_k"}
 COT_FILES = {
     "gold": ["COT_GOLD_LEGACY.csv"],
     "usd_index": ["COT_USD_INDEX.csv"],
@@ -210,7 +237,13 @@ def load_everything(data_dir: Path) -> dict:
             status = json.loads(sp.read_text())
         except json.JSONDecodeError:
             status = {}
-    return {"intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
+    econ = {}
+    for code, *_ in ECON:
+        es = read_series(data_dir / "econ" / f"{code}.csv", "date", code)
+        if es is not None and len(es) > 8:
+            econ[code] = es
+    mkt = {c: x for c in ("SP500", "DCOILWTICO", "VIXCLS", "CBBTCUSD") if (x := read_series(data_dir / "econ" / f"{c}.csv", "date", c)) is not None}
+    return {"mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
 
 
 def compute(data: dict, playbook: dict) -> dict:
@@ -582,12 +615,15 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
             ch = delta(series, 1, True)
             tiles.append(tile(label, fmt(series.iloc[-1], dec), ch, [round(x, 4) for x in series.tail(30)], series.index[-1].strftime("%m-%d")))
     if not feed:
-        out["tiles"] = "".join(tiles)
-        return out
-    out["upd"] = str(feed.get("updated", ""))[:16].replace("T", " ") + " UTC"
+        feed = {}
+    out["upd"] = (str(feed.get("updated", ""))[:16].replace("T", " ") + " UTC") if feed.get("updated") else "n/a"
     for key in ("sp500", "wti", "vix", "btc"):
-        d = (feed.get("markets") or {}).get(key)
-        if d:
+        code, label, dec = {"sp500": ("SP500", "S&P 500", 0), "wti": ("DCOILWTICO", "WTI oil", 2), "vix": ("VIXCLS", "VIX", 2), "btc": ("CBBTCUSD", "BTC", 0)}[key]
+        ms = data.get("mkt", {}).get(code)
+        d = (feed.get("markets") or {}).get(key) or {}
+        if ms is not None and len(ms) > 5:      # FRED copy (always available) wins over the feed
+            tiles.append(tile(label, fmt(ms.iloc[-1], dec), delta(ms, 1, True), [round(x, 4) for x in ms.tail(30)], ms.index[-1].strftime("%m-%d")))
+        elif d.get("value") is not None:
             tiles.append(tile(d["label"], d.get("display", ""), d.get("changePct"), d.get("spark"), (d.get("date") or "")[5:]))
     out["tiles"] = "".join(tiles)
 
@@ -841,6 +877,92 @@ def build_quick(playbook: dict, metrics: dict) -> str:
     return f'<ul class="quick">{"".join(rows)}</ul>' if rows else ""
 
 
+def econ_view(code: str, kind: str, s: pd.Series) -> tuple[pd.Series, int]:
+    """The series as it is shown: % y/y for indexes and dollar amounts, the level otherwise (claims in thousands)."""
+    gaps = s.index.to_series().diff().dt.days.dropna()
+    step = gaps.median() if len(gaps) else 30
+    ppy = 52 if step < 10 else (12 if step < 40 else 4)
+    if kind == "yoy":
+        return (100 * (s / s.shift(ppy) - 1)).dropna(), ppy
+    if code in ("ICSA", "CCSA"):
+        return s / 1000, ppy
+    return s, ppy
+
+
+def build_econ(data: dict) -> tuple[list[dict], dict, str]:
+    rows, fam_series, table = [], {}, []
+    for code, name, group, kind, what in ECON:
+        raw = data.get("econ", {}).get(code)
+        if raw is None:
+            continue
+        d, ppy = econ_view(code, kind, raw)
+        if len(d) < 3:
+            continue
+        unit = {"yoy": "%", "rate": "%", "k": "k"}[kind]
+        nd = 1 if kind != "k" else 0
+        last, prev = d.iloc[-1], d.iloc[-2]
+        y_ago = d.iloc[-1 - ppy] if len(d) > ppy else None
+        win = d.tail(5 * ppy)
+        z = num((last - win.mean()) / win.std(ddof=1)) if len(win) > 4 and win.std(ddof=1) else None
+        freq = {52: "W", 12: "M", 4: "Q"}[ppy]
+        per = raw.index[-1]
+        period = per.strftime("%d %b %Y") if freq == "W" else (f"Q{(per.month - 1) // 3 + 1} {per.year}" if freq == "Q" else per.strftime("%b %Y"))
+        lab, tone = z_band(z)
+        rid = f"E:{code}"
+        fam = ECON_FAMILY[kind]
+        chg_nd = 2 if kind != "k" else 0
+        rows.append({"id": rid, "group": group, "family": fam, "label": name, "ticker": code,
+                     "latest": fmt(last, nd) + unit, "d1": fmt(num(last - prev), chg_nd, True),
+                     "d252": "" if y_ago is None else fmt(num(last - y_ago), chg_nd, True), "z": fmt(z, 2, True), "period": period,
+                     "info": {"title": f"{name} ({code})", "what": what + (" Shown as % change from a year earlier." if kind == "yoy" else ""),
+                              "band": {"label": lab, "meaning": f"Latest reading is {fmt(z, 2, True)} standard deviations from its 5-year average." if z is not None else "", "so_what": ""},
+                              "dyn": None, "z": z}})
+        fam_series.setdefault(fam, {})[rid] = d
+        # release table (raw levels)
+        rl, rp = raw.iloc[-1], raw.iloc[-2]
+        raw_ago = raw.iloc[-1 - ppy] if len(raw) > ppy else None
+        rnd = 1 if raw.abs().median() < 1000 else 0
+        heat = "" if z is None else f' class="heat {"neg" if z < 0 else "pos"}" style="--i:{min(100, round(abs(z) / 2.5 * 100))}"'
+        table.append(f'<tr><th scope="row">{esc(name)}<small>{esc(code)}</small></th><td class="lefttd">{esc(period)}</td>'
+                     f'<td>{esc(fmt(num(rl), rnd))}</td><td>{esc(fmt(num(rp), rnd))}</td>'
+                     f'<td class="{chg_class(fmt(num(rl - rp), rnd, True))}">{esc(fmt(num(rl - rp), rnd, True))}</td>'
+                     f'<td>{esc("" if raw_ago is None else fmt(num(100 * (rl / raw_ago - 1)), 1, True) + "%")}</td>'
+                     f'<td>{esc(fmt(num(win.mean()), nd))}{unit}</td><td{heat}>{esc(fmt(z, 2, True))}</td>'
+                     f'<td>{f"<span class='pill {tone}'>{esc(lab)}</span>" if lab else ""}</td></tr>')
+    fams = {}
+    for fam, ser in fam_series.items():
+        frame = pd.concat(ser, axis=1).sort_index()
+        fams[fam] = {"dates": [x.strftime("%Y-%m-%d") for x in frame.index],
+                     "series": {k: [r(v, 3) for v in frame[k]] for k in frame.columns}}
+    html_table = ('<table class="matrix etab"><thead><tr><th>Series</th><th>Period</th><th>Latest</th><th>Prior</th><th>Change</th>'
+                  '<th>Y/Y</th><th>5Y avg <small>(as charted)</small></th><th>Z (5y)</th><th>Reading</th></tr></thead><tbody>' + "".join(table) + "</tbody></table>")
+    return rows, fams, html_table
+
+
+def build_econ_watch_html(rows: list[dict]) -> str:
+    cols = ('<th class="cb"><span class="sr-only">Select</span></th><th>Name</th><th class="c-tk">Ticker</th><th>Latest</th>'
+            '<th>Chg</th><th class="c-d252">1Y chg</th><th class="c-per">Period</th><th class="c-z">Z</th>')
+    out = [f'<table class="watch"><thead><tr>{cols}</tr></thead>']
+    groups: list[str] = []
+    for r_ in rows:
+        if r_["group"] not in groups:
+            groups.append(r_["group"])
+    for g in groups:
+        out.append(f'<tbody data-group="{esc(g)}"><tr class="grp"><td class="cb"><span class="gbox" role="checkbox" aria-checked="false" tabindex="0" aria-label="Plot {esc(g)}"></span></td>'
+                   f'<th colspan="6"><button type="button" class="gt" aria-expanded="true"><span class="car"></span>{esc(g)}</button></th>'
+                   f'<td class="gmove"><button type="button" class="mv up" aria-label="Move {esc(g)} up">&#9650;</button><button type="button" class="mv dn" aria-label="Move {esc(g)} down">&#9660;</button></td></tr>')
+        for r_ in (x for x in rows if x["group"] == g):
+            out.append(
+                f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="{esc(r_["family"])}">'
+                f'<td class="cb"><span class="pick" aria-hidden="true"></span></td>'
+                f'<th scope="row"><span class="plus">+</span>{esc(r_["label"])}</th><td class="c-tk tk"><span class="plus">+</span>{esc(r_["ticker"])}</td>'
+                f'<td class="yd">{esc(r_["latest"])}</td><td class="{chg_class(r_["d1"])}">{esc(r_["d1"])}</td>'
+                f'<td class="c-d252 {chg_class(r_["d252"])}">{esc(r_["d252"])}</td><td class="c-per tk">{esc(r_["period"])}</td><td class="c-z">{esc(r_["z"])}</td></tr>')
+        out.append("</tbody>")
+    out.append("</table>")
+    return "".join(out)
+
+
 def read_fx_feed(data_dir: Path) -> dict | None:
     p = data_dir / "fx_macro.json"
     if not p.exists():
@@ -855,6 +977,8 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     metrics = computed["metrics"]
     fired = eval_cross_signals(playbook, metrics)
     rows, fam = build_watch(playbook, data, computed)
+    erows, efam, etable = build_econ(data)
+    fam.update(efam)
     fx = build_fx(feed, data)
     cot_t = build_cot_tables(data)
     cot_cards = build_cot_cards(playbook, metrics, split=True)
@@ -869,9 +993,11 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     dates = [m["date"] for m in metrics.values() if m.get("date")]
     as_of = max(dates) if dates else "n/a"
     default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y", "S:5y-2y") if any(r_["id"] == x for r_ in rows)]
-    payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows},
+    payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows + erows},
+               "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
                "default": default_sel, "matrix": matrix_payload(computed), "curve": curve_payload(data), "cot": build_cot_charts(data),
-               "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2}, "unit": {"spreads": " pp", "yields": "%", "dxy": "", "gold": ""}}
+               "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
+               "unit": {"spreads": "%", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
 
     page = TEMPLATE
     rep = {
@@ -879,7 +1005,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__TILES__": fx["tiles"], "__SIGNALS__": sig_html, "__WATCHLIST__": build_watch_html(rows), "__MATRIX__": build_matrix(data, computed),
         "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_GOLD_TABLE__": cot_t["gold"], "__COT_USD_TABLE__": cot_t["usd_index"],
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
-        "__FX_CARDS__": fx["fx"], "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
+        "__FX_CARDS__": fx["fx"], "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
         "__STATUS__": build_status(data, today), "__DISCLAIMER__": esc(playbook["meta"]["disclaimer"]),
     }
     for k, v in rep.items():

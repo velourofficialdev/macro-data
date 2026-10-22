@@ -3,6 +3,7 @@
 
 Sources (all free, no API key):
   - FRED  : US Treasury yields + 10Y real yield   -> data/<CODE>.csv
+            US macro (inflation, growth, labor)    -> data/econ/<CODE>.csv
   - CFTC  : Gold and USD Index COT, both from the Legacy Futures Only report (Non-Commercial)
             -> data/COT_GOLD_LEGACY.csv, data/COT_USD_INDEX.csv
   - Canada (Bank of Canada), Germany (Bundesbank), Japan (MoF), Australia (RBA): 2y/5y/10y/30y yields -> data/YC_<CC>.csv
@@ -29,6 +30,14 @@ ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
 DATA.mkdir(exist_ok=True)
 
+ECON_CODES = [   # US macro releases from FRED -> data/econ/<CODE>.csv (12 years so year-on-year changes cover the 10-year chart)
+    "CPIAUCSL", "CPILFESL", "PCEPI", "PCEPILFE", "GDPDEF",
+    "GDP", "GDPC1", "GDIC1", "INDPRO", "RRSFS", "PCE",
+    "UNRATE", "CIVPART", "EMRATIO", "CLF16OV", "CE16OV", "UNEMPLOY", "PAYEMS", "CES0500000003",
+    "ICSA", "CCSA", "JTSJOL", "JTSQUR",
+]
+MARKET_CODES = ["SP500", "DCOILWTICO", "VIXCLS", "CBBTCUSD"]   # tiles in the overview (FRED, daily) -> data/econ/<CODE>.csv
+FRED_ALIAS = {"GDIC1": "A261RX1Q020SBEA"}   # FRED has no GDIC1 id; this is Real Gross Domestic Income (chained 2017 $)
 FRED_CODES = ["DGS3MO", "DGS2", "DGS5", "DGS10", "DGS20", "DGS30", "DFII10"]
 KEEP_DAILY = 2700     # rows kept per daily series (about 10 years; the 252-day window needs only 252)
 HISTORY_YEARS = 10
@@ -60,9 +69,9 @@ def merge_save(path: Path, new: pd.DataFrame, key: str, keep: int) -> pd.DataFra
     return new
 
 
-def fetch_fred(code: str) -> pd.DataFrame:
+def fetch_fred(code: str, years: int = HISTORY_YEARS) -> pd.DataFrame:
     # FRED drops connections that send a browser-style User-Agent, so use the library default here.
-    start = (pd.Timestamp.today().normalize() - pd.Timedelta(days=HISTORY_YEARS * 365)).strftime("%Y-%m-%d")
+    start = (pd.Timestamp.today().normalize() - pd.Timedelta(days=years * 365)).strftime("%Y-%m-%d")
     r = requests.get("https://fred.stlouisfed.org/graph/fredgraph.csv",
                      params={"id": code, "cosd": start}, timeout=30)
     r.raise_for_status()
@@ -228,6 +237,18 @@ def main() -> int:
             record(code, True, saved["date"].iloc[-1])
         except Exception as exc:  # noqa: BLE001 - keep going, report in status
             record(code, False, error=f"{type(exc).__name__}: {exc}"[:200])
+
+    (DATA / "econ").mkdir(exist_ok=True)
+    econ_fail = []
+    for code in ECON_CODES + MARKET_CODES:
+        try:
+            src = FRED_ALIAS.get(code, code)
+            df = fetch_fred(src, 2 if code in MARKET_CODES else 12).rename(columns={src: code})
+            saved = merge_save(DATA / "econ" / f"{code}.csv", df, "date", 4000)
+            record(f"ECON_{code}", True, saved["date"].iloc[-1])
+        except Exception as exc:  # noqa: BLE001
+            econ_fail.append(code)
+            record(f"ECON_{code}", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
     for name, (ds, code, lf, sf, kw) in CFTC_SOURCES.items():
         try:
