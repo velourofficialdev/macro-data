@@ -16,24 +16,22 @@
 <style>
   /* =====================================================================
      DESIGN TOKENS
-     Brand palette (dark = reference design), used exactly:
-       --primary #90BFF9  --secondary #B96AC9  --accent #787779
-       --background #202020 (darkened from #2E2E2E on request)  --surface #35383C  --text #F8FAFC  --muted #94A3B8  --border #334155
-     Added tokens (only what the palette lacks):
-       --border-strong  #475569  #334155 is ~1.1:1 against #35383C, so card/table outlines use this (1.55:1)
-       --surface-2      #3A3D42  raised band (table heads, group rows); body text only, never muted text
-       --secondary-ink  #D29BDC  #B96AC9 is 3.35:1 on surface, below AA for small text; text uses this tint
-       --up #7BC8A4 (muted green)  --down #E8908A (muted coral)  --warn #E3B661 (amber)
-     Accent #787779 is ~2.6:1 on surface: used only for non-text marks (icons, rules, 3rd chart series).
+     Dark: a single cool-slate neutral family, tinted toward the brand blue, so page, panels, lines and accents harmonise.
+       background #12151A · surface #1A1E25 · raised #20252D · hairline #252B34 · outline #2D343F
+       text #E6EAF0 (softened white) · muted #8E98A9 · primary #90BFF9 · secondary #B96AC9 · neutral mark #6F7A8C
+       status: up #6FBF9C · down #E0938D · warn #D9B26A (desaturated so they sit quietly on the surface)
+     Light: derived from the same hues (primary #2F6FB7, secondary #8E3FA0), all text pairs AA.
      ===================================================================== */
   :root {
-    --primary: #90bff9; --secondary: #b96ac9; --accent: #787779;
-    --background: #202020; --surface: #35383c; --text: #f8fafc; --muted: #94a3b8; --border: #334155;
-    --border-strong: #475569; --surface-2: #3a3d42; --secondary-ink: #d29bdc; --primary-ink: #90bff9;
-    --up: #7bc8a4; --down: #e8908a; --warn: #e3b661; --on-primary: #1f2933;
-    --s1: var(--primary); --s2: var(--secondary); --s3: var(--accent); --s4: #c7defc; --s5: #ddb3e6;
-    --tint-primary: rgba(144, 191, 249, .14); --tint-secondary: rgba(185, 106, 201, .16);
-    --grid: rgba(51, 65, 85, .55);
+    /* Dark: one cool slate family tinted toward the primary blue, so background, panels, lines and accents share a hue.
+       Brand accents kept: primary #90BFF9, secondary #B96AC9. Text softened slightly from #F8FAFC to cut glare. */
+    --primary: #90bff9; --secondary: #b96ac9; --accent: #6f7a8c;
+    --background: #12151a; --surface: #1a1e25; --text: #e6eaf0; --muted: #8e98a9; --border: #252b34;
+    --border-strong: #2d343f; --surface-2: #20252d; --secondary-ink: #cf9ad9; --primary-ink: #9cc6fa;
+    --up: #6fbf9c; --down: #e0938d; --warn: #d9b26a; --on-primary: #12151a;
+    --s1: var(--primary); --s2: var(--secondary); --s3: #8a95a8; --s4: #c3dbfb; --s5: #dcb6e4;
+    --tint-primary: rgba(144, 191, 249, .10); --tint-secondary: rgba(185, 106, 201, .14);
+    --grid: rgba(143, 156, 178, .12);
     color-scheme: dark;
   }
   /* Light: derived from the same hues. #90BFF9 -> #2F6FB7, #B96AC9 -> #8E3FA0 (both AA on white and on #F4F5F7). */
@@ -76,7 +74,7 @@
   ::selection { background: var(--tint-primary); }
   * { scrollbar-color: var(--accent) transparent; scrollbar-width: thin; }
 
-  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px; }
+  .wrap { max-width: 1472px; margin: 0 auto; padding: 0 16px; }
 
   /* ---------- header bar ---------- */
   .topbar { border-bottom: 1px solid var(--border); background: var(--background); }
@@ -93,7 +91,16 @@
   .themes button { font: inherit; font-size: 12px; border: 0; background: transparent; color: var(--muted); padding: 3px 10px; border-radius: 4px; cursor: pointer; }
   .themes button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); }
 
-  nav.sections { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--background) 92%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+  .stickyhead { position: sticky; top: 0; z-index: 30; }
+  @media (max-width: 760px) {
+    .topbar .wrap { padding-top: 8px; padding-bottom: 8px; gap: 12px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .topbar .wrap > * { flex: none; }
+    .brand, .meta { flex-wrap: nowrap; white-space: nowrap; }
+    .brand .sub { display: none; }
+    .meta { gap: 10px; }
+    .btn { padding: 4px 9px; }
+  }
+  nav.sections { position: relative; z-index: 20; background: color-mix(in srgb, var(--background) 92%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
   nav.sections .wrap { display: flex; gap: 4px; overflow-x: auto; padding-top: 6px; padding-bottom: 6px; scrollbar-width: none; }
   nav.sections a { flex: none; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: 6px; border-bottom: 2px solid transparent; transition: color .15s, background .15s; }
   nav.sections a:hover { color: var(--text); background: var(--surface); }
@@ -101,8 +108,8 @@
 
   /* ---------- sections & grid ---------- */
   main { padding: 8px 0 32px; }
-  section.sec { scroll-margin-top: 56px; padding-top: 24px; }
-  .sechead { display: flex; align-items: baseline; gap: 8px 12px; flex-wrap: wrap; margin: 0 0 12px; }
+  section.sec { scroll-margin-top: calc(var(--hh, 104px) - 10px);  /* the section's top padding tucks under the header, so nothing from the section above peeks through */ padding-top: 16px; }
+  .sechead { display: flex; align-items: baseline; gap: 8px 12px; flex-wrap: wrap; margin: 0 0 8px; }
   .sechead h2 { margin: 0; font-size: 16px; font-weight: 600; }
   .sechead p { margin: 0; color: var(--muted); font-size: 12px; }
   .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; }
@@ -111,7 +118,7 @@
   @media (max-width: 760px) { .grid > * { grid-column: span 12 !important; } }
 
   /* ---------- one card style ---------- */
-  .card { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .card-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 12px 16px 8px; min-height: 44px; }
   .card-h h3 { margin: 0; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
   .card-h .note { margin: 0; }
@@ -133,7 +140,7 @@
   .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
   @media (max-width: 1024px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   @media (max-width: 520px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  .kpi { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; padding: 12px 16px 8px; min-width: 0; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px 8px; min-width: 0; }
   .kl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .kv { font-size: 24px; font-weight: 600; line-height: 1.25; margin-top: 4px; letter-spacing: -.01em; }
   .kv small { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 4px; }
@@ -148,7 +155,7 @@
   /* market tiles (risk strip, FX spot) */
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
   .riskstrip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .tile { border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 12px; min-width: 0; background: var(--surface); }
+  .tile { border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; min-width: 0; background: var(--surface); }
   .tl { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
   .tv { font-size: 18px; font-weight: 600; margin-top: 2px; }
   .tc { font-size: 12px; color: var(--muted); }
@@ -172,12 +179,12 @@
 
   /* ---------- tables ---------- */
   .scroll { overflow: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.5; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; line-height: 1.5; }
   th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
-  thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); color: var(--text); font-size: 11px; font-weight: 600; letter-spacing: .02em; border-bottom: 1px solid var(--border-strong); }
+  thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); color: var(--text); font-size: 11px; font-weight: 600; letter-spacing: .02em; border-bottom: 1px solid var(--border); }
   thead th small, th small { color: var(--muted); font-weight: 400; }
   tbody tr:hover > * { background-color: color-mix(in srgb, var(--surface-2) 70%, transparent); }
-  td.hm { --c: var(--up); background: color-mix(in srgb, var(--c) calc(var(--i) * .28%), transparent); }
+  td.hm { --c: var(--up); background: color-mix(in srgb, var(--c) calc(var(--i) * .2%), transparent); }
   td.hm.down { --c: var(--down); }
   .badge, .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; white-space: nowrap; background: var(--surface-2); color: var(--muted); }
   .badge.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
@@ -202,7 +209,7 @@
   .colmenu input { accent-color: var(--primary); }
   .filter { padding: 0 16px 8px; }
   .filter input { width: 100%; font: inherit; font-size: 13px; padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--background); color: var(--text); }
-  .wl { flex: 1; overflow: auto; min-height: 0; border-top: 1px solid var(--border-strong); }
+  .wl { flex: 1; overflow: auto; min-height: 0; border-top: 1px solid var(--border); }
   table.watch { font-size: 13px; }
   table.watch th, table.watch td { padding: 5px 8px; height: 30px; }
   table.watch thead th { text-align: right; }
@@ -210,8 +217,15 @@
   table.watch td { text-align: right; }
   table.watch th[scope=row] { font-weight: 500; position: sticky; left: 0; background: var(--surface); z-index: 1; }
   table.watch.econ th[scope=row] { white-space: normal; min-width: 170px; max-width: 230px; line-height: 1.3; }
-  table.watch thead th:nth-child(2) { position: sticky; left: 0; z-index: 3; }
-  table.watch td.cb, table.watch th.cb { width: 28px; padding: 0 0 0 12px; text-align: left; }
+  /* frozen left side while scrolling sideways: checkbox column, name column and the group titles */
+  table.watch td.cb, table.watch th.cb { position: sticky; left: 0; z-index: 2; background: var(--surface); width: 30px; min-width: 30px; max-width: 30px; }
+  table.watch thead th.cb { z-index: 4; background: var(--surface-2); }
+  table.watch th[scope=row] { left: 30px !important; }
+  table.watch thead th:nth-child(2) { position: sticky; left: 30px; z-index: 4; }
+  table.watch tr.grp td.cb { background: color-mix(in srgb, var(--surface-2) 55%, var(--surface)); }
+  table.watch tr.grp .gt { position: sticky; left: 30px; }
+  table.watch tr.grp .gmove { z-index: 2; background: color-mix(in srgb, var(--surface-2) 55%, var(--surface)); }
+  table.watch td.cb, table.watch th.cb { padding: 0 0 0 10px; text-align: left; }
   table.watch .plus { color: var(--accent); margin-right: 6px; font-size: 10px; }
   table.watch .tk { color: var(--muted); font-size: 12px; text-align: left; }
   table.watch td.yd small { color: var(--muted); font-size: 10px; margin-left: 1px; }
@@ -230,7 +244,6 @@
   tr.row { cursor: pointer; transition: background-color .12s; }
   table.watch tr.row.on > *, table.watch tr.row.on > th[scope=row] { background: linear-gradient(var(--tint-primary), var(--tint-primary)) var(--surface); }
   table.watch tr.row:hover > th[scope=row] { background: var(--surface-2); }
-  tr.row.on th[scope=row] { box-shadow: inset 2px 0 0 var(--primary); }
   tr.row.on .pick { background: var(--c, var(--primary)); border-color: var(--c, var(--primary)); box-shadow: inset 0 0 0 2px var(--surface); }
   tr.row.dim { opacity: .5; }
 
@@ -240,7 +253,7 @@
   .ranges button:hover { color: var(--text); background: var(--surface-2); }
   .ranges button[aria-pressed="true"] { background: var(--tint-primary); color: var(--primary-ink); font-weight: 600; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 16px 0; min-height: 30px; }
-  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-strong); border-left: 3px solid var(--c, var(--primary)); border-radius: 6px; background: var(--surface); padding: 2px 4px 2px 8px; font-size: 12px; }
+  .chip { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-strong); border-left: 3px solid var(--c, var(--primary)); border-radius: 6px; background: var(--surface); padding: 2px 4px 2px 8px; font-size: 12px; }
   .chip i { display: none; }
   .chip button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 4px; border-radius: 4px; }
   .chip button:hover { color: var(--text); background: var(--surface-2); }
@@ -265,36 +278,53 @@
 
 
   /* ---------- Rates: terminal layout kept from the reference (list left, chart top-right, matrix bottom-right) ---------- */
-  .rterm { grid-template-columns: minmax(360px, 34%) minmax(0, 1fr); grid-template-rows: minmax(420px, 56vh) auto; gap: 8px; }
+  .rterm { grid-template-columns: minmax(360px, 34%) minmax(0, 1fr); grid-template-rows: minmax(180px, 1fr) auto; gap: 8px;
+           height: max(640px, calc(100vh - var(--hh, 104px) - 48px)); }  /* the whole block fits in one screen under the header */
   .rterm .card { border-radius: 6px; }
   .rterm .wlp { grid-row: 1 / span 2; max-height: none; min-height: 0; contain: size; }  /* list takes exactly the height of chart + matrix, scrolling inside */
   .rterm .chp { grid-column: 2; grid-row: 1; }
   .rterm .mxp { grid-column: 2; grid-row: 2; }
-  .rterm .card-h { padding: 8px 12px; min-height: 0; border-bottom: 1px solid var(--border-strong); }
+  .rterm .card-h { padding: 8px 12px; min-height: 0; border-bottom: 1px solid var(--border); }
   .rterm .card-h h3 { font-size: 13.5px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
-  .rterm .tbar { padding: 4px 6px; border-bottom: 1px solid var(--border-strong); }
+  .rterm .tbar { padding: 4px 6px; border-bottom: 1px solid var(--border); }
   .rterm .wl { border-top: 0; }
   .rterm .rbar { padding: 6px 10px 2px; }
   .rterm .chips { padding: 6px 10px 2px; }
   .rterm .chip { border-radius: 3px; }
-  .rterm .cv.main { flex: 1; height: auto; min-height: 300px; margin: 2px 4px 6px 8px; }
+  .rterm .cv.main { flex: 1; height: auto; min-height: 180px; margin: 2px 4px 4px 8px; }
+  .rterm .chp { min-height: 0; }
+  .rterm .chp > :not(.cv) { flex-shrink: 0; }
+  @media (max-height: 880px) {   /* short screens: tighter matrix rows and a one-line chip strip so the chart keeps its room */
+    .rterm table.matrix th, .rterm table.matrix td { padding: 2px 10px !important; }
+    .rterm .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .rterm .chip { flex: none; white-space: nowrap; }
+    .rterm .rbar { padding-top: 2px; }
+  }
   .rterm table.watch { font-size: 12px; }
   .rterm table.watch th, .rterm table.watch td { padding: 4px 7px; height: 26px; }
-  .rterm table.watch td.hm { background: none; }
+  .rterm table.watch tr.row:not(.on) td.hm { background: none; }
   .rterm table.watch tr.grp td, .rterm table.watch tr.grp th { height: 30px; }
   .rterm .mxs { flex: 1; }
+  .rterm .etabwrap { max-height: 38vh; }
+  .rterm table.etab td, .rterm table.etab th { padding: 5px 10px; }
+  .rterm table.etab tbody th { white-space: nowrap; }
   .rterm table.matrix { font-size: 12.5px; }
-  .rterm table.matrix th, .rterm table.matrix td { padding: 6px 10px; border-right: 1px solid var(--border); }
+  .rterm table.matrix th, .rterm table.matrix td { padding: 4px 10px; border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
   .rterm table.matrix thead th { text-align: center; }
-  .rterm table.matrix td.heat { background: color-mix(in srgb, var(--c) calc(var(--i) * .6%), transparent); }
-  .rterm table.matrix td.na { background: color-mix(in srgb, var(--accent) 18%, transparent); }
-  @media (max-width: 1024px) { .rterm { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; } .rterm .wlp, .rterm .chp, .rterm .mxp { grid-column: 1; grid-row: auto; } .rterm .wlp { contain: none; height: 70vh; } .rterm .chp { min-height: 420px; } }
+  .rterm table.matrix td.heat { background: color-mix(in srgb, var(--c) calc(var(--i) * .42%), transparent); }
+  .rterm table.matrix td.na { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  @media (max-width: 1024px) { .rterm { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; height: auto; } .rterm .wlp, .rterm .chp, .rterm .mxp { grid-column: 1; grid-row: auto; } .rterm .wlp { contain: none; height: 70vh; } .rterm .chp { min-height: 420px; } }
+  /* every table: the first column (header and body) stays put when scrolling sideways */
+  table thead th:first-child { position: sticky; left: 0; z-index: 4; background: var(--surface-2); }
+  table tbody th:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
+  table thead th:first-child, table tbody th:first-child, table tfoot th:first-child { border-right: 1px solid var(--border); }
+  table.watch thead th.cb, table.watch tbody td.cb { position: sticky; left: 0; }
   /* matrices & heat tables */
   table.matrix td { text-align: right; padding: 7px 12px; }
   table.matrix thead th { text-align: right; }
   table.matrix thead th:first-child { text-align: left; }
   table.matrix tbody th { font-weight: 600; position: sticky; left: 0; background: var(--surface); z-index: 1; }
-  table.matrix td.heat { --c: var(--primary); background: color-mix(in srgb, var(--c) calc(var(--i) * .32%), transparent); }
+  table.matrix td.heat { --c: var(--primary); background: color-mix(in srgb, var(--c) calc(var(--i) * .28%), transparent); }
   table.matrix td.heat.neg { --c: var(--down); }
   table.matrix td.zc { color: var(--muted); border-left: 1px solid var(--border); }
   table.matrix td.na { color: var(--muted); text-align: center; }
@@ -327,6 +357,7 @@
   table.ftable td { text-align: right; } table.ftable thead th { text-align: right; } table.ftable thead th:first-child { text-align: left; }
   table.ftable td.heat { --c: var(--primary); }
   table.ftable td.lefttd { text-align: left; }
+  table.zqtable td .badge { margin-left: 6px; }
 
   /* COT */
   .cotcard .big { font-size: 24px; font-weight: 600; }
@@ -346,16 +377,35 @@
   table.weekly tbody th { text-align: left; font-weight: 500; background: var(--surface); position: sticky; left: 0; z-index: 1; }
   table.weekly thead th:first-child { text-align: left; left: 0; z-index: 3; }
   table.weekly tr.cur > * { background: linear-gradient(var(--tint-primary), var(--tint-primary)) var(--surface); }
+  .curdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); margin: 0 7px 1px 0; vertical-align: middle; box-shadow: 0 0 0 3px var(--tint-primary); }
   .curtag { font-size: 10px; font-weight: 600; color: var(--primary-ink); margin-left: 6px; text-transform: uppercase; letter-spacing: .06em; }
-  .stathead { padding: 8px 16px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--border-strong); }
+  .stathead { padding: 8px 16px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--border); }
   .statwrap { overflow-x: auto; scrollbar-width: none; }
   .statwrap::-webkit-scrollbar { display: none; }
-  table.weekly.stats th, table.weekly.stats td { background: var(--surface-2); font-weight: 600; padding: 6px 10px; }
-  table.weekly.stats th { position: sticky; left: 0; text-align: left; z-index: 1; }
+  /* statistics block: quiet base, emphasis only where it carries meaning (average, z-score, reading, COT index) */
+  .stathead { color: var(--primary-ink) !important; background: color-mix(in srgb, var(--primary) 5%, var(--surface)); }
+  table.weekly.stats th, table.weekly.stats td { background: color-mix(in srgb, var(--primary) 3%, var(--surface)); font-weight: 400; padding: 6px 10px; color: var(--muted); }
+  table.weekly.stats th { position: sticky; left: 0; text-align: left; z-index: 1; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  table.weekly.stats tr.st-avg td { color: var(--text); font-weight: 600; }
+  table.weekly.stats tr.st-avg th { color: var(--primary-ink); }
+  table.weekly.stats tr.st-z td, table.weekly.stats tr.st-z th { border-top: 1px solid var(--border-strong); }
+  table.weekly.stats tr.st-z th { color: var(--secondary-ink); }
+  table.weekly.stats tr.st-z td { color: var(--text); font-weight: 600; }
+  table.weekly.stats tr.st-z td.zhi { background: color-mix(in srgb, var(--c) 14%, var(--surface)); }
+  table.weekly.stats tr.st-z td.zhi.up { --c: var(--up); color: var(--up); } table.weekly.stats tr.st-z td.zhi.down { --c: var(--down); color: var(--down); }
+  table.weekly.stats tr.readrow th { color: var(--secondary-ink); }
+  table.weekly.stats tr.st-ci td, table.weekly.stats tr.st-ci th { border-top: 1px solid var(--border-strong); }
+  table.weekly.stats tr.st-ci th { color: var(--primary-ink); }
+  .cimeter { display: inline-block; width: 120px; height: 6px; border-radius: 3px; background: var(--surface-2); vertical-align: middle; margin-right: 10px; overflow: hidden; }
+  .cifill { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--secondary), var(--primary)); }
+  .cival { color: var(--text); margin-right: 8px; font-size: 14px; }
   table.weekly td.lefttd { text-align: left; }
 
   /* FX confluence */
-  .confgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .confgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .fxtiles { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  @media (max-width: 1200px) { .confgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fxtiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .confgrid { grid-template-columns: minmax(0, 1fr); } .fxtiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .conf { border: 1px solid var(--border-strong); border-radius: 8px; padding: 12px; }
   .conf .ctop { display: flex; justify-content: space-between; }
   .conf .chead { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
@@ -411,10 +461,11 @@
   <symbol id="i-group" viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h10"/></symbol>
   <symbol id="i-flt" viewBox="0 0 16 16"><path d="M2.5 3h11L9.3 8v4.5l-2.6 1V8z"/></symbol>
 </svg>
+<div class="stickyhead">
 <header class="topbar"><div class="wrap">
   <div class="brand"><h1>Velour <b>Macro</b></h1><span class="sub">Rates · Dollar · Gold · Positioning · FX</span></div>
   <div class="meta">
-    <span>Latest data <b>__ASOF__</b></span><span>Built __BUILT__</span>
+    <span>Latest data <b>__ASOF__</b></span><span class="built">Built __BUILT__</span>
     <a class="btn" href="Macro_Dashboard.xlsx" download><svg class="ico"><use href="#i-dl"/></svg>Download Excel</a>
     <span class="themes" role="group" aria-label="Color theme">
       <button type="button" data-theme-btn="auto" aria-pressed="true">Auto</button>
@@ -426,6 +477,7 @@
 <nav class="sections" aria-label="Sections"><div class="wrap">
   <a href="#overview">Overview</a><a href="#rates">Rates</a><a href="#fed">Fed odds</a><a href="#positioning">Positioning</a><a href="#fx">FX</a><a href="#economy">Economy</a>
 </div></nav>
+</div>
 
 <main class="wrap">
   <!-- ============ OVERVIEW ============ -->
@@ -482,6 +534,13 @@
       <div class="card" style="--w:7"><div class="card-h"><h3>How the odds moved</h3><div class="ranges" id="fedm" role="group" aria-label="Meeting"></div></div><div class="legend" data-for="fed"></div><div class="cv tall" id="ch-fed" role="img" aria-label="Cut, hold and hike odds over time for the selected meeting"></div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>Meeting path</h3><p class="note">Probability of each outcome. Right-hand columns compare today's total hike and cut odds with 1 week and 1 month ago (change in pp).</p></div><div class="scroll">__FED_TABLE__</div></div>
     </div>
+    <div class="sechead" style="margin-top:20px"><h2>Fed Rate Odds</h2><p>Market-implied probability of a Fed rate hike, hold, or cut at the next FOMC meeting, calculated from 30-Day Fed Funds futures and compared with previous daily snapshots. Latest snapshot __ZQ_UPD__.</p></div>
+    <div class="grid">
+      <div class="card" style="--w:4"><div class="card-h"><h3>Next meeting · futures</h3></div><div class="card-b">__ZQ_NEXT__</div></div>
+      <div class="card" style="--w:4"><div class="card-h"><h3>Cut probability over time</h3></div><div class="legend" data-for="zqcut"></div><div class="cv tall" id="ch-zqcut" role="img" aria-label="Probability of a 25 bp cut over time for each upcoming meeting"></div><p class="note" style="padding:0 16px 12px">Dashed lines mark days when odds moved 10 pp or more; labels show a CPI, jobs report, PCE or FOMC release that day.</p></div>
+      <div class="card" style="--w:4"><div class="card-h"><h3>Hike probability over time</h3></div><div class="legend" data-for="zqhike"></div><div class="cv tall" id="ch-zqhike" role="img" aria-label="Probability of a 25 bp hike over time for each upcoming meeting"></div></div>
+      <div class="card" style="--w:12"><div class="card-h"><h3>All upcoming meetings · 30-Day Fed Funds futures</h3><p class="note">Market-implied probabilities derived from 30-Day Fed Funds futures; not an official Fed forecast.</p></div><div class="scroll">__ZQ_TABLE__</div></div>
+    </div>
   </section>
 
   <!-- ============ POSITIONING ============ -->
@@ -506,7 +565,7 @@
 
   <!-- ============ FX ============ -->
   <section class="sec" id="fx">
-    <div class="sechead"><h2>FX confluence</h2><p>Momentum, RSI, trend and Z-score signals per pair. Updated __FXUPD__.</p></div>
+    <div class="sechead"><h2>FX confluence</h2><p>Daily timeframe. Score 0-100 averages four signals: day-on-day momentum, RSI(14), price vs 20-day EMA and 20-day Z-score (60+ bullish, 40 or less bearish). Support and resistance come from swing highs and lows over the last 120 days. Pairs from Yahoo Finance (FRED fallback); XAUUSD uses COMEX gold futures. Latest close __FXUPD__.</p></div>
     <div class="grid">
       <div class="card" style="--w:12"><div class="card-h"><h3>Spot</h3></div><div class="card-b">__FX_CARDS__</div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>Confluence</h3></div><div class="card-b">__CONFLUENCE__</div></div>
@@ -516,7 +575,7 @@
   <!-- ============ ECONOMY ============ -->
   <section class="sec" id="economy">
     <div class="sechead"><h2>US economy</h2><p>FRED. Inflation and spending series are shown as % change from a year earlier; rates in %; counts in thousands. Z = latest vs its 5-year history.</p></div>
-    <div class="term">
+    <div class="term rterm">
       <div class="card wlp">
         <div class="card-h"><h3>US Economy</h3><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></div>
         <div class="tbar">
@@ -535,14 +594,14 @@
         <div class="chips" aria-label="Plotted series"></div>
         <div class="cv main" role="img" aria-label="Historical values for the selected economic series"></div>
       </div>
-      <div class="card rdp"><div class="card-h"><h3>Reading: last series you clicked</h3></div><div class="card-b reading" id="ereading"></div></div>
+      <div class="card mxp">
+        <div class="card-h"><h3>Latest Releases</h3><span class="note" style="margin:0">Raw levels as published · Z shading: blue above, coral below the 5-year average</span></div>
+        <div class="scroll mxs etabwrap">__ETABLE__</div>
+      </div>
     </div>
     <div class="grid" style="margin-top:12px">
-      <details class="card collapse" style="--w:12">
-        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Latest releases</h3></span><span class="note">Raw levels as published; Z shading: blue above, coral below the 5-year average</span></summary>
-        <div class="scroll">__ETABLE__</div>
-      </details>
-      <div class="card" style="--w:12"><div class="card-h"><h3>Headlines</h3></div><div class="newsbox">__NEWS__</div></div>
+      <div class="card" style="--w:5"><div class="card-h"><h3>Reading: last series you clicked</h3></div><div class="card-b reading" id="ereading"></div></div>
+      <div class="card" style="--w:7"><div class="card-h"><h3>Headlines</h3></div><div class="newsbox">__NEWS__</div></div>
     </div>
   </section>
 
@@ -577,7 +636,7 @@ const P = __PAYLOAD__;
   let ticking = false;
   function update() {
     ticking = false; let idx = 0;
-    secs.forEach((s, i) => { if (s && s.getBoundingClientRect().top <= 90) idx = i; });
+    secs.forEach((s, i) => { if (s && s.getBoundingClientRect().top <= (document.querySelector('.stickyhead') || {offsetHeight: 90}).offsetHeight + 40) idx = i; });
     if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) idx = secs.length - 1;
     set(idx);
     const act = links[idx]; if (act && act.scrollIntoView && act.parentElement.scrollWidth > act.parentElement.clientWidth) act.parentElement.scrollLeft = act.offsetLeft - 16;
@@ -661,6 +720,13 @@ function draw(host, spec) {
       const t = el("text", { x: W - m.r + 4 + (m.r - 4) / 2, y: e.y + 4, "text-anchor": "middle", fill: "var(--onser)", "font-size": 11, "font-weight": 600 }, svg); t.textContent = f(e.v, spec.dec);
     });
   }
+  (spec.marks || []).forEach(mk => {   /* event markers: dashed vertical line + short label */
+    const i = spec.labels.indexOf(mk.date); if (i < 0) return;
+    const g = el("g", {}, svg);
+    el("line", { x1: x(i), x2: x(i), y1: m.t, y2: m.t + ih, stroke: "var(--warn)", "stroke-width": 1, "stroke-dasharray": "3 3", opacity: .8 }, g);
+    if (mk.label) el("text", { x: x(i) + 3, y: m.t + 9, fill: "var(--warn)", "font-size": 9.5, "font-weight": 600 }, g).textContent = mk.label;
+    el("title", {}, g).textContent = mk.title;
+  });
   const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: "var(--muted)", opacity: 0 }, svg);
   const dots = spec.sets.map(s => el("circle", { r: 4, fill: s.color, stroke: "var(--tile)", "stroke-width": 2, opacity: 0 }, svg));
   const tip = document.createElement("div"); tip.className = "tip"; host.appendChild(tip);
@@ -805,7 +871,9 @@ function Terminal(root, cfg) {
     else { const nx = b.nextElementSibling; if (nx) b.parentNode.insertBefore(nx, b); }
   }));
   paint();
-  let tm; window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(paint, 120); });
+  let tm; const later = () => { clearTimeout(tm); tm = setTimeout(paint, 80); };
+  window.addEventListener("resize", later);
+  if (window.ResizeObserver) { let w0 = host.clientWidth, h0 = host.clientHeight; new ResizeObserver(() => { if (host.clientWidth !== w0 || host.clientHeight !== h0) { w0 = host.clientWidth; h0 = host.clientHeight; later(); } }).observe(host); }
 }
 Terminal(document.querySelector("#rates .term"), { defaults: P.default, ranges: ["MTD", "1M", "QTD", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "10Y"], range: "1Y", store: "macro-watchlist", reading: "reading", csv: "yield_spreads", title: "Historical yields" });
 Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, ranges: ["YTD", "1Y", "2Y", "3Y", "5Y", "10Y"], range: "5Y", store: "macro-econ-watchlist", reading: "ereading", csv: "us_economy", title: "US economy", openWhat: true });
@@ -873,6 +941,25 @@ document.querySelectorAll(".cotpair").forEach(p => {
   render(); let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(render, 120); });
 })();
 
+/* Fed Rate Odds (30-Day Fed Funds futures): cut and hike probability per meeting, with big-move markers */
+(function () {
+  const Z = P.zq;
+  ["zqcut", "zqhike"].forEach(key => {
+    const host = document.getElementById("ch-" + key); if (!host) return;
+    if (!Z || !Z.dates.length) { host.closest(".card").style.display = "none"; return; }
+  });
+  if (!Z || !Z.dates.length) return;
+  function render() {
+    [["zqcut", "cut"], ["zqhike", "hike"]].forEach(([key, f]) => {
+      const host = document.getElementById("ch-" + key);
+      const sets = Z.meetings.map((mt, k) => ({ name: mt.label, data: mt[f], color: colorOf(k) }));
+      document.querySelector(`.legend[data-for="${key}"]`).innerHTML = sets.map(s => `<span><i style="border-color:${s.color}"></i>${esc(s.name)}</span>`).join("");
+      draw(host, { labels: Z.dates, sets, dec: 0, axDec: 0, unit: "%", yMin: 0, yMax: 100, marks: Z.marks, shortX: d => MON[+d.slice(5, 7) - 1] + " " + (+d.slice(8, 10)), title: key });
+    });
+  }
+  render(); let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(render, 120); });
+})();
+
 /* Positioning charts */
 (function () {
   const defs = { cot: { yMin: 0, yMax: 100, dec: 1, axDec: 0 }, cotoi: { dec: 1, axDec: 0, unit: "%" }, cotpx: { dec: 2, axDec: 1, unit: "%" } };
@@ -899,6 +986,12 @@ document.querySelectorAll(".cotpair").forEach(p => {
   window.addEventListener("afterprint", () => { opened.forEach(d => d.removeAttribute("open")); opened.length = 0; });
   document.querySelectorAll("details.card").forEach(d => d.addEventListener("toggle", () => { if (d.open) window.dispatchEvent(new Event("resize")); }));
 })();
+
+/* header height -> section anchor offset */
+(function () { const h = document.querySelector(".stickyhead"); if (!h) return;
+  const set = () => document.documentElement.style.setProperty("--hh", h.offsetHeight + "px"); set(); window.addEventListener("resize", set);
+  if (window.ResizeObserver) new ResizeObserver(set).observe(h); if (document.fonts) document.fonts.ready.then(set); })();
+
 </script>
 </body>
 </html>

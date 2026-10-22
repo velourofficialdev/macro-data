@@ -254,8 +254,15 @@ def load_everything(data_dir: Path) -> dict:
                     fed["hist"][m["event"]] = pd.read_csv(hp, parse_dates=["date"]).set_index("date").sort_index()
         except (json.JSONDecodeError, KeyError):
             fed = None
+    fxp = {}
+    for pair in ("EURUSD", "GBPUSD", "USDJPY", "USDCAD", "AUDUSD", "USDCHF", "NZDUSD"):
+        x = read_series(data_dir / "fx" / f"{pair}.csv", "date", "Close")
+        if x is not None and len(x) > 60:
+            fxp[pair] = x
     mkt = {c: x for c in ("SP500", "DCOILWTICO", "VIXCLS", "CBBTCUSD") if (x := read_series(data_dir / "econ" / f"{c}.csv", "date", c)) is not None}
-    return {"fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
+    zq = pd.read_csv(data_dir / "fed" / "zq_odds.csv") if (data_dir / "fed" / "zq_odds.csv").exists() else None
+    events = pd.read_csv(data_dir / "fed" / "events.csv") if (data_dir / "fed" / "events.csv").exists() else None
+    return {"zq": zq, "events": events, "fxp": fxp, "fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
 
 
 def compute(data: dict, playbook: dict) -> dict:
@@ -628,6 +635,79 @@ def gauge_ring(score: float, cls: str) -> str:
             f'<div class="rn"><b>{score:.0f}</b><small>/100</small></div></div>')
 
 
+FX_DEC = {"USDJPY": 3, "XAUUSD": 2}
+
+
+def rsi(s: pd.Series, n: int = 14) -> float | None:
+    d = s.diff().dropna()
+    if len(d) < n + 1:
+        return None
+    up = d.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
+    dn = (-d.clip(upper=0)).ewm(alpha=1 / n, adjust=False).mean()
+    rs = up.iloc[-1] / dn.iloc[-1] if dn.iloc[-1] else float("inf")
+    return num(100 - 100 / (1 + rs))
+
+
+def sr_levels(s: pd.Series, price: float, dec: int, lookback: int = 120, win: int = 5) -> list[dict]:
+    """Support/resistance from swing highs and lows (local extremes over +-win days) in the last `lookback` days,
+    merged when within 0.3% of each other. Strength = how many swings formed the level."""
+    x = s.tail(lookback)
+    piv = []
+    for i in range(win, len(x) - win):
+        w = x.iloc[i - win:i + win + 1]
+        if x.iloc[i] == w.max() or x.iloc[i] == w.min():
+            piv.append(float(x.iloc[i]))
+    piv += [float(x.max()), float(x.min())]
+    clusters: list[list[float]] = []
+    for v in sorted(piv):
+        if clusters and abs(v / clusters[-1][-1] - 1) < 0.003:
+            clusters[-1].append(v)
+        else:
+            clusters.append([v])
+    lv = [(sum(c) / len(c), len(c)) for c in clusters]
+    above = sorted([l for l in lv if l[0] > price], key=lambda l: l[0])[:2]
+    below = sorted([l for l in lv if l[0] <= price], key=lambda l: -l[0])[:2]
+    out = []
+    for lvl, n in sorted(above, key=lambda l: -l[0]) + below:
+        out.append({"level": f"{lvl:,.{dec}f}", "strength": "Strong" if n >= 3 else "Moderate",
+                    "distPct": round((lvl / price - 1) * 100, 2)})
+    return out
+
+
+def fx_confluence(sym: str, s: pd.Series) -> dict:
+    """Daily confluence: D1 momentum, RSI(14), price vs EMA(20), 20-day Z-score. Score 0-100 = equal-weight average of
+    four sub-scores (momentum 100/0, RSI value, EMA 100/0, Z mapped 50+20*z), so 50 = mixed."""
+    s = s.dropna()
+    price, prev = float(s.iloc[-1]), float(s.iloc[-2])
+    mom = (price / prev - 1) * 100
+    r = rsi(s)
+    ema = float(s.ewm(span=20, adjust=False).mean().iloc[-1])
+    w = s.tail(20)
+    z = num((price - w.mean()) / w.std(ddof=1)) if w.std(ddof=1) else 0.0
+    parts = [100 if mom > 0 else 0, r if r is not None else 50, 100 if price > ema else 0, max(0, min(100, 50 + 20 * (z or 0)))]
+    score = round(sum(parts) / len(parts))
+    label = "Bullish confluence" if score >= 60 else "Bearish confluence" if score <= 40 else "Neutral confluence"
+    dec = FX_DEC.get(sym, 5 if sym != "XAUUSD" else 2)
+    return {"score": score, "label": label,
+            "signals": {"momentum": {"pct": round(mom, 2), "bull": mom > 0}, "rsi": {"value": None if r is None else round(r, 1), "bull": (r or 50) > 50},
+                        "ema": {"above": price > ema}, "zscore": {"value": z, "bull": (z or 0) > 0}},
+            "sr": sr_levels(s, price, dec)}
+
+
+def fx_from_data(data: dict) -> dict:
+    out = {}
+    series = dict(data.get("fxp", {}))
+    if data.get("gold_px") is not None and len(data["gold_px"]) > 60:
+        series["XAUUSD"] = data["gold_px"]
+    for sym, s in series.items():
+        dec = FX_DEC.get(sym, 5)
+        price, prev = float(s.iloc[-1]), float(s.iloc[-2])
+        out[sym] = {"display": f"{price:,.{dec}f}", "value": price, "changePct": round((price / prev - 1) * 100, 3),
+                    "date": s.index[-1].strftime("%Y-%m-%d"), "spark": [round(float(v), 6) for v in s.tail(30)],
+                    "confluence": fx_confluence(sym, s)}
+    return out
+
+
 def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
     empty = '<p class="muted-text">No FX feed saved yet. It appears after the first successful update.</p>'
     out = {"tiles": "", "fx": empty, "conf": empty, "econ": empty, "news": empty, "upd": "n/a"}
@@ -650,7 +730,11 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
             tiles.append(tile(d["label"], d.get("display", ""), d.get("changePct"), d.get("spark"), (d.get("date") or "")[5:]))
     out["tiles"] = "".join(tiles)
 
-    fx = feed.get("fx") or {}
+    own = fx_from_data(data)                     # our own pairs + XAUUSD, computed from saved closes
+    fx = own if own else (feed.get("fx") or {})
+    if own:
+        dates = sorted({d["date"] for d in own.values()})
+        out["upd"] = dates[-1]
     cards, confs = [], []
     live = 0
     for sym, d in fx.items():
@@ -797,22 +881,27 @@ def build_cot_tables(data: dict) -> dict[str, str]:
                 txt = fmt(num(row[col]), nd, sg)
                 cls = chg_class(txt) if sg else ""
                 tds += f'<td class="{cls}">{esc(txt)}</td>'
-            rows.append(f'<tr{" class=\"cur\"" if not rows else ""}><th scope="row">{d.strftime("%Y-%m-%d")}{" <span class=\"curtag\">latest</span>" if not rows else ""}</th>{tds}</tr>')
+            dot = '<span class="curdot" title="Latest report"><span class="sr-only">Latest report: </span></span>' if not rows else ""
+            rows.append(f'<tr{" class=\"cur\"" if not rows else ""}><th scope="row">{dot}{d.strftime("%Y-%m-%d")}</th>{tds}</tr>')
 
         def zval(s_):
             s_ = s_.dropna()
             sd = s_.std(ddof=1)
             return num((s_.iloc[-1] - s_.mean()) / sd) if len(s_) > 2 and sd else None
 
-        def stat_row(label, fn, nd=None, sign=False):
+        def stat_row(label, fn, nd=None, sign=False, cls=""):
             cells = ""
             for col in v.columns:
                 d_, _ = COT_DEC[col]
-                cells += f"<td>{esc(fmt(num(fn(v[col].dropna())), d_ if nd is None else nd, sign))}</td>"
-            return f'<tr><th scope="row">{label}</th>{cells}</tr>'
-        stats = [stat_row("Average", lambda s_: s_.mean()), stat_row("Std dev", lambda s_: s_.std(ddof=1)),
-                 stat_row("Min", lambda s_: s_.min()), stat_row("Max", lambda s_: s_.max()),
-                 stat_row("Z-score", lambda s_: zval(s_) if zval(s_) is not None else float("nan"), 2, True)]
+                val = num(fn(v[col].dropna()))
+                tcls = ""
+                if cls == "st-z" and val is not None and abs(val) >= 1:
+                    tcls = f' class="zhi {"up" if val > 0 else "down"}"'
+                cells += f"<td{tcls}>{esc(fmt(val, d_ if nd is None else nd, sign))}</td>"
+            return f'<tr class="{cls}"><th scope="row">{label}</th>{cells}</tr>'
+        stats = [stat_row("Average", lambda s_: s_.mean(), cls="st-avg"), stat_row("Std dev", lambda s_: s_.std(ddof=1), cls="st-sd"),
+                 stat_row("Min", lambda s_: s_.min(), cls="st-mm"), stat_row("Max", lambda s_: s_.max(), cls="st-mm"),
+                 stat_row("Z-score", lambda s_: zval(s_) if zval(s_) is not None else float("nan"), 2, True, cls="st-z")]
         read = ""
         for col in v.columns:
             if col in COT_READ:
@@ -821,8 +910,10 @@ def build_cot_tables(data: dict) -> dict[str, str]:
             else:
                 read += "<td></td>"
         stats.append(f'<tr class="readrow"><th scope="row">Reading</th>{read}</tr>')
-        cot_cells = f'<td colspan="{len(v.columns)}" class="lefttd"><b>{esc(fmt(num(c["index"].iloc[-1]), 1))}</b> <span class="muted-text">(0 = most short, 100 = most long over 52 reports)</span></td>'
-        stats.append(f'<tr><th scope="row">COT Index</th>{cot_cells}</tr>')
+        ci = num(c["index"].iloc[-1])
+        cot_cells = (f'<td colspan="{len(v.columns)}" class="lefttd"><span class="cimeter"><span class="cifill" style="width:{0 if ci is None else max(0, min(100, ci)):.1f}%"></span></span>'
+                     f'<b class="cival">{esc(fmt(ci, 1))}</b> <span class="muted-text">0 = most short, 100 = most long over 52 reports</span></td>')
+        stats.append(f'<tr class="st-ci"><th scope="row">COT Index</th>{cot_cells}</tr>')
         heads = ["Report date"] + list(v.columns)
         cols = '<colgroup><col class="cd">' + "<col>" * len(v.columns) + "</colgroup>"
         out[key] = ('<div class="cotpair"><div class="scroll tall"><table class="weekly">' + cols + "<thead><tr>" + "".join(f"<th>{h}</th>" for h in heads)
@@ -1092,6 +1183,89 @@ def build_fed(data: dict, today: date) -> tuple[dict, dict | None, str | None]:
     return out, pay, quick
 
 
+ZQ_BIG_MOVE = 10.0     # percentage points in one day = "big move" marker
+
+
+def build_zq(data: dict, today: date) -> tuple[dict, dict | None]:
+    """Fed Rate Odds (30-Day Fed Funds futures) block: next-meeting card, meeting table, chart payload with big-move markers."""
+    empty = '<p class="emptystate">No futures-based odds saved yet. They appear after the next data update (needs EFFR, the FOMC calendar and ZQ prices).</p>'
+    out = {"next": empty, "table": empty, "upd": "n/a"}
+    z = data.get("zq")
+    if z is None or z.empty:
+        return out, None
+    z = z.copy()
+    z = z[z["meeting_date"] >= today.isoformat()]
+    if z.empty:
+        return out, None
+    last_day = z["snapshot_date"].max()
+    cur = z[z["snapshot_date"] == last_day].sort_values("meeting_date")
+    out["upd"] = last_day
+
+    def pp(v):
+        v = num(v)
+        return '<span class="muted-text">n/a</span>' if v is None else f'<span class="{"up" if v > 0.5 else "down" if v < -0.5 else "muted-text"}">{v:+.1f}</span>'
+
+    nx = cur.iloc[0]
+    md = datetime.strptime(nx["meeting_date"], "%Y-%m-%d").date()
+    days_to = (md - today).days
+    p = {"cut": float(nx["cut_probability"]), "hold": float(nx["hold_probability"]), "hike": float(nx["hike_probability"])}
+    lean = max(p, key=p.get)
+    stack = ('<div class="stack3" role="img" aria-label="Cut {:.0f}%, hold {:.0f}%, hike {:.0f}%">'.format(p["cut"], p["hold"], p["hike"])
+             + "".join(f'<span class="seg {k}" style="flex-basis:{p[k]:.2f}%" title="{k.capitalize()} {p[k]:.0f}%">{(k.capitalize() + " " + format(p[k], ".0f") + "%") if p[k] >= 9 else ""}</span>' for k in ("cut", "hold", "hike"))
+             + '</div><div class="stacklegend">' + "".join(f'<span><i class="seg {k}"></i>{k.capitalize()} {p[k]:.0f}%</span>' for k in ("cut", "hold", "hike")) + "</div>")
+    rows = [("Contract used", esc(nx["zq_contract"])), ("ZQ price", f'{float(nx["zq_price"]):.3f}'), ("Current EFFR", f'{float(nx["current_effr"]):.2f}%'),
+            ("Implied average rate", f'{float(nx["implied_average_rate"]):.3f}%'), ("Implied post-meeting rate", f'{float(nx["implied_post_meeting_rate"]):.3f}%'),
+            ("Implied rate change (+ = cut, − = hike)", f'{float(nx["implied_rate_change_bp"]):+.1f} bp'),
+            ("Cut odds, 1 day / 1 week", f'{pp(nx["cut_probability_change_1d"])} / {pp(nx["cut_probability_change_1w"])} pp'),
+            ("Hike odds, 1 day / 1 week", f'{pp(nx["hike_probability_change_1d"])} / {pp(nx["hike_probability_change_1w"])} pp')]
+    dl = "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>" for k, v in rows)
+    note = f'<p class="note">{esc(nx["note"])}</p>' if isinstance(nx.get("note"), str) and nx["note"] else ""
+    out["next"] = (f'<div class="fmeet"><div class="kl">Next FOMC decision</div><div class="kv">{md.day} {md.strftime("%b %Y")}</div>'
+                   f'<div class="kc">{"today" if days_to == 0 else f"in {days_to} days"} · futures lean <b>{lean.capitalize()} {p[lean]:.0f}%</b></div></div>'
+                   f'{stack}<dl>{dl}</dl>{note}')
+    heads = ["Meeting", "Contract", "ZQ price", "EFFR", "Implied avg", "Rate into meeting", "Implied post-meeting", "Change <small>bp, + cut / − hike</small>",
+             "Cut 25bp", "Hold", "Hike 25bp", "Cut 1D", "Hike 1D", "Cut 1W", "Hike 1W"]
+    trs = []
+    for _, r_ in cur.iterrows():
+        d = datetime.strptime(r_["meeting_date"], "%Y-%m-%d").date()
+        flag = ' <span class="badge warn" title="' + esc(r_["note"]) + '">&gt;25 bp</span>' if str(r_.get("large_move_flag")) in ("True", "true", "1") else ""
+        cells = (f'<td>{esc(r_["zq_contract"])}</td><td>{float(r_["zq_price"]):.3f}</td><td>{float(r_["current_effr"]):.2f}%</td>'
+                 f'<td>{float(r_["implied_average_rate"]):.3f}%</td><td>{float(r_["pre_meeting_rate"]):.3f}%</td><td>{float(r_["implied_post_meeting_rate"]):.3f}%</td>'
+                 f'<td>{float(r_["implied_rate_change_bp"]):+.1f}{flag}</td>'
+                 + "".join(f'<td class="heat pos" style="--i:{min(100, round(float(r_[k])))}">{float(r_[k]):.0f}%</td>' for k in ("cut_probability", "hold_probability", "hike_probability"))
+                 + "".join(f"<td>{pp(r_[k])}</td>" for k in ("cut_probability_change_1d", "hike_probability_change_1d", "cut_probability_change_1w", "hike_probability_change_1w")))
+        note = f' title="{esc(r_["note"])}"' if isinstance(r_.get("note"), str) and r_["note"] else ""
+        trs.append(f'<tr{note}><th scope="row">{d.strftime("%b %Y")} <span class="muted-text">&middot; {d.day} {d.strftime("%b")}</span></th>{cells}</tr>')
+    out["table"] = ('<table class="matrix ftable zqtable"><thead><tr>' + "".join(f"<th>{h}</th>" for h in heads) + "</tr></thead><tbody>"
+                    + "".join(trs) + "</tbody></table>")
+
+    # chart payload: next 4 meetings, cut and hike odds over time, plus big-move markers labelled with same-day events
+    ev = data.get("events")
+    evmap: dict[str, list[str]] = {}
+    if ev is not None:
+        for _, e in ev.iterrows():
+            evmap.setdefault(str(e["date"]), []).append(str(e["event"]))
+    meets = list(cur["meeting_date"])[:4]
+    hist = z[z["meeting_date"].isin(meets)]
+    dates = sorted(hist["snapshot_date"].unique())
+    pay = {"dates": dates, "meetings": [], "marks": []}
+    big = {}
+    for mi, mdate in enumerate(meets):
+        g = hist[hist["meeting_date"] == mdate].set_index("snapshot_date")
+        d = datetime.strptime(mdate, "%Y-%m-%d").date()
+        pay["meetings"].append({"label": f'{d.strftime("%b %Y")}', "cut": [r(g["cut_probability"].get(x), 1) for x in dates],
+                                "hike": [r(g["hike_probability"].get(x), 1) for x in dates]})
+        for x, row in (g.iterrows() if mi == 0 else []):     # markers follow the next meeting, the most liquid contract
+            for k in ("cut_probability_change_1d", "hike_probability_change_1d"):
+                v = num(row.get(k))
+                if v is not None and abs(v) >= ZQ_BIG_MOVE:
+                    big.setdefault(x, []).append(f'{d.strftime("%b")} {"cut" if k.startswith("cut") else "hike"} {v:+.0f} pp')
+    for x in sorted(big):
+        evs = evmap.get(x, [])
+        pay["marks"].append({"date": x, "label": evs[0].split(" ")[0] if evs else "", "title": f'{x}: ' + ", ".join(big[x]) + (f' ({", ".join(evs)})' if evs else "")})
+    return out, pay
+
+
 def read_fx_feed(data_dir: Path) -> dict | None:
     p = data_dir / "fx_macro.json"
     if not p.exists():
@@ -1108,6 +1282,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     rows, fam = build_watch(playbook, data, computed)
     erows, efam, etable = build_econ(data)
     fedh, fedp, fedq = build_fed(data, today)
+    zqh, zqp = build_zq(data, today)
     fam.update(efam)
     fx = build_fx(feed, data)
     cot_t = build_cot_tables(data)
@@ -1125,7 +1300,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y", "S:5y-2y") if any(r_["id"] == x for r_ in rows)]
     payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows + erows},
                "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
-               "default": default_sel, "fed": fedp, "matrix": matrix_payload(computed), "curve": curve_payload(data), "cot": build_cot_charts(data),
+               "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed), "curve": curve_payload(data), "cot": build_cot_charts(data),
                "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
                "unit": {"spreads": "%", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
 
@@ -1135,7 +1310,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__TILES__": fx["tiles"], "__SIGNALS__": sig_html, "__WATCHLIST__": build_watch_html(rows), "__MATRIX__": build_matrix(data, computed),
         "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_GOLD_TABLE__": cot_t["gold"], "__COT_USD_TABLE__": cot_t["usd_index"],
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
-        "__FX_CARDS__": fx["fx"], "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__FED_TABLE__": fedh["table"],
+        "__FX_CARDS__": fx["fx"], "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
         "__STATUS__": build_status(data, today), "__DISCLAIMER__": esc(playbook["meta"]["disclaimer"]),
     }
