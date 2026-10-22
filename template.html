@@ -574,7 +574,7 @@
 
   <!-- ============ FX ============ -->
   <section class="sec" id="fx">
-    <div class="sechead"><h2>FX confluence</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from Yahoo Finance (FRED fallback); XAUUSD uses COMEX gold futures. Latest close __FXUPD__.</p></div>
+    <div class="sechead"><h2>FX confluence</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from the ECB's official euro reference rates (daily 14:15 CET fixing, crossed through the euro; Yahoo then FRED as fallbacks); XAUUSD uses COMEX gold futures. Latest close __FXUPD__.</p></div>
     <div class="grid">
       <div class="card" style="--w:12"><div class="card-h"><h3>Spot</h3></div><div class="card-b">__FX_CARDS__</div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>Confluence</h3></div><div class="card-b">__CONFLUENCE__</div></div>
@@ -616,7 +616,7 @@
 
   <footer>
     <p>__DISCLAIMER__</p>
-    <p>Sources: FRED, Bank of Canada, Bundesbank, Japan MoF, RBA (yields); CFTC (COT); Kalshi (Fed odds); Yahoo Finance (DXY, gold futures); fx-macro-confluence feed (FX, news).</p>
+    <p>Sources: FRED, Bank of Canada, Bundesbank, Japan MoF, RBA (yields); CFTC (COT); Kalshi (Fed odds); ECB reference rates (FX pairs; DXY computed with ICE's published formula, Yahoo fallback); Yahoo Finance (gold futures); fx-macro-confluence feed (economy tiles, news).</p>
   </footer>
 </main>
 
