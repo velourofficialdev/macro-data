@@ -41,7 +41,7 @@ ECON_CODES = [   # US macro releases from FRED -> data/econ/<CODE>.csv (12 years
     "UNRATE", "CIVPART", "EMRATIO", "CLF16OV", "CE16OV", "UNEMPLOY", "PAYEMS", "CES0500000003",
     "ICSA", "CCSA", "JTSJOL", "JTSQUR",
 ]
-MARKET_CODES = ["SP500", "DCOILWTICO", "VIXCLS", "CBBTCUSD"]   # tiles in the overview (FRED, daily) -> data/econ/<CODE>.csv
+MARKET_CODES = ["SP500", "DCOILWTICO", "VIXCLS", "GVZCLS", "CBBTCUSD"]   # GVZCLS = Cboe Gold ETF Volatility Index (GVZ)   # tiles in the overview (FRED, daily) -> data/econ/<CODE>.csv
 FRED_ALIAS = {"GDIC1": "A261RX1Q020SBEA"}   # FRED has no GDIC1 id; this is Real Gross Domestic Income (chained 2017 $)
 FRED_CODES = ["DGS3MO", "DGS2", "DGS5", "DGS10", "DGS20", "DGS30", "DFII10"]
 KEEP_DAILY = 2700     # rows kept per daily series (about 10 years; the 252-day window needs only 252)

@@ -260,7 +260,7 @@ def load_everything(data_dir: Path) -> dict:
         x = read_series(data_dir / "fx" / f"{pair}.csv", "date", "Close")
         if x is not None and len(x) > 60:
             fxp[pair] = x
-    mkt = {c: x for c in ("SP500", "DCOILWTICO", "VIXCLS", "CBBTCUSD") if (x := read_series(data_dir / "econ" / f"{c}.csv", "date", c)) is not None}
+    mkt = {c: x for c in ("SP500", "DCOILWTICO", "VIXCLS", "GVZCLS", "CBBTCUSD") if (x := read_series(data_dir / "econ" / f"{c}.csv", "date", c)) is not None}
     zq = pd.read_csv(data_dir / "fed" / "zq_odds.csv") if (data_dir / "fed" / "zq_odds.csv").exists() else None
     events = pd.read_csv(data_dir / "fed" / "events.csv") if (data_dir / "fed" / "events.csv").exists() else None
     return {"zq": zq, "events": events, "fxp": fxp, "fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
@@ -427,6 +427,21 @@ def delta(s: pd.Series, n: int, pct: bool = False):
     return num((s.iloc[-1] / s.iloc[-1 - n] - 1) * 100) if pct else num(s.iloc[-1] - s.iloc[-1 - n])
 
 
+INTL_SOURCE = {"CA": "Bank of Canada", "DE": "Deutsche Bundesbank (Svensson curve)", "FR": "CNBC benchmark yield, European close",
+               "IT": "CNBC benchmark yield, European close", "JP": "Japan Ministry of Finance", "AU": "Reserve Bank of Australia",
+               "CN": "ChinaBond government bond yield curve", "IN": "FBIL G-Sec par yield (semi-annual)"}
+
+
+def yield_row(rid: str, cc: str, ten: str, s: pd.Series, z, band, what: str, title: str, date_: str) -> dict:
+    """Watchlist row for one yield: level in %, changes in bp (same scale as the spreads)."""
+    bp = lambda n: None if delta(s, n) is None else delta(s, n) * 100
+    label = f"{COUNTRIES[cc]} {ten} yield"
+    return {"id": rid, "group": COUNTRIES[cc], "family": "yields", "label": label, "ticker": f"{cc}{ten.replace(' real', 'R').upper()}",
+            "latest": fmt(s.iloc[-1], 3) + "%", "d1": fmt(bp(1), 1, True), "d5": fmt(bp(5), 1, True),
+            "d20": fmt(bp(21), 1, True), "d252": fmt(bp(252), 1, True), "z": fmt(z, 2, True), "date": date_,
+            "info": {"title": title, "what": what, "band": band_info(band), "dyn": None, "z": z}}
+
+
 def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict], dict]:
     """Rows for the watchlist (left panel) and the daily series for the chart (right panel)."""
     metrics = computed["metrics"]
@@ -439,6 +454,32 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
         frame = pd.concat(series, axis=1).sort_index()
         fam[name] = {"dates": [d.strftime("%Y-%m-%d") for d in frame.index],
                      "series": {k: [r(v, dec) for v in frame[k]] for k in frame.columns}}
+
+    # individual yields, in each country's group ahead of its spreads (one "yields" family, so any yields can be compared)
+    ys = {}
+    for code in YIELD_CODES:
+        s = data["yields"].get(code)
+        if s is None:
+            continue
+        m = metrics[f"Y:{code}"]
+        if code == "DFII10":
+            band = pick_band(playbook["real_yield"]["bands"], m["z"]); what = playbook["real_yield"].get("what", "")
+        else:
+            band = pick_band(playbook["zscore"]["bands"], m["z"]); what = "US Treasury constant-maturity yield from FRED."
+        rows.append(yield_row(f"Y:{code}", "US", YIELD_LABELS[code], s, m["z"], band, what,
+                              YIELD_LABELS[code] + (" yield" if code != "DFII10" else " Treasury yield (TIPS)"), m["date"]))
+        ys[f"Y:{code}"] = s
+    for cc, ser in data.get("intl", {}).items():
+        for ten in INTL_TENORS:
+            s = ser.get(ten)
+            if s is None or len(s) < 30:
+                continue
+            z = num(roll_z(s, DAILY_WINDOW).iloc[-1])
+            rows.append(yield_row(f"Y:{cc}:{ten}", cc, ten, s, z, pick_band(playbook["zscore"]["bands"], z),
+                                  f"{COUNTRIES[cc]} {ten} government bond yield. Source: {INTL_SOURCE.get(cc, '')}.",
+                                  f"{COUNTRIES[cc]} {ten} yield", s.index[-1].strftime("%Y-%m-%d")))
+            ys[f"Y:{cc}:{ten}"] = s
+    family("yields", ys, 3)
 
     # spreads, grouped by country (US first); every country's spreads can be overlaid on one chart
     ss = computed["spread_series"]
@@ -460,25 +501,6 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
                      "info": {"title": title + " spread", "what": spec["what"], "band": band_info(pick_band(spec["bands"], m["value"])),
                               "dyn": band_info(dyn) if dyn else None, "z": m["z"]}})
     family("spreads", {f"S:{k}": v for k, v in ss.items()}, 3)
-
-    # yields
-    ys = {}
-    for code in YIELD_CODES:
-        s = data["yields"].get(code)
-        if s is None:
-            continue
-        m = metrics[f"Y:{code}"]
-        if code == "DFII10":
-            band = pick_band(playbook["real_yield"]["bands"], m["z"]); what = playbook["real_yield"].get("what", "")
-        else:
-            band = pick_band(playbook["zscore"]["bands"], m["z"]); what = "US Treasury constant-maturity yield from FRED."
-        rows.append({"id": f"Y:{code}", "group": "US Treasury yields", "family": "yields", "label": "US " + YIELD_LABELS[code], "ticker": "US" + YIELD_LABELS[code].replace(" real", "R").upper(),
-                     "latest": fmt(s.iloc[-1], 2) + "%", "d1": fmt(delta(s, 1), 2, True), "d5": fmt(delta(s, 5), 2, True),
-                     "d20": fmt(delta(s, 20), 2, True), "z": fmt(m["z"], 2, True), "date": m["date"],
-                     "info": {"title": YIELD_LABELS[code] + (" yield" if code != "DFII10" else " Treasury yield (TIPS)"), "what": what,
-                              "band": band_info(band), "dyn": None, "z": m["z"]}})
-        ys[f"Y:{code}"] = s
-    family("yields", ys, 3)
 
     # dollar and gold
     for key, series, label, dec, spec in (("dxy", data["dxy"], "DXY", 2, playbook["dxy"]), ("gold", data.get("gold_px"), "Gold futures", 2, None)):
@@ -509,9 +531,9 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
 
 
 def build_watch_html(rows: list[dict]) -> str:
-    """Left panel of the Rates block: spreads only, grouped by country (same layout as the reference terminal)."""
-    rows = [r_ for r_ in rows if r_["family"] == "spreads"]
-    cols = ('<th class="cb"><span class="sr-only">Select</span></th><th>Name</th><th class="c-tk">Ticker</th><th>Yield diff <small>pp</small></th>'
+    """Left panel of the Rates block: each country's yields, then its spreads (same layout as the reference terminal)."""
+    rows = [r_ for r_ in rows if r_["family"] in ("yields", "spreads")]
+    cols = ('<th class="cb"><span class="sr-only">Select</span></th><th>Name</th><th class="c-tk">Ticker</th><th>Level <small>% / pp</small></th>'
             '<th>1D <small>bp</small></th><th class="c-d5">1W <small>bp</small></th><th class="c-d20">1M <small>bp</small></th>'
             '<th class="c-d252">1Y <small>bp</small></th><th class="c-z">Z</th>')
     out = [f'<table class="watch" id="watch"><thead><tr>{cols}</tr></thead>']
@@ -521,15 +543,15 @@ def build_watch_html(rows: list[dict]) -> str:
             groups.append(r_["group"])
     for g in groups:
         members = [r_ for r_ in rows if r_["group"] == g]
-        out.append(f'<tbody data-group="{esc(g)}"><tr class="grp"><td class="cb"><span class="gbox" role="checkbox" aria-checked="false" tabindex="0" aria-label="Plot all {esc(g)} spreads"></span></td>'
+        out.append(f'<tbody data-group="{esc(g)}"><tr class="grp"><td class="cb"><span class="gbox" role="checkbox" aria-checked="false" tabindex="0" aria-label="Plot {esc(g)} yields or spreads"></span></td>'
                    f'<th colspan="7"><button type="button" class="gt" aria-expanded="true"><span class="car"></span>{esc(g)}</button></th>'
                    f'<td class="gmove"><button type="button" class="mv up" aria-label="Move {esc(g)} up">&#9650;</button><button type="button" class="mv dn" aria-label="Move {esc(g)} down">&#9660;</button></td></tr>')
         for r_ in members:
             out.append(
-                f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="spreads">'
+                f'<tr class="row{" yl" if r_["family"] == "yields" else ""}" tabindex="0" data-id="{esc(r_["id"])}" data-family="{r_["family"]}">'
                 f'<td class="cb"><span class="pick" aria-hidden="true"></span></td>'
                 f'<th scope="row"><span class="plus">+</span>{esc(r_["label"])}</th><td class="c-tk tk"><span class="plus">+</span>{esc(r_["ticker"])}</td>'
-                f'<td class="yd">{esc(r_["latest"][:-1])}<small>pp</small></td><td class="{chg_class(r_["d1"])}{hm(r_["d1"], 10)}">{esc(r_["d1"])}</td>'
+                f'<td class="yd">{esc(r_["latest"][:-1])}<small>{"%" if r_["family"] == "yields" else "pp"}</small></td><td class="{chg_class(r_["d1"])}{hm(r_["d1"], 10)}">{esc(r_["d1"])}</td>'
                 f'<td class="c-d5 {chg_class(r_["d5"])}{hm(r_["d5"], 20)}">{esc(r_["d5"])}</td><td class="c-d20 {chg_class(r_["d20"])}{hm(r_["d20"], 30)}">{esc(r_["d20"])}</td>'
                 f'<td class="c-d252 {chg_class(r_["d252"])}{hm(r_["d252"], 80)}">{esc(r_["d252"])}</td><td class="c-z{hm(r_["z"], 2.5)}">{esc(r_["z"])}</td></tr>')
         out.append("</tbody>")
@@ -754,8 +776,9 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
     if not feed:
         feed = {}
     out["upd"] = (str(feed.get("updated", ""))[:16].replace("T", " ") + " UTC") if feed.get("updated") else "n/a"
-    for key in ("sp500", "wti", "vix", "btc"):
-        code, label, dec = {"sp500": ("SP500", "S&P 500", 0), "wti": ("DCOILWTICO", "WTI oil", 2), "vix": ("VIXCLS", "VIX", 2), "btc": ("CBBTCUSD", "BTC", 0)}[key]
+    for key in ("sp500", "wti", "vix", "gvz", "btc"):
+        code, label, dec = {"sp500": ("SP500", "S&P 500", 0), "wti": ("DCOILWTICO", "WTI oil", 2), "vix": ("VIXCLS", "VIX", 2),
+                            "gvz": ("GVZCLS", "Gold vol (GVZ)", 2), "btc": ("CBBTCUSD", "BTC", 0)}[key]
         ms = data.get("mkt", {}).get(code)
         d = (feed.get("markets") or {}).get(key) or {}
         if ms is not None and len(ms) > 5:      # FRED copy (always available) wins over the feed

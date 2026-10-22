@@ -155,6 +155,7 @@
   /* market tiles (risk strip, FX spot) */
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
   .riskstrip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .riskstrip .tile:last-child:nth-child(odd) { grid-column: 1 / -1; }   /* odd tile count: last tile spans the row */
   .tile { border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; min-width: 0; background: var(--surface); }
   .tl { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
   .tv { font-size: 18px; font-weight: 600; margin-top: 2px; }
@@ -501,10 +502,10 @@
 
   <!-- ============ RATES ============ -->
   <section class="sec" id="rates">
-    <div class="sechead"><h2>Rates</h2><p>Click rows, or a country's box, to plot up to five spreads. Yield diff = long minus short yield in percentage points (pp); changes in basis points (1 pp = 100 bp).</p></div>
+    <div class="sechead"><h2>Rates</h2><p>Each country lists its yields (in %) and then its spreads. Click rows, or a country's box, to plot up to five yields or five spreads (one kind at a time). Spread = long minus short yield in percentage points (pp); all changes in basis points (1 pp = 100 bp).</p></div>
     <div class="term rterm">
       <div class="card wlp">
-        <div class="card-h"><h3>Yield Spreads</h3><span class="ctools"><button type="button" class="tool" data-embed="rates" title="Copy code to embed this section in another page">&lt;/&gt; Embed</button><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></span></div>
+        <div class="card-h"><h3>Yields and Spreads</h3><span class="ctools"><button type="button" class="tool" data-embed="rates" title="Copy code to embed this section in another page">&lt;/&gt; Embed</button><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></span></div>
         <div class="tbar">
           <button type="button" data-act="cols" aria-expanded="false"><svg class="ico"><use href="#i-cols"/></svg>Columns</button>
           <button type="button" data-act="save" title="Remember the selected rows in this browser"><svg class="ico"><use href="#i-save"/></svg>Save as watchlist</button>
@@ -512,7 +513,7 @@
           <button type="button" data-act="flt" aria-expanded="false"><svg class="ico"><use href="#i-flt"/></svg>Filter</button>
         </div>
         <div class="colmenu" hidden><label><input type="checkbox" data-col="c-tk" checked> Ticker</label><label><input type="checkbox" data-col="c-d5" checked> 1W</label><label><input type="checkbox" data-col="c-d20" checked> 1M</label><label><input type="checkbox" data-col="c-d252" checked> 1Y</label><label><input type="checkbox" data-col="c-z" checked> Z</label></div>
-        <div class="filter" hidden><input type="search" placeholder="Filter: Japan, 10Y, 30Y vs 5Y…" aria-label="Filter Yield Spreads"></div>
+        <div class="filter" hidden><input type="search" placeholder="Filter: Japan, 10Y yield, 30Y vs 5Y…" aria-label="Filter yields and spreads"></div>
         <div class="wl">__WATCHLIST__</div>
       </div>
       <div class="card chp">
@@ -527,7 +528,7 @@
       </div>
     </div>
     <div class="grid" style="margin-top:12px">
-      <div class="card" style="--w:5"><div class="card-h"><h3>Reading: last spread you clicked</h3></div><div class="card-b reading" id="reading"></div></div>
+      <div class="card" style="--w:5"><div class="card-h"><h3>Reading: last row you clicked</h3></div><div class="card-b reading" id="reading"></div></div>
       <details class="card collapse" style="--w:7" open data-mobile-closed>
         <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>US spreads across time (bp)</h3></span></summary>
         <div class="scroll">__MATRIX__</div>
