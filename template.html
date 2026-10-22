@@ -228,6 +228,7 @@
   table.watch td.cb, table.watch th.cb { padding: 0 0 0 10px; text-align: left; }
   table.watch .plus { color: var(--accent); margin-right: 6px; font-size: 10px; }
   table.watch .tk { color: var(--muted); font-size: 12px; text-align: left; }
+  table.watch small.cu { color: var(--muted); font-size: 10px; margin-left: 2px; }
   table.watch td.yd small { color: var(--muted); font-size: 10px; margin-left: 1px; }
   table.watch.hide-c-tk .c-tk, table.watch.hide-c-d5 .c-d5, table.watch.hide-c-d20 .c-d20, table.watch.hide-c-d252 .c-d252, table.watch.hide-c-z .c-z, table.watch.hide-c-per .c-per { display: none; }
   table.watch tr.grp td, table.watch tr.grp th { background: color-mix(in srgb, var(--surface-2) 55%, var(--surface)); height: 32px; border-bottom: 1px solid var(--border); }
@@ -537,7 +538,7 @@
     <div class="sechead" style="margin-top:20px"><h2>Fed Rate Odds</h2><p>Market-implied probability of a Fed rate hike, hold, or cut at the next FOMC meeting, calculated from 30-Day Fed Funds futures and compared with previous daily snapshots. Latest snapshot __ZQ_UPD__.</p></div>
     <div class="grid">
       <div class="card" style="--w:4"><div class="card-h"><h3>Next meeting · futures</h3></div><div class="card-b">__ZQ_NEXT__</div></div>
-      <div class="card" style="--w:4"><div class="card-h"><h3>Cut probability over time</h3></div><div class="legend" data-for="zqcut"></div><div class="cv tall" id="ch-zqcut" role="img" aria-label="Probability of a 25 bp cut over time for each upcoming meeting"></div><p class="note" style="padding:0 16px 12px">Dashed lines mark days when odds moved 10 pp or more; labels show a CPI, jobs report, PCE or FOMC release that day.</p></div>
+      <div class="card" style="--w:4"><div class="card-h"><h3>Cut probability over time</h3></div><div class="legend" data-for="zqcut"></div><div class="cv tall" id="ch-zqcut" role="img" aria-label="Probability of a 25 bp cut over time for each upcoming meeting"></div><p class="note" style="padding:0 16px 12px">Dashed lines mark days when odds moved 10 pp or more; labels show a CPI, jobs report, PCE, FOMC decision or Fed speech that day.</p></div>
       <div class="card" style="--w:4"><div class="card-h"><h3>Hike probability over time</h3></div><div class="legend" data-for="zqhike"></div><div class="cv tall" id="ch-zqhike" role="img" aria-label="Probability of a 25 bp hike over time for each upcoming meeting"></div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>All upcoming meetings · 30-Day Fed Funds futures</h3><p class="note">Market-implied probabilities derived from 30-Day Fed Funds futures; not an official Fed forecast.</p></div><div class="scroll">__ZQ_TABLE__</div></div>
     </div>
