@@ -638,60 +638,93 @@ def gauge_ring(score: float, cls: str) -> str:
 FX_DEC = {"USDJPY": 3, "XAUUSD": 2}
 
 
-def rsi(s: pd.Series, n: int = 14) -> float | None:
-    d = s.diff().dropna()
-    if len(d) < n + 1:
+# FX confluence: a line-for-line port of the original engine (deiruuuu/fx-macro-engine, fetch-data.js),
+# so scores match the old fx-macro-confluence page. That engine pulled the latest 400 daily FRED closes per pair.
+FX_OBS = 400
+
+
+def ema_seeded(a: list[float], n: int) -> float | None:
+    """EMA seeded with the simple average of the first n values (as in fetch-data.js)."""
+    if len(a) < n:
         return None
-    up = d.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
-    dn = (-d.clip(upper=0)).ewm(alpha=1 / n, adjust=False).mean()
-    rs = up.iloc[-1] / dn.iloc[-1] if dn.iloc[-1] else float("inf")
-    return num(100 - 100 / (1 + rs))
+    k = 2 / (n + 1)
+    e = sum(a[:n]) / n
+    for v in a[n:]:
+        e = v * k + e * (1 - k)
+    return e
 
 
-def sr_levels(s: pd.Series, price: float, dec: int, lookback: int = 120, win: int = 5) -> list[dict]:
-    """Support/resistance from swing highs and lows (local extremes over +-win days) in the last `lookback` days,
-    merged when within 0.3% of each other. Strength = how many swings formed the level."""
-    x = s.tail(lookback)
-    piv = []
-    for i in range(win, len(x) - win):
-        w = x.iloc[i - win:i + win + 1]
-        if x.iloc[i] == w.max() or x.iloc[i] == w.min():
-            piv.append(float(x.iloc[i]))
-    piv += [float(x.max()), float(x.min())]
-    clusters: list[list[float]] = []
-    for v in sorted(piv):
-        if clusters and abs(v / clusters[-1][-1] - 1) < 0.003:
-            clusters[-1].append(v)
+def rsi(a: list[float], n: int = 14) -> float | None:
+    """Wilder RSI seeded with the simple average gain/loss of the first n changes."""
+    if len(a) < n + 1:
+        return None
+    gain = loss = 0.0
+    for i in range(1, n + 1):
+        d = a[i] - a[i - 1]
+        if d >= 0:
+            gain += d
         else:
-            clusters.append([v])
-    lv = [(sum(c) / len(c), len(c)) for c in clusters]
-    above = sorted([l for l in lv if l[0] > price], key=lambda l: l[0])[:2]
-    below = sorted([l for l in lv if l[0] <= price], key=lambda l: -l[0])[:2]
-    out = []
-    for lvl, n in sorted(above, key=lambda l: -l[0]) + below:
-        out.append({"level": f"{lvl:,.{dec}f}", "strength": "Strong" if n >= 3 else "Moderate",
-                    "distPct": round((lvl / price - 1) * 100, 2)})
-    return out
+            loss -= d
+    ag, al = gain / n, loss / n
+    for i in range(n + 1, len(a)):
+        d = a[i] - a[i - 1]
+        ag = (ag * (n - 1) + max(d, 0)) / n
+        al = (al * (n - 1) + max(-d, 0)) / n
+    if al == 0:
+        return 100.0
+    return 100 - 100 / (1 + ag / al)
+
+
+def zscore_last(a: list[float], w: int = 200) -> float | None:
+    """Z-score of the last close vs the last w closes (population SD); None with fewer than 20 values."""
+    s = a[-w:]
+    if len(s) < 20:
+        return None
+    mean = sum(s) / len(s)
+    sd = math.sqrt(sum((x - mean) ** 2 for x in s) / len(s))
+    if sd == 0:
+        return None
+    return (a[-1] - mean) / sd
+
+
+def clamp(v: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, v))
+
+
+def sr_levels(a: list[float], current: float, dec: int) -> list[dict]:
+    """120-day high and low (Strong) plus moderate levels 40% of the way from price to each."""
+    win = a[-120:]
+    hi, lo = max(win), min(win)
+    rows = [(hi, "Strong"), (current + (hi - current) * 0.4, "Moderate"),
+            (current - (current - lo) * 0.4, "Moderate"), (lo, "Strong")]
+    return [{"level": f"{lvl:,.{dec}f}", "strength": st, "distPct": round((lvl - current) / current * 100, 2)} for lvl, st in rows]
 
 
 def fx_confluence(sym: str, s: pd.Series) -> dict:
-    """Daily confluence: D1 momentum, RSI(14), price vs EMA(20), 20-day Z-score. Score 0-100 = equal-weight average of
-    four sub-scores (momentum 100/0, RSI value, EMA 100/0, Z mapped 50+20*z), so 50 = mixed."""
-    s = s.dropna()
-    price, prev = float(s.iloc[-1]), float(s.iloc[-2])
-    mom = (price / prev - 1) * 100
-    r = rsi(s)
-    ema = float(s.ewm(span=20, adjust=False).mean().iloc[-1])
-    w = s.tail(20)
-    z = num((price - w.mean()) / w.std(ddof=1)) if w.std(ddof=1) else 0.0
-    parts = [100 if mom > 0 else 0, r if r is not None else 50, 100 if price > ema else 0, max(0, min(100, 50 + 20 * (z or 0)))]
-    score = round(sum(parts) / len(parts))
+    """Score starts at 50: +-12.5 day-on-day momentum, + clamp((RSI14-50)*0.6, +-25), +-15 price vs EMA(50),
+    + clamp(z*10, +-20) for the 200-day Z-score; clamped 0-100. 60+ bullish, 40 or less bearish."""
+    a = [float(v) for v in s.dropna().tail(FX_OBS)]
+    current = a[-1]
+    prev = a[-2] if len(a) > 1 else current
+    day_pct = (current - prev) / prev * 100 if prev else 0.0
+    r, e, z = rsi(a, 14), ema_seeded(a, 50), zscore_last(a, 200)
+    above = e is not None and current >= e
+    score = 50.0
+    score += 12.5 if day_pct > 0 else -12.5
+    if r is not None:
+        score += clamp((r - 50) * 0.6, -25, 25)
+    score += 15 if above else -15
+    if z is not None:
+        score += clamp(z * 10, -20, 20)
+    score = math.floor(clamp(score, 0, 100) + 0.5)          # JS Math.round
     label = "Bullish confluence" if score >= 60 else "Bearish confluence" if score <= 40 else "Neutral confluence"
-    dec = FX_DEC.get(sym, 5 if sym != "XAUUSD" else 2)
+    dec = FX_DEC.get(sym, 5)
     return {"score": score, "label": label,
-            "signals": {"momentum": {"pct": round(mom, 2), "bull": mom > 0}, "rsi": {"value": None if r is None else round(r, 1), "bull": (r or 50) > 50},
-                        "ema": {"above": price > ema}, "zscore": {"value": z, "bull": (z or 0) > 0}},
-            "sr": sr_levels(s, price, dec)}
+            "signals": {"momentum": {"pct": round(day_pct, 2), "bull": day_pct >= 0},
+                        "rsi": None if r is None else {"value": round(r, 2), "bull": r >= 50},
+                        "ema": {"above": above},
+                        "zscore": None if z is None else {"value": round(z, 2), "bull": z >= 0}},
+            "sr": sr_levels(a, current, dec)}
 
 
 def fx_from_data(data: dict) -> dict:
