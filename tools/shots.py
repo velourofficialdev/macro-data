@@ -83,7 +83,10 @@ def main() -> int:
                     cards = pg.locator("#odesk > .card")
                     for i in range(cards.count()):
                         if cards.nth(i).is_visible():
-                            cards.nth(i).screenshot(path=str(out / f"{tag}-options-{i:02d}.png"))
+                            h = cards.nth(i).locator("h3")
+                            title = h.first.inner_text() if h.count() else "controls"
+                            slug = "".join(c if c.isalnum() else "-" for c in title.lower()).strip("-")[:40] or f"card{i}"
+                            cards.nth(i).screenshot(path=str(out / f"{tag}-options-{i:02d}-{slug}.png"))
                 sus = pg.evaluate(SUSPECTS_JS, pg.query_selector("main"))
                 report.append(f"## {tag} {page_name}: {len(sus)} suspect(s)")
                 report += [f"- {s}" for s in sus[:40]]
