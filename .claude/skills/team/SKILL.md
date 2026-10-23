@@ -45,7 +45,7 @@ Checker areas (the single source for which reports a change makes stale):
 | `qa-tester` | anything (always re-run after any fix) |
 | `code-reviewer` | anything outside `data/` and `docs/` (all code, `tools/`, `.claude/`, `CLAUDE.md`, `.gitignore`) |
 | `design-reviewer` | `template.html`, `build_dashboard.py`, `playbook.json`, `tools/shots.py`, any CSS or JS |
-| `data-auditor` | `update_data.py`, `options_levels.py`, `fed_rate_odds.py`, `export_excel.py`, `build_dashboard.py`, `playbook.json`, `calendar.json` |
+| `data-auditor` | `update_data.py`, `options_levels.py`, `fed_rate_odds.py`, `export_excel.py`, `build_dashboard.py`, `playbook.json`, `calendar.json`, any `data/README*` |
 
 
 In **one message**, launch every checker the plan names, all `run_in_background: true`, all on the PR branch's current head (tell each the sha):
@@ -56,7 +56,7 @@ Checkers that need their own checkout use `isolation: "worktree"` and `git check
 
 Run `judge`, and pass `round: <n>` (1 for the first verdict) in its prompt. Then:
 - **PASS** go to step 6.
-- **FIX**: launch the named owners in parallel with the judge's fix items (same worktree pattern, branch `fix/<slug>-r<round>-<n>` from `team/<slug>`); items owned by `lead` (instruction files) you edit yourself meanwhile. Integrate and push, then compute `git diff --name-only <old head> <new head>` and re-run `qa-tester` plus every planned checker whose area (table in step 4) that list touches, not only the ones the fix list names. Then the judge again. At most 2 FIX rounds; the third non-PASS verdict is HUMAN. A judge item "re-run <checker>" (stale report) does not count as a round.
+- **FIX**: launch the named owners in parallel with the judge's fix items (same worktree pattern, branch `fix/<slug>-r<round>-<n>` from `team/<slug>`); items owned by `lead` (instruction files) you edit yourself meanwhile. Integrate and push, then compute `git diff --name-only <old head> <new head>` and re-run `qa-tester` plus every planned checker whose area (table in step 4) that list touches, not only the ones the fix list names. Then the judge again. At most 2 FIX rounds; the third non-PASS verdict is HUMAN. A FIX verdict whose only items are re-runs of stale reports does not count as a round.
 - **HUMAN**: ask the owner the judge's one question (AskUserQuestion), then continue from the step it affects.
 
 ## 6. Merge and watch
