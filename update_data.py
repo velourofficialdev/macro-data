@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Download the latest market data into data/*.csv.
 
-Sources (all free, no API key):
+Sources (currently all free and key-less; keyed APIs are allowed, see CLAUDE.md):
   - FRED  : US Treasury yields + 10Y real yield   -> data/<CODE>.csv
             US macro (inflation, growth, labor)    -> data/econ/<CODE>.csv
   - CFTC  : Gold and USD Index COT, both from the Legacy Futures Only report (Non-Commercial)
