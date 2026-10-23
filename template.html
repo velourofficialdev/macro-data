@@ -435,6 +435,12 @@
   #fx .rterm { grid-template-rows: minmax(240px, 1fr) minmax(0, 350px); }
   @media (max-width: 1024px) { #fx .rterm { grid-template-rows: auto; } #fx .rterm .chp { min-height: 340px; } #fx .rterm .mxp .mxs { max-height: 420px; } }
   #fx .rterm .mxp .mxs { overflow: auto; }
+  #fx .fxpickbox { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12.5px; align-items: center; }
+  #fx .mxctl [hidden], #fx #fxdrv[hidden], #fx .mxnote[hidden] { display: none !important; }
+  #fx .fxpickbox[hidden] { display: none; } #fx .fxpickbox .pg { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; } #fx .fxpickbox .pg b { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  #fx .fxpickbox label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+  #fx table.matrix td.post { color: var(--up, inherit); } #fx table.matrix td.negt { color: var(--down, inherit); }
+  #fx table.matrix td { white-space: nowrap; }
   #fx table.drv td.dc .da { display: inline; font-size: 11px; margin-right: 6px; } #fx table.drv td.dc small, #fx table.drv td.dread small { display: inline; margin: 0 0 0 6px; }
   #fx .rterm table.drv th, #fx .rterm table.drv td { padding: 4px 8px; } #fx table.drv thead th small { font-size: 10px; }
   #fx .rterm table.drv thead th { position: sticky; top: 0; background: var(--surface, var(--tile)); z-index: 1; }
@@ -643,8 +649,10 @@
         <div class="cv main" role="img" aria-label="Percent change since the start of the range for the selected instruments"></div>
       </div>
       <div class="card mxp">
-        <div class="card-h"><h3>Macro Drivers</h3><span class="note" style="margin:0">&#9650; supports higher &middot; &#9660; supports lower &middot; &ndash; neutral. Click a row to read it.</span></div>
-        <div class="scroll mxs">__FXMATRIX__</div>
+        <div class="card-h"><h3 id="fxmt">FX Matrix</h3><div class="mxctl"><div class="ranges kindsw" id="fxmk" role="group" aria-label="Show moves or drivers"><button type="button" data-kind="moves" aria-pressed="true">Moves</button><button type="button" data-kind="drivers" aria-pressed="false">Drivers</button></div><div class="ranges" id="fxhz" role="group" aria-label="Matrix date"></div><button type="button" class="tool" id="fxcust" aria-expanded="false"><svg class="ico"><use href="#i-cols"/></svg>My view</button></div></div>
+        <div class="fxpickbox" id="fxcols" hidden></div>
+        <div class="scroll mxs"><table class="matrix" id="fxmx"></table><div id="fxdrv">__FXMATRIX__</div></div>
+        <p class="mxnote" id="fxmn">Shading = move since the chosen date (Now: last day); blue higher, red lower. Pick a date above, or use My view to choose which markets to show.</p>
       </div>
     </div>
     <div class="grid" style="margin-top:12px">
@@ -1016,6 +1024,52 @@ Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, range
       });
       h += "</tr>";
     });
+    tbl.innerHTML = h + "</tbody>";
+  }
+  paint();
+})();
+
+
+/* FX matrix: moves by date + drivers, with a saved "My view" of chosen markets */
+(function () {
+  const M = P.fxm, tbl = document.getElementById("fxmx"); if (!M || !tbl) return;
+  const hz = document.getElementById("fxhz"), kb = document.getElementById("fxmk"), box = document.getElementById("fxcols"), cb = document.getElementById("fxcust"), drv = document.getElementById("fxdrv"), note = document.getElementById("fxmn"), ttl = document.getElementById("fxmt");
+  const KEY = "macro-fx-cols"; let cur = 0, kind = "moves", sel = null;
+  try { const v = JSON.parse(localStorage.getItem(KEY) || "null"); if (Array.isArray(v)) sel = new Set(v); } catch (e) {}
+  const save = () => { try { sel ? localStorage.setItem(KEY, JSON.stringify([...sel])) : localStorage.removeItem(KEY); } catch (e) {} };
+  const cols = () => { const c = M.cols.filter(x => !sel || sel.has(x.id)); return c.length ? c : M.cols; };
+  const ser = id => P.families.fx.series[id] || [];
+  const at = (a, back) => { let last = a.length - 1; while (last >= 0 && a[last] === null) last--; if (last < 0) return [null, null]; let i = last - back; while (i >= 0 && a[i] === null) i--; return [a[last], i < 0 ? null : a[i]]; };
+  const nf = (v, d) => v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+  const tint = (v, peak) => Math.min(100, Math.round(100 * Math.pow(Math.abs(v) / peak, .7)));
+  M.horizons.forEach((h, i) => { const b = document.createElement("button"); b.type = "button"; b.textContent = h === "Now" ? "Now" : h + " ago"; b.addEventListener("click", () => { cur = i; paint(); }); hz.appendChild(b); });
+  kb.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { kind = b.dataset.kind; paint(); }));
+  function paintPicker() {
+    const groups = [...new Set(M.cols.map(c => c.group))];
+    box.innerHTML = groups.map(g => `<div class="pg"><b>${g}</b>` + M.cols.filter(c => c.group === g).map(c => `<label title="${c.name}"><input type="checkbox" data-id="${c.id}" ${!sel || sel.has(c.id) ? "checked" : ""}>${c.sym}</label>`).join("") + "</div>").join("") + '<button type="button" class="tool" data-all>Show all</button>';
+    box.querySelectorAll("input").forEach(i => i.addEventListener("change", () => {
+      const s = new Set(M.cols.filter(c => !sel || sel.has(c.id)).map(c => c.id)); i.checked ? s.add(i.dataset.id) : s.delete(i.dataset.id);
+      sel = s.size === M.cols.length ? null : s; save(); paint();
+    }));
+    box.querySelector("[data-all]").addEventListener("click", () => { sel = null; save(); paintPicker(); paint(); });
+  }
+  cb.addEventListener("click", () => { const o = box.hidden; box.hidden = !o; cb.setAttribute("aria-expanded", String(o)); if (o) paintPicker(); });
+  function paint() {
+    hz.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === cur)));
+    kb.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.kind === kind)));
+    const C = cols(), D = kind === "drivers";
+    tbl.hidden = D; hz.hidden = D; note.hidden = D; drv.hidden = !D; ttl.textContent = D ? "Macro Drivers" : "FX Matrix";
+    drv.querySelectorAll("tbody tr[data-id]").forEach(tr => { tr.hidden = !C.some(c => c.id === tr.dataset.id); });
+    if (D) return;
+    const chg = C.map(c => { const [n, o] = at(ser(c.id), M.bars[cur]); return n === null || o === null || !o ? null : (n / o - 1) * 100; });
+    const peak = Math.max(.01, ...chg.filter(v => v !== null).map(Math.abs));
+    let h = "<thead><tr><th></th>" + C.map(c => `<th title="${c.name}">${c.sym}</th>`).join("") + "</tr></thead><tbody>";
+    h += "<tr><th scope=\"row\">Price</th>" + C.map((c, j) => { const [n] = at(ser(c.id), 0); if (n === null) return '<td class="na">-</td>'; const d = chg[j];
+      return `<td class="heat ${d !== null && d < 0 ? "neg" : "pos"}" style="--i:${d === null ? 0 : tint(d, peak)}" title="${d === null ? "" : (d > 0 ? "+" : "") + nf(d, 2) + "% " + (cur === 0 ? "1-day" : "since " + M.horizons[cur] + " ago")}">${nf(n, c.dec)}</td>`; }).join("") + "</tr>";
+    h += `<tr><th scope="row">${cur === 0 ? "1D change" : "Change"}</th>` + chg.map(d => d === null ? '<td class="na">-</td>' : `<td class="${d < 0 ? "neg" : "pos"}t">${d > 0 ? "+" : ""}${nf(d, 2)}%</td>`).join("") + "</tr>";
+    h += "<tr><th scope=\"row\">Score</th>" + C.map(c => `<td>${c.score}</td>`).join("") + "</tr>";
+    h += "<tr><th scope=\"row\">Macro lean</th>" + C.map(c => `<td>${c.lean || "-"}</td>`).join("") + "</tr>";
+    h += "<tr><th scope=\"row\">Week range</th>" + C.map(c => `<td>${c.range || "-"}</td>`).join("") + "</tr>";
     tbl.innerHTML = h + "</tbody>";
   }
   paint();

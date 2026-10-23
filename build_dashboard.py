@@ -1710,6 +1710,9 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     as_of = max(dates) if dates else "n/a"
     default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y", "S:5y-2y") if any(r_["id"] == x for r_ in rows)]
     payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_.get("family", "fx"), "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows + erows + irows},
+               "fxm": {"horizons": ["Now", "1D", "1W", "1M", "3M", "6M", "1Y"], "bars": [1, 1, 5, 21, 63, 126, 252],
+                       "cols": [{"id": r_["id"], "sym": r_["label"], "name": r_["ticker"], "group": r_["group"], "score": r_["score"], "lean": r_["lean"], "range": r_["range"],
+                                 "dec": 3 if r_["label"] == "USDJPY" else 2 if r_["label"] in INSTR_NAMES else 5} for r_ in irows]},
                "fxdefault": [x for x in ("FX:EURUSD", "FX:USDJPY", "FX:XAUUSD", "FX:ES", "FX:NQ") if any(r_["id"] == x for r_ in irows)],
                "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
                "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed, data), "curve": curve_payload(data), "cot": build_cot_charts(data),
