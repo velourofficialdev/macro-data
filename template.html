@@ -435,6 +435,11 @@
   #fx .rterm { grid-template-rows: minmax(240px, 1fr) minmax(0, 350px); }
   @media (max-width: 1024px) { #fx .rterm { grid-template-rows: auto; } #fx .rterm .chp { min-height: 340px; } #fx .rterm .mxp .mxs { max-height: 420px; } }
   #fx .rterm .mxp .mxs { overflow: auto; }
+  #fx .fxvbar { margin: 0 0 12px; display: flex; justify-content: flex-end; } #fx [hidden] { display: none !important; }
+  #fx .picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 12px; } #fx .picker .pl { font-size: 12px; color: var(--muted); margin-right: 4px; }
+  #fx .fxc { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-strong); background: transparent; color: var(--muted); cursor: pointer; }
+  #fx .fxc[aria-pressed="true"] { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--text); border-color: var(--primary); }
+  #fx .fxc.ghost { border-style: dashed; }
   #fx .fxpickbox { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12.5px; align-items: center; }
   #fx .mxctl [hidden], #fx #fxdrv[hidden], #fx .mxnote[hidden] { display: none !important; }
   #fx .fxpickbox[hidden] { display: none; } #fx .fxpickbox .pg { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; } #fx .fxpickbox .pg b { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
@@ -629,6 +634,12 @@
     <div class="grid" style="margin-bottom:12px">
       <div class="card" style="--w:12"><div class="card-h"><h3>This week</h3></div><div class="card-b">__WEEK__</div></div>
     </div>
+    <div class="fxvbar"><div class="ranges kindsw" id="fxv" role="group" aria-label="Choose the view"><button type="button" data-v="cards" aria-pressed="true">Cards</button><button type="button" data-v="term" aria-pressed="false">Terminal</button></div></div>
+    <div id="fxv-cards">
+      __FXPICK__
+      <div class="card"><div class="card-h"><h3>Confluence</h3></div><div class="card-b">__CONFLUENCE__</div></div>
+    </div>
+    <div id="fxv-term" hidden>
     <div class="term rterm">
       <div class="card wlp">
         <div class="card-h"><h3>FX, Gold and Indices</h3><span class="ctools"><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></span></div>
@@ -663,6 +674,7 @@
         <p><b>Confluence score</b> (0-100) combines momentum, RSI, trend and Z-score; 60 or more reads bullish, 40 or less bearish. It also showed no reliable edge in the backtest.</p>
         <p class="note">Pairs use ECB reference rates, gold uses COMEX futures, indices are the S&amp;P 500, Nasdaq 100 and Dow 30 cash levels (Yahoo Finance, FRED as fallback). Latest close __FXUPD__. The chart shows % change from the start of the selected range.</p>
       </div></div>
+    </div>
     </div>
   </section>
 
@@ -1035,8 +1047,9 @@ Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, range
   const M = P.fxm, tbl = document.getElementById("fxmx"); if (!M || !tbl) return;
   const hz = document.getElementById("fxhz"), kb = document.getElementById("fxmk"), box = document.getElementById("fxcols"), cb = document.getElementById("fxcust"), drv = document.getElementById("fxdrv"), note = document.getElementById("fxmn"), ttl = document.getElementById("fxmt");
   const KEY = "macro-fx-cols"; let cur = 0, kind = "moves", sel = null;
-  try { const v = JSON.parse(localStorage.getItem(KEY) || "null"); if (Array.isArray(v)) sel = new Set(v); } catch (e) {}
-  const save = () => { try { sel ? localStorage.setItem(KEY, JSON.stringify([...sel])) : localStorage.removeItem(KEY); } catch (e) {} };
+  const reload = () => { sel = null; try { const v = JSON.parse(localStorage.getItem(KEY) || "null"); if (Array.isArray(v)) sel = new Set(v); } catch (e) {} }; reload();
+  const save = () => { try { sel ? localStorage.setItem(KEY, JSON.stringify([...sel])) : localStorage.removeItem(KEY); } catch (e) {} window.dispatchEvent(new Event("fxsel")); };
+  window.addEventListener("fxsel", () => { reload(); if (!box.hidden) paintPicker(); paint(); });
   const cols = () => { const c = M.cols.filter(x => !sel || sel.has(x.id)); return c.length ? c : M.cols; };
   const ser = id => P.families.fx.series[id] || [];
   const at = (a, back) => { let last = a.length - 1; while (last >= 0 && a[last] === null) last--; if (last < 0) return [null, null]; let i = last - back; while (i >= 0 && a[i] === null) i--; return [a[last], i < 0 ? null : a[i]]; };
@@ -1073,6 +1086,30 @@ Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, range
     tbl.innerHTML = h + "</tbody>";
   }
   paint();
+})();
+
+
+/* FX: Cards / Terminal switch + shared "My view" selection (chips, cards and matrix) */
+(function () {
+  const sw = document.getElementById("fxv"); if (!sw) return;
+  const set = v => { sw.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === v)));
+    document.getElementById("fxv-cards").hidden = v !== "cards"; document.getElementById("fxv-term").hidden = v !== "term";
+    try { localStorage.setItem("macro-fx-view", v); } catch (e) {} if (v === "term") setTimeout(() => window.dispatchEvent(new Event("resize")), 30); };
+  sw.querySelectorAll("button").forEach(b => b.addEventListener("click", () => set(b.dataset.v)));
+  let v = "cards"; try { v = localStorage.getItem("macro-fx-view") || "cards"; } catch (e) {} set(v === "term" ? "term" : "cards");
+  const box = document.getElementById("fxpick"); if (!box) return;
+  const chips = [...box.querySelectorAll(".fxc[data-sym]")], all = chips.map(c => "FX:" + c.dataset.sym);
+  const load = () => { try { const x = JSON.parse(localStorage.getItem("macro-fx-cols") || "null"); if (Array.isArray(x)) return new Set(x.filter(i => all.includes(i))); } catch (e) {} return new Set(all); };
+  const paint = () => { const sel = load();
+    chips.forEach(c => c.setAttribute("aria-pressed", String(sel.has("FX:" + c.dataset.sym))));
+    document.querySelectorAll(".confgrid [data-sym]").forEach(el => { el.hidden = !sel.has("FX:" + el.dataset.sym); });
+    let m = document.getElementById("fxnone"); if (!m) { m = document.createElement("p"); m.id = "fxnone"; m.className = "muted-text pad"; m.textContent = "No instruments selected. Choose some above."; box.after(m); }
+    m.hidden = sel.size > 0; };
+  box.addEventListener("click", ev => { const b = ev.target.closest(".fxc"); if (!b) return; let sel = load();
+    if (b.dataset.all) sel = new Set(all); else if (b.dataset.none) sel = new Set(); else { const k = "FX:" + b.dataset.sym; sel.has(k) ? sel.delete(k) : sel.add(k); }
+    try { sel.size === all.length ? localStorage.removeItem("macro-fx-cols") : localStorage.setItem("macro-fx-cols", JSON.stringify([...sel])); } catch (e) {}
+    window.dispatchEvent(new Event("fxsel")); });
+  window.addEventListener("fxsel", paint); paint();
 })();
 
 /* US across-time table: yields / spreads switch */

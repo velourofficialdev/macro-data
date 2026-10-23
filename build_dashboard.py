@@ -923,13 +923,13 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
     out["irows"] = irows
     out["drivers"] = drivers
     out["picker"] = ('<div class="picker" id="fxpick" role="group" aria-label="Choose which instruments to show">'
-                     '<span class="pl">Show</span>' + "".join(f'<button type="button" class="chip" data-sym="{esc(k)}" aria-pressed="true" title="{esc(INSTR_NAMES.get(k, k))}">{esc(k)}</button>' for k in fx)
-                     + '<button type="button" class="chip ghost" data-all="1">All</button><button type="button" class="chip ghost" data-none="1">None</button></div>') if fx else ""
+                     '<span class="pl">My view</span>' + "".join(f'<button type="button" class="fxc" data-sym="{esc(k)}" aria-pressed="true" title="{esc(INSTR_NAMES.get(k, k))}">{esc(k)}</button>' for k in fx)
+                     + '<button type="button" class="fxc ghost" data-all="1">All</button><button type="button" class="fxc ghost" data-none="1">None</button></div>') if fx else ""
     if confs:
         out["conf"] = ('<div class="confgrid">' + "".join(confs) + "</div>"
                        '<p class="note">Context, not a forecast. The likely range is the 68% range (+-1 sigma) from the last 20 and 60 days of price swings; in a 2001-2026 test on 7 pairs the weekly move stayed inside it 68.3% of weeks. '
                        'The macro read (leans higher, lower or mixed) was right only about half of weeks in the same test, so treat it as background, not a signal. '
-                       'Rows marked info are shown but not counted. Choose which instruments to show with the buttons above; your choice is saved in this browser.</p>')
+                       'Rows marked info are shown but not counted. Choose which instruments to show with the buttons above (or My view in the Terminal); your choice is saved in this browser and shared by both views.</p>')
     else:
         out["conf"] = ('<p class="emptystate">No FX feed saved yet. It appears after the first successful update.</p>'
                        '<p class="note">Each pair will show a confluence score (0-100), its momentum, RSI, trend (price vs EMA) and Z-score signals, and nearby support and resistance.</p>')
@@ -1725,7 +1725,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__TILES__": fx["tiles"], "__SIGNALS__": sig_html, "__WATCHLIST__": build_watch_html(rows), "__MATRIX__": build_matrix(data, computed),
         "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_GOLD_TABLE__": cot_t["gold"], "__COT_USD_TABLE__": cot_t["usd_index"],
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
-        "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
+        "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__FXPICK__": fx.get("picker", ""), "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
         "__STATUS__": build_status(data, today),
     }
