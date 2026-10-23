@@ -436,6 +436,9 @@
   .sig { display: grid; grid-template-columns: 10px 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; padding: 2px 0; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
   .dot.up { background: var(--up); } .dot.down { background: var(--down); } .dot.flat { background: var(--muted); opacity: .5; }
+  .sig.m { grid-template-columns: 10px 1fr auto; }
+  .conf h5 .tag { margin-left: 4px; text-transform: none; letter-spacing: 0; } .conf h5 .dcount { color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: auto; }
+  .conf h5 { display: flex; align-items: center; gap: 6px; }
   .drvwrap { overflow-x: auto; }
   table.drv { width: 100%; border-collapse: collapse; font-size: 13px; }
   table.drv th, table.drv td { padding: 10px 12px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
@@ -595,7 +598,6 @@
     <div class="grid">
       <div class="card" style="--w:12"><div class="card-h"><h3>Spot</h3></div><div class="card-b">__FX_CARDS__</div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>Confluence</h3></div><div class="card-b">__CONFLUENCE__</div></div>
-      <div class="card" style="--w:12"><div class="card-h"><h3>Macro drivers</h3></div><div class="card-b">__DRIVERS__</div></div>
     </div>
   </section>
 

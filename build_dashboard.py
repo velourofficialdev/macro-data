@@ -872,6 +872,7 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
         out["upd"] = dates[-1]
     cards, confs = [], []
     live = 0
+    drivers = build_fx_drivers(data)
     for sym, d in fx.items():
         cf = d.get("confluence")
         tone = "flat" if not cf else ("up" if cf["score"] >= 60 else "down" if cf["score"] <= 40 else "mid")
@@ -899,7 +900,7 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
             confs.append(
                 f'<article class="conf"><div class="ctop"><b>{esc(sym)}</b><span>{esc(d.get("display", ""))}</span></div>'
                 f'<div class="chead">{gauge_ring(cf["score"], tone)}<div class="verdict {tone}">{esc(cf["label"].split(" ")[0])} confluence<small>Confluence score</small></div></div>'
-                f'<h5>Signals</h5>{sig_html}<h5>Support / resistance</h5>{sr_html}</article>')
+                f'<h5>Signals</h5>{sig_html}{drivers.get(sym, "")}<h5>Support / resistance</h5>{sr_html}</article>')
     if cards:
         note = "" if live else '<p class="emptystate">No FX feed saved yet. It appears after the first successful update.</p>'
         out["fx"] = note + '<div class="tiles fxtiles">' + "".join(cards) + "</div>"
@@ -945,13 +946,12 @@ DRV_BANK = {"US": "Fed", "EA": "ECB", "GB": "BoE", "JP": "BoJ", "CH": "SNB", "CA
 DRV_RISK = {"AUD": 1, "NZD": 1, "CAD": 1, "JPY": -1, "CHF": -1}     # +1 gains when risk appetite rises, -1 gains when it falls
 
 
-def build_fx_drivers(data: dict) -> str:
+def build_fx_drivers(data: dict) -> dict[str, str]:
     """Macro drivers per pair: each driver says whether it supports the pair higher (+1), lower (-1) or neither (0).
     Context only, not a forecast: a backtest (Apr 2025 - Oct 2026) found only the yield-gap trend leaned forward, and weakly."""
     d = data.get("drv") or {}
-    empty = '<p class="emptystate">Macro drivers appear after the first update with the new yield, policy-rate and COT feeds.</p>'
     if not d or (not d.get("yc") and d.get("pol") is None):
-        return empty
+        return {}
     pol = d.get("pol")
     us = {"2Y": data.get("yields", {}).get("DGS2"), "5Y": data.get("yields", {}).get("DGS5")}
     vix = data.get("mkt", {}).get("VIXCLS")
@@ -961,7 +961,7 @@ def build_fx_drivers(data: dict) -> str:
         vz = float((vix.iloc[-1] - vix.tail(252).mean()) / vix.tail(252).std())
         risk = -1 if vz > 0.5 else 1 if vz < -0.5 else 0          # +1 = risk appetite high
         vix_txt = f"VIX {vix.iloc[-1]:.1f}"
-    trs = []
+    out: dict[str, str] = {}
     for pair, (cur, cc, ten, pcol, side) in DRV_PAIRS.items():
         rows = []     # (name, tag, value, state)
         fy = (d.get("yc", {}).get(cc) or {}).get(ten)
@@ -971,7 +971,7 @@ def build_fx_drivers(data: dict) -> str:
             g = (j["f"] - j["u"]) * side            # positive = gap favours the pair rising
             now, chg = float(g.iloc[-1]), float(g.iloc[-1] - g.iloc[-21])
             st = 0 if abs(chg) < 0.05 else (1 if chg > 0 else -1)
-            rows.append((f"{ten} yield gap, 4-week trend", "Rates", f"{chg:+.2f} pp (gap {now:+.2f})", st))
+            rows.append((f"{ten} yield gap, 4-week trend", "Rates", f"{chg:+.2f} pp", st))
         else:
             rows.append((f"{ten} yield gap, 4-week trend", "Rates", "n/a", 0))
         if pol is not None and pcol in pol and "US" in pol:
@@ -996,19 +996,15 @@ def build_fx_drivers(data: dict) -> str:
             tone, label, count = "down", "LOWER", f"{dns} of 4 agree"
         else:
             tone, label, count = "mid", "MIXED", f"{ups} up, {dns} down"
-        def cell(r):
+        def row(r):
             n, t, v, st = r
-            arrow = "&#9650;" if st > 0 else "&#9660;" if st < 0 else "&ndash;"
-            return (f'<td class="dc {"up" if st > 0 else "down" if st < 0 else "flat"}" title="{esc(n)}: {"supports the pair higher" if st > 0 else "supports the pair lower" if st < 0 else "neutral"}">'
-                    f'<span class="da">{arrow}</span><small>{esc(v)}</small></td>')
-        trs.append(f'<tr><th scope="row">{esc(pair)}</th>' + "".join(cell(r) for r in rows) +
-                   f'<td class="dread"><span class="tag {tone}">{label}</span><small>{esc(count)}</small></td></tr>')
-    return ('<div class="drvwrap"><table class="drv"><thead><tr><th>Pair</th><th>2Y yield gap<small>4-week trend</small></th>'
-            '<th>Policy rates<small>gap</small></th><th>Positioning<small>speculators, Z</small></th><th>Risk appetite<small>VIX</small></th>'
-            '<th>Read</th></tr></thead><tbody>' + "".join(trs) + '</tbody></table></div>'
-            '<p class="note">&#9650; green supports the pair rising, &#9660; red supports it falling, &ndash; grey is neutral. Context, not a forecast: '
-            'in a backtest of these 7 pairs (Apr 2025 to Oct 2026) only the yield-gap trend leaned forward, and only weakly; policy rates and positioning mostly describe moves already under way. '
-            'The risk column applies to AUD, NZD, CAD, JPY and CHF only. NZDUSD uses the 5Y gap.</p>')
+            return (f'<div class="sig m"><span class="dot {"up" if st > 0 else "down" if st < 0 else "flat"}" '
+                    f'title="{"supports the pair higher" if st > 0 else "supports the pair lower" if st < 0 else "neutral"}"></span>'
+                    f'<span class="sn">{esc(n)}</span><span class="sv">{esc(v)}</span></div>')
+        names = ("2Y yield gap, 4-week", "Policy rates", "Positioning (Z)", "Risk appetite")
+        out[pair] = (f'<h5>Macro drivers <span class="tag {tone}">{label}</span><small class="dcount">{esc(count)}</small></h5>'
+                     + "".join(row((names[k] if ten == "2Y" or k else "5Y yield gap, 4-week", r[1], r[2], r[3])) for k, r in enumerate(rows)))
+    return out
 
 
 def build_cot_cards(playbook: dict, metrics: dict, split: bool = False):
@@ -1525,7 +1521,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__TILES__": fx["tiles"], "__SIGNALS__": sig_html, "__WATCHLIST__": build_watch_html(rows), "__MATRIX__": build_matrix(data, computed),
         "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_GOLD_TABLE__": cot_t["gold"], "__COT_USD_TABLE__": cot_t["usd_index"],
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
-        "__FX_CARDS__": fx["fx"], "__DRIVERS__": build_fx_drivers(data), "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
+        "__FX_CARDS__": fx["fx"], "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
         "__STATUS__": build_status(data, today),
     }
