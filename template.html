@@ -435,7 +435,8 @@
   .verdict.up { color: var(--up); } .verdict.down { color: var(--down); }
   .sig { display: grid; grid-template-columns: 10px 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; padding: 2px 0; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-  .dot.up { background: var(--up); } .dot.down { background: var(--down); }
+  .dot.up { background: var(--up); } .dot.down { background: var(--down); } .dot.flat { background: var(--muted); opacity: .5; }
+  .drvline { font-size: 12px; padding: 6px 0 8px; color: var(--muted); } .drvline.up { color: var(--up); } .drvline.down { color: var(--down); }
   .st { color: var(--muted); font-size: 10px; border: 1px solid var(--border-strong); border-radius: 4px; padding: 0 5px; }
   .sr { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 2px 0; }
   .sr .ss { color: var(--muted); } .sr.above .sd { color: var(--up); } .sr.below .sd { color: var(--down); }
@@ -583,6 +584,7 @@
     <div class="grid">
       <div class="card" style="--w:12"><div class="card-h"><h3>Spot</h3></div><div class="card-b">__FX_CARDS__</div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>Confluence</h3></div><div class="card-b">__CONFLUENCE__</div></div>
+      <div class="card" style="--w:12"><div class="card-h"><h3>Macro drivers</h3></div><div class="card-b">__DRIVERS__</div></div>
     </div>
   </section>
 
