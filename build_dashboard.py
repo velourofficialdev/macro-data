@@ -285,7 +285,7 @@ def load_everything(data_dir: Path) -> dict:
     zq = pd.read_csv(data_dir / "fed" / "zq_odds.csv") if (data_dir / "fed" / "zq_odds.csv").exists() else None
     events = pd.read_csv(data_dir / "fed" / "events.csv") if (data_dir / "fed" / "events.csv").exists() else None
     drv = load_fx_drivers_data(data_dir)
-    return {"idx": idx, "drv": drv, "zq": zq, "events": events, "fxp": fxp, "fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
+    return {"idx": idx, "drv": drv, "zq": zq, "events": events, "fxp": fxp, "fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status, "options": load_options(data_dir)}
 
 
 def compute(data: dict, playbook: dict) -> dict:
@@ -1379,6 +1379,199 @@ def build_status(data: dict, today: date) -> str:
             + "".join(rows) + "</tbody></table>")
 
 
+
+# ---------------------------------------------------------------- options positioning (data/options/*.json from options_levels.py)
+OPT_META = {
+    "SPX": {"title": "S&amp;P 500", "src": "SPX options", "map": "ES", "mode": "add", "dec": 0, "mdec": 2},
+    "NDX": {"title": "Nasdaq 100", "src": "NDX options", "map": "NQ", "mode": "add", "dec": 0, "mdec": 2},
+    "DJX": {"title": "Dow", "src": "DJX options", "map": "YM", "mode": "mul", "dec": 2, "mdec": 0},
+    "RUT": {"title": "Russell 2000", "src": "RUT options", "map": "RTY", "mode": "add", "dec": 0, "mdec": 1},
+    "GOLD": {"title": "Gold", "src": "GLD options", "map": "Gold (GC)", "mode": "mul", "dec": 2, "mdec": 1},
+}
+
+
+def load_options(data_dir: Path) -> dict:
+    out = {}
+    vp = data_dir / "options" / "VIX_TERM.csv"
+    if vp.exists():
+        try:
+            out["_vix_term"] = pd.read_csv(vp, parse_dates=["date"]).set_index("date").sort_index().dropna()
+        except Exception:  # noqa: BLE001
+            pass
+    for key in OPT_META:
+        p = data_dir / "options" / f"{key}.json"
+        if p.exists():
+            try:
+                snap = json.loads(p.read_text())
+                hp = data_dir / "options" / f"{key}_history.csv"
+                hist = pd.read_csv(hp) if hp.exists() else pd.DataFrame()
+                snap["history"] = hist.tail(10).iloc[::-1].to_dict("records") if len(hist) else []
+                snap["history_full"] = json.loads(hist.tail(260).to_json(orient="records")) if len(hist) else []
+                out[key] = snap
+            except Exception:  # noqa: BLE001
+                pass
+    return out
+
+
+def _opt_mapper(s: dict, meta: dict):
+    mp, spot = s.get("mapped_price"), s.get("spot")
+    if not mp or not spot:
+        return None
+    if meta["mode"] == "add":
+        basis = mp - spot
+        return lambda k: None if k is None else k + basis
+    ratio = mp / spot
+    return lambda k: None if k is None else k * ratio
+
+
+def opt_payload(data: dict) -> dict:
+    out = {}
+    for key, meta in OPT_META.items():
+        s = (data.get("options") or {}).get(key)
+        if not s or not s.get("surface"):
+            continue
+        mp, spot = s.get("mapped_price"), s.get("spot")
+        mapping = None
+        if mp and spot:
+            mapping = {"mode": meta["mode"], "basis": round(mp - spot, 4), "ratio": round(mp / spot, 6), "label": meta["map"].split(" (")[0], "dec": meta["mdec"]}
+        out[key] = {"title": meta["title"].replace("&amp;", "&"), "date": s.get("date"), "spot": spot, "flip": s.get("gamma_flip"),
+                    "atm_iv": s.get("atm_iv"), "day_move": s.get("day_move"), "pcr_oi": s.get("pcr_oi"), "pcr_vol": s.get("pcr_vol"), "dec": meta["dec"],
+                    "net_gex_bn": s.get("net_gex_bn"), "max_pain": s.get("max_pain"), "front_move": s.get("front_move"), "king": s.get("king"),
+                    "oi_changes": s.get("oi_changes") or [], "vol": s.get("vol") or {}, "history": s.get("history_full") or [],
+                    "map": mapping, "surface": s["surface"]}
+    vt = (data.get("options") or {}).get("_vix_term")
+    if out and vt is not None and len(vt) > 20:
+        t = vt.tail(260)
+        out["_vix"] = {"dates": [d.strftime("%Y-%m-%d") for d in t.index], "vix": [r(v, 2) for v in t["VIXCLS"]], "vix3m": [r(v, 2) for v in t["VXVCLS"]],
+                       "ratio": [r(v, 3) for v in t["VXVCLS"] / t["VIXCLS"]]}
+    return out
+
+
+def build_fingerprint(data: dict) -> str:
+    """Regime fingerprint: today's market profile vs every past day, with what followed the closest matches.
+    Features (z-scored over the whole history): 10y-2y curve, 10y real yield, VIX (log), and 21-day % change in
+    the S&P 500, gold and DXY."""
+    y, mk = data.get("yields", {}), data.get("mkt", {})
+    need = {"curve": (y.get("DGS10") is not None and y.get("DGS2") is not None), "real": y.get("DFII10") is not None,
+            "vix": mk.get("VIXCLS") is not None, "spx": mk.get("SP500") is not None, "gold": data.get("gold_px") is not None, "dxy": data.get("dxy") is not None}
+    if not all(need.values()):
+        return '<p class="quiet">Needs the curve, real yield, VIX, S&amp;P 500, gold and DXY series.</p>'
+    idx = pd.bdate_range(end=max(s.index.max() for s in (mk["SP500"], data["gold_px"], data["dxy"])), periods=2700)
+    al = lambda s: s.reindex(s.index.union(idx)).sort_index().ffill(limit=5).reindex(idx)
+    spx, gold, dxy, vix = al(mk["SP500"]), al(data["gold_px"]), al(data["dxy"]), al(mk["VIXCLS"])
+    F = pd.DataFrame({"10y-2y curve": al(y["DGS10"]) - al(y["DGS2"]), "10y real yield": al(y["DFII10"]), "VIX (log)": np.log(vix),
+                      "S&P 500 21d %": spx.pct_change(21) * 100, "Gold 21d %": gold.pct_change(21) * 100, "DXY 21d %": dxy.pct_change(21) * 100}).dropna()
+    if len(F) < 160:
+        return '<p class="quiet">Not enough overlapping history yet.</p>'
+    Z = (F - F.mean()) / F.std()
+    today = Z.iloc[-1]
+    cand = Z.iloc[:-63]
+    dist = np.sqrt(((cand - today) ** 2).sum(axis=1)).sort_values()
+    picks = []
+    for d in dist.index:
+        if all(abs((d - q).days) > 30 for q in picks):
+            picks.append(d)
+        if len(picks) == 5:
+            break
+    fwd = lambda s, d: (s.loc[s.index > d].iloc[20] / s.loc[d] - 1) * 100 if (s.index > d).sum() > 20 and pd.notna(s.loc[d]) else None
+    n = len(today)
+    rows, outs = [], {"S&P 500": [], "Gold": [], "DXY": []}
+    for d in picks:
+        sim = max(0.0, 1 - dist[d] / (2 * np.sqrt(n))) * 100
+        res = {"S&P 500": fwd(spx, d), "Gold": fwd(gold, d), "DXY": fwd(dxy, d)}
+        for k, v in res.items():
+            if v is not None:
+                outs[k].append(v)
+        cell = lambda v: '<td class="muted-text">n/a</td>' if v is None else f'<td class="{"up" if v > 0 else "down"}">{v:+.2f}%</td>'
+        rows.append(f'<tr><th scope="row">{d.strftime("%Y-%m-%d")}</th><td>{sim:.0f}%</td>' + "".join(cell(res[k]) for k in ("S&P 500", "Gold", "DXY")) + "</tr>")
+    med = lambda a: (f'{np.median(a):+.2f}%' if a else "n/a")
+    prof = "".join(f'<span class="fpz"><b>{esc(k)}</b> {F[k].iloc[-1]:+.2f} <i class="{"up" if v > 0.5 else "down" if v < -0.5 else "muted-text"}">z {v:+.1f}</i></span>' for k, v in today.items())
+    return (f'<div class="fpprof">{prof}</div>'
+            '<table class="opttab"><thead><tr><th>Closest past day</th><th>Similarity</th><th>S&amp;P 500 next 21d</th><th>Gold next 21d</th><th>DXY next 21d</th></tr></thead><tbody>'
+            + "".join(rows) + f'<tr class="optnow"><th scope="row">Median of matches</th><td></td><td>{med(outs["S&P 500"])}</td><td>{med(outs["Gold"])}</td><td>{med(outs["DXY"])}</td></tr></tbody></table>'
+            f'<p class="note">History used: {F.index[0].strftime("%b %Y")} to {F.index[-1].strftime("%d %b %Y")}, excluding the last 3 months. Five matches at least a month apart. '
+            'What followed past look-alikes is context, not a forecast; five cases is a small sample.</p>')
+
+def build_options(data: dict, today: date) -> str:
+    opts = data.get("options") or {}
+    if not opts:
+        return ('<div class="card" style="--w:12"><div class="card-b"><p class="quiet">No options data yet. It appears after the next scheduled update '
+                '(weekdays 22:30 UTC) downloads the Cboe chains.</p></div></div>')
+    html = []
+    for key, meta in OPT_META.items():
+        s = opts.get(key)
+        if not s:
+            continue
+        conv = _opt_mapper(s, meta)
+        spot = s["spot"]
+        d0, dm = meta["dec"], meta["mdec"]
+
+        def f(v, d):
+            return "n/a" if v is None else f"{v:,.{d}f}"
+
+        def dist(v):
+            if v is None:
+                return ""
+            pct = (v / spot - 1) * 100
+            return f'<span class="{"up" if pct > 0 else "down" if pct < 0 else "muted-text"}">{pct:+.2f}%</span>'
+        fm = s.get("front_move") or {}
+        lv = [("Call wall", s.get("call_wall"), "largest call gamma above price"),
+              ("Expected move, high", fm.get("high"), f"front expiry {fm.get('expiry', '')} straddle"),
+              ("Price", spot, s.get("date", "")),
+              ("Gamma flip", s.get("gamma_flip"), "total gamma crosses zero"),
+              ("Expected move, low", fm.get("low"), ""),
+              ("Put wall", s.get("put_wall"), "largest put gamma below price"),
+              ("Max pain", s.get("max_pain"), f"expiry {s.get('max_pain_expiry') or ''}")]
+        lv = [x for x in lv if x[1] is not None]
+        lv.sort(key=lambda x: -x[1])
+        mapped_head = f"<th>{esc(meta['map'])}</th>" if conv else ""
+        trs = "".join(f'<tr{" class=\"optnow\"" if n == "Price" else ""}><th scope="row">{n}</th><td>{f(v, d0)}</td>'
+                      + (f"<td><b>{f(conv(v), dm)}</b></td>" if conv else "")
+                      + f'<td>{"" if n == "Price" else dist(v)}</td><td class="muted-text">{esc(why)}</td></tr>' for n, v, why in lv)
+        pos = s.get("regime") == "positive"
+        badge_ = (f'<span class="badge" style="color:var(--up);background:color-mix(in srgb,var(--up) 14%,transparent)">Positive gamma</span>' if pos
+                  else f'<span class="badge" style="color:var(--down);background:color-mix(in srgb,var(--down) 14%,transparent)">Negative gamma</span>')
+        flip = s.get("gamma_flip")
+        if flip:
+            where = "above" if spot > flip else "below"
+            read = (f"Price is {where} the gamma flip ({f(flip, d0)}{', ' + meta['map'] + ' ' + f(conv(flip), dm) if conv else ''}). "
+                    + ("In this zone dealer hedging tends to lean against moves, so ranges between the walls have tended to hold more often and realised volatility tends to be lower."
+                       if pos else "In this zone dealer hedging tends to push in the same direction as the move, so moves can extend further and volatility tends to be higher."))
+        else:
+            read = "No gamma flip within ±12% of price; total gamma is " + ("positive" if pos else "negative") + " across that range."
+        dm_ = s.get("day_move")
+        stats = (f'<div class="optstats"><span><b>{f(s.get("net_gex_bn"), 2)}</b> bn $ net gamma per 1%</span>'
+                 f'<span>1-day move ±<b>{f(dm_, d0 if d0 else 0)}</b>{f" ({meta["map"]} ±{conv(dm_) - conv(0):,.{dm}f})" if conv and dm_ and meta["mode"] == "mul" else ""} <small>ATM IV {f(s.get("atm_iv"), 1)}%</small></span>'
+                 f'<span>Put/call OI <b>{f(s.get("pcr_oi"), 2)}</b> · volume <b>{f(s.get("pcr_vol"), 2)}</b></span></div>')
+        ch = s.get("oi_changes") or []
+        if ch:
+            chg = "".join(f'<tr><td>{f(c["k"], d0)}{f" <span class=muted-text>({f(conv(c["k"]), dm)})</span>" if conv else ""}</td>'
+                          f'<td class="{"up" if c["dc"] > 0 else "down" if c["dc"] < 0 else ""}">{c["dc"]:+,}</td>'
+                          f'<td class="{"up" if c["dp"] > 0 else "down" if c["dp"] < 0 else ""}">{c["dp"]:+,}</td></tr>' for c in ch)
+            chg = f'<table class="opttab"><thead><tr><th>Strike</th><th>Call OI chg</th><th>Put OI chg</th></tr></thead><tbody>{chg}</tbody></table>'
+        else:
+            chg = '<p class="quiet">Needs two daily snapshots; shows from the next update.</p>'
+        hist = s.get("history") or []
+        hrows = "".join(f'<tr><td>{esc(h.get("date"))}</td><td>{f(h.get("spot"), d0)}</td><td>{f(h.get("gamma_flip"), d0)}</td><td>{f(h.get("call_wall"), d0)}</td>'
+                        f'<td>{f(h.get("put_wall"), d0)}</td><td>{f(h.get("net_gex_bn"), 2)}</td></tr>' for h in hist)
+        htab = (f'<table class="opttab"><thead><tr><th>Date</th><th>Price</th><th>Flip</th><th>Call wall</th><th>Put wall</th><th>Net GEX bn</th></tr></thead><tbody>{hrows}</tbody></table>'
+                if hrows else "")
+        age = (today - datetime.strptime(s["date"], "%Y-%m-%d").date()).days if s.get("date") else 0
+        stale = ' <span class="badge warn">stale</span>' if age > 4 else ""
+        mapnote = (f"{meta['map']} levels = {meta['src'].split()[0]} level {'+ basis ' + format(s['mapped_price'] - spot, '+,.2f') if meta['mode'] == 'add' else '× ' + format(s['mapped_price'] / spot, ',.3f')} "
+                   f"(closes: {meta['map']} {f(s['mapped_price'], dm)}, {meta['src'].split()[0]} {f(spot, d0)}). The basis drifts during the day; re-check it against your chart."
+                   if conv else "Mapped price unavailable this run, so levels are in option units only.")
+        first = not html
+        html.append(
+            f'<details class="card collapse optgrp" style="--w:12"{" open" if first else ""}><summary class="card-h"><span class="ttl"><span class="chev"></span><h3>{meta["title"]} · level table, open-interest changes, history</h3></span>'
+            f'<span class="note">{badge_}{stale}</span></summary><div class="grid optin">'
+            f'<div class="card" style="--w:7"><div class="card-h"><h3>{meta["title"]} key levels <span class="muted-text">· {esc(meta["src"])}</span> {badge_}{stale}</h3></div>'
+            f'<div class="card-b">{stats}<div class="scroll"><table class="opttab"><thead><tr><th>Level</th><th>{esc(meta["src"].split()[0])}</th>{mapped_head}<th>vs price</th><th></th></tr></thead><tbody>{trs}</tbody></table></div>'
+            f'<p class="optread">{esc(read)}</p><p class="note">{esc(mapnote)}</p></div></div>'
+            f'<div class="card" style="--w:5"><div class="card-h"><h3>{meta["title"]}: biggest open-interest changes</h3><p class="note">Contracts, vs the previous update</p></div><div class="card-b scroll">{chg}</div></div>'
+            f'<div class="card" style="--w:12"><div class="card-h"><h3>{meta["title"]}: levels over the last 10 updates</h3><p class="note">In {esc(meta["src"].split()[0])} units</p></div><div class="card-b scroll">{htab or "<p class=quiet>Builds up one row per update.</p>"}</div></div></div></details>')
+    return "".join(html)
+
 TEMPLATE = (ROOT / "template.html").read_text(encoding="utf-8") if (ROOT / "template.html").exists() else None
 
 
@@ -1715,7 +1908,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
                                  "dec": 3 if r_["label"] == "USDJPY" else 2 if r_["label"] in INSTR_NAMES else 5} for r_ in irows]},
                "fxdefault": [x for x in ("FX:EURUSD", "FX:USDJPY", "FX:XAUUSD", "FX:ES", "FX:NQ") if any(r_["id"] == x for r_ in irows)],
                "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
-               "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed, data), "curve": curve_payload(data), "cot": build_cot_charts(data),
+               "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed, data), "curve": curve_payload(data), "cot": build_cot_charts(data), "opt": opt_payload(data),
                "dec": {"fx": 2, "spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
                "unit": {"fx": "%", "spreads": " pp", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
 
@@ -1727,7 +1920,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
         "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__FXPICK__": fx.get("picker", ""), "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
-        "__STATUS__": build_status(data, today),
+        "__STATUS__": build_status(data, today), "__OPTIONS__": build_options(data, today), "__FINGERPRINT__": build_fingerprint(data),
     }
     for k, v in rep.items():
         page = page.replace(k, v)
