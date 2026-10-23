@@ -173,6 +173,11 @@
   .quick li:last-child { border-bottom: 0; }
   .ql { font-size: 13px; color: var(--muted); } .qv { font-weight: 600; text-align: right; }
   .qb { grid-column: 1 / -1; justify-self: start; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--tint-secondary); color: var(--secondary-ink); }
+  .optstats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--muted); margin: 2px 0 10px; }
+  .optstats b { color: var(--text); font-weight: 600; }
+  .opttab td, .opttab th { padding: 5px 10px; }
+  .opttab tr.optnow th, .opttab tr.optnow td { background: var(--tint-primary); font-weight: 600; }
+  .optread { font-size: 13px; margin: 10px 0 6px; line-height: 1.5; }
   .quiet { margin: 8px 0 0; font-size: 12px; color: var(--muted); font-style: italic; }
   .signals { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
   .signals li { border-left: 2px solid var(--warn); padding: 4px 0 4px 10px; }
@@ -509,7 +514,7 @@
   </div>
 </div></header>
 <nav class="sections" aria-label="Sections"><div class="wrap">
-  <a href="#overview">Overview</a><a href="#rates">Rates</a><a href="#fed">Fed odds</a><a href="#positioning">Positioning</a><a href="#fx">FX</a><a href="#economy">Economy</a>
+  <a href="#overview">Overview</a><a href="#rates">Rates</a><a href="#fed">Fed odds</a><a href="#positioning">Positioning</a><a href="#options">Options</a><a href="#fx">FX</a><a href="#economy">Economy</a>
 </div></nav>
 </div>
 
@@ -599,6 +604,13 @@
   </section>
 
   <!-- ============ FX ============ -->
+  <section class="sec" id="options">
+    <div class="sechead"><h2>Options positioning</h2><p>From Cboe's free delayed option chains after the US close: open interest (settled, start of session) and closing prices. Gamma exposure assumes dealers hold the opposite side of customers who are long calls and long puts, a common simplification; it maps where hedging flows may cluster, not where price must go. S&amp;P levels come from SPX options and are shifted to ES by the closing basis; gold levels come from GLD options scaled to the COMEX gold future. Not a live trade tape.</p></div>
+    <div class="grid">
+      __OPTIONS__
+    </div>
+  </section>
+
   <section class="sec" id="fx">
     <div class="sechead"><h2>FX confluence</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from the ECB's official euro reference rates (daily 14:15 CET fixing, crossed through the euro; Yahoo then FRED as fallbacks); XAUUSD uses COMEX gold futures. Latest close __FXUPD__.</p></div>
     <div class="grid">

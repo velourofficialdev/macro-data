@@ -283,7 +283,7 @@ def load_everything(data_dir: Path) -> dict:
     zq = pd.read_csv(data_dir / "fed" / "zq_odds.csv") if (data_dir / "fed" / "zq_odds.csv").exists() else None
     events = pd.read_csv(data_dir / "fed" / "events.csv") if (data_dir / "fed" / "events.csv").exists() else None
     drv = load_fx_drivers_data(data_dir)
-    return {"drv": drv, "zq": zq, "events": events, "fxp": fxp, "fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
+    return {"drv": drv, "zq": zq, "events": events, "fxp": fxp, "fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status, "options": load_options(data_dir)}
 
 
 def compute(data: dict, playbook: dict) -> dict:
@@ -1228,6 +1228,161 @@ def build_status(data: dict, today: date) -> str:
             + "".join(rows) + "</tbody></table>")
 
 
+
+# ---------------------------------------------------------------- options positioning (data/options/*.json from options_levels.py)
+OPT_META = {
+    "SPX": {"title": "S&amp;P 500", "src": "SPX options", "map": "ES", "mode": "add", "dec": 0, "mdec": 2},
+    "GOLD": {"title": "Gold", "src": "GLD options", "map": "Gold (GC)", "mode": "mul", "dec": 2, "mdec": 1},
+}
+
+
+def load_options(data_dir: Path) -> dict:
+    out = {}
+    for key in OPT_META:
+        p = data_dir / "options" / f"{key}.json"
+        if p.exists():
+            try:
+                snap = json.loads(p.read_text())
+                hp = data_dir / "options" / f"{key}_history.csv"
+                snap["history"] = pd.read_csv(hp).tail(10).iloc[::-1].to_dict("records") if hp.exists() else []
+                out[key] = snap
+            except Exception:  # noqa: BLE001
+                pass
+    return out
+
+
+def _opt_mapper(s: dict, meta: dict):
+    mp, spot = s.get("mapped_price"), s.get("spot")
+    if not mp or not spot:
+        return None
+    if meta["mode"] == "add":
+        basis = mp - spot
+        return lambda k: None if k is None else k + basis
+    ratio = mp / spot
+    return lambda k: None if k is None else k * ratio
+
+
+def _opt_chart(s: dict, meta: dict, conv) -> str:
+    st = s.get("strikes") or []
+    if not st:
+        return '<p class="quiet">No strike data.</p>'
+    spot = s["spot"]
+    lo, hi = min(x["k"] for x in st), max(x["k"] for x in st)
+    span = hi - lo
+    step = next((b for b in (1, 2, 2.5, 5, 10, 20, 25, 50, 100) if span / b <= 44), 100)
+    bk = {}
+    for x in st:
+        b = round(x["k"] / step) * step
+        c, p = bk.get(b, (0.0, 0.0))
+        bk[b] = (c + x["c"], p + x["p"])
+    rows = sorted(bk.items(), reverse=True)
+    mx = max(max(abs(c), abs(p)) for _, (c, p) in rows) or 1
+    rh, top, lw, W = 13, 6, 92, 520
+    mid = lw + (W - lw) / 2
+    half = (W - lw) / 2 - 8
+    H = top * 2 + rh * len(rows)
+
+    def y_of(k):
+        return top + (rows[0][0] - k) / step * rh + rh / 2
+    parts = [f'<svg viewBox="0 0 {W} {H}" width="100%" role="img" aria-label="Gamma exposure by strike: calls to the right, puts to the left" style="display:block;font:10px Inter,system-ui,sans-serif">',
+             f'<line x1="{mid}" y1="{top}" x2="{mid}" y2="{H - top}" stroke="var(--border-strong)"/>']
+    for k, (c, p) in rows:
+        y = y_of(k) - rh / 2 + 2
+        txt = f"{k:,.{meta['dec']}f}"
+        parts.append(f'<text x="{lw - 6}" y="{y + rh / 2 + 1}" text-anchor="end" fill="var(--muted)">{txt}</text>')
+        if c:
+            parts.append(f'<rect x="{mid}" y="{y}" width="{abs(c) / mx * half:.1f}" height="{rh - 4}" rx="2" fill="var(--up)"><title>{txt}: calls {c:,.0f}M $ per 1%</title></rect>')
+        if p:
+            w = abs(p) / mx * half
+            parts.append(f'<rect x="{mid - w:.1f}" y="{y}" width="{w:.1f}" height="{rh - 4}" rx="2" fill="var(--down)"><title>{txt}: puts {p:,.0f}M $ per 1%</title></rect>')
+    for val, name, col, dash in ((spot, "price", "var(--text)", ""), (s.get("gamma_flip"), "flip", "var(--warn)", ' stroke-dasharray="4 3"')):
+        if val and lo - step <= val <= hi + step:
+            y = y_of(val)
+            parts.append(f'<line x1="{lw}" y1="{y:.1f}" x2="{W}" y2="{y:.1f}" stroke="{col}" stroke-width="1.2"{dash}/>'
+                         + (f'<text x="{W - 2}" y="{y - 3:.1f}" text-anchor="end" fill="{col}" font-weight="600">{name}</text>' if name == "price"
+                          else f'<text x="{lw + 2}" y="{y + 11:.1f}" fill="{col}" font-weight="600">{name}</text>'))
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def build_options(data: dict, today: date) -> str:
+    opts = data.get("options") or {}
+    if not opts:
+        return ('<div class="card" style="--w:12"><div class="card-b"><p class="quiet">No options data yet. It appears after the next scheduled update '
+                '(weekdays 22:30 UTC) downloads the Cboe chains.</p></div></div>')
+    html = []
+    for key, meta in OPT_META.items():
+        s = opts.get(key)
+        if not s:
+            continue
+        conv = _opt_mapper(s, meta)
+        spot = s["spot"]
+        d0, dm = meta["dec"], meta["mdec"]
+
+        def f(v, d):
+            return "n/a" if v is None else f"{v:,.{d}f}"
+
+        def dist(v):
+            if v is None:
+                return ""
+            pct = (v / spot - 1) * 100
+            return f'<span class="{"up" if pct > 0 else "down" if pct < 0 else "muted-text"}">{pct:+.2f}%</span>'
+        fm = s.get("front_move") or {}
+        lv = [("Call wall", s.get("call_wall"), "largest call gamma above price"),
+              ("Expected move, high", fm.get("high"), f"front expiry {fm.get('expiry', '')} straddle"),
+              ("Price", spot, s.get("date", "")),
+              ("Gamma flip", s.get("gamma_flip"), "total gamma crosses zero"),
+              ("Expected move, low", fm.get("low"), ""),
+              ("Put wall", s.get("put_wall"), "largest put gamma below price"),
+              ("Max pain", s.get("max_pain"), f"expiry {s.get('max_pain_expiry') or ''}")]
+        lv = [x for x in lv if x[1] is not None]
+        lv.sort(key=lambda x: -x[1])
+        mapped_head = f"<th>{esc(meta['map'])}</th>" if conv else ""
+        trs = "".join(f'<tr{" class=\"optnow\"" if n == "Price" else ""}><th scope="row">{n}</th><td>{f(v, d0)}</td>'
+                      + (f"<td><b>{f(conv(v), dm)}</b></td>" if conv else "")
+                      + f'<td>{"" if n == "Price" else dist(v)}</td><td class="muted-text">{esc(why)}</td></tr>' for n, v, why in lv)
+        pos = s.get("regime") == "positive"
+        badge_ = (f'<span class="badge" style="color:var(--up);background:color-mix(in srgb,var(--up) 14%,transparent)">Positive gamma</span>' if pos
+                  else f'<span class="badge" style="color:var(--down);background:color-mix(in srgb,var(--down) 14%,transparent)">Negative gamma</span>')
+        flip = s.get("gamma_flip")
+        if flip:
+            where = "above" if spot > flip else "below"
+            read = (f"Price is {where} the gamma flip ({f(flip, d0)}{', ' + meta['map'] + ' ' + f(conv(flip), dm) if conv else ''}). "
+                    + ("In this zone dealer hedging tends to lean against moves, so ranges between the walls have tended to hold more often and realised volatility tends to be lower."
+                       if pos else "In this zone dealer hedging tends to push in the same direction as the move, so moves can extend further and volatility tends to be higher."))
+        else:
+            read = "No gamma flip within ±12% of price; total gamma is " + ("positive" if pos else "negative") + " across that range."
+        dm_ = s.get("day_move")
+        stats = (f'<div class="optstats"><span><b>{f(s.get("net_gex_bn"), 2)}</b> bn $ net gamma per 1%</span>'
+                 f'<span>1-day move ±<b>{f(dm_, d0 if d0 else 0)}</b>{f" ({meta["map"]} ±{conv(dm_) - conv(0):,.{dm}f})" if conv and dm_ and meta["mode"] == "mul" else ""} <small>ATM IV {f(s.get("atm_iv"), 1)}%</small></span>'
+                 f'<span>Put/call OI <b>{f(s.get("pcr_oi"), 2)}</b> · volume <b>{f(s.get("pcr_vol"), 2)}</b></span></div>')
+        ch = s.get("oi_changes") or []
+        if ch:
+            chg = "".join(f'<tr><td>{f(c["k"], d0)}{f" <span class=muted-text>({f(conv(c["k"]), dm)})</span>" if conv else ""}</td>'
+                          f'<td class="{"up" if c["dc"] > 0 else "down" if c["dc"] < 0 else ""}">{c["dc"]:+,}</td>'
+                          f'<td class="{"up" if c["dp"] > 0 else "down" if c["dp"] < 0 else ""}">{c["dp"]:+,}</td></tr>' for c in ch)
+            chg = f'<table class="opttab"><thead><tr><th>Strike</th><th>Call OI chg</th><th>Put OI chg</th></tr></thead><tbody>{chg}</tbody></table>'
+        else:
+            chg = '<p class="quiet">Needs two daily snapshots; shows from the next update.</p>'
+        hist = s.get("history") or []
+        hrows = "".join(f'<tr><td>{esc(h.get("date"))}</td><td>{f(h.get("spot"), d0)}</td><td>{f(h.get("gamma_flip"), d0)}</td><td>{f(h.get("call_wall"), d0)}</td>'
+                        f'<td>{f(h.get("put_wall"), d0)}</td><td>{f(h.get("net_gex_bn"), 2)}</td></tr>' for h in hist)
+        htab = (f'<table class="opttab"><thead><tr><th>Date</th><th>Price</th><th>Flip</th><th>Call wall</th><th>Put wall</th><th>Net GEX bn</th></tr></thead><tbody>{hrows}</tbody></table>'
+                if hrows else "")
+        age = (today - datetime.strptime(s["date"], "%Y-%m-%d").date()).days if s.get("date") else 0
+        stale = ' <span class="badge warn">stale</span>' if age > 4 else ""
+        mapnote = (f"{meta['map']} levels = {meta['src'].split()[0]} level {'+ basis ' + format(s['mapped_price'] - spot, '+,.2f') if meta['mode'] == 'add' else '× ' + format(s['mapped_price'] / spot, ',.3f')} "
+                   f"(closes: {meta['map']} {f(s['mapped_price'], dm)}, {meta['src'].split()[0]} {f(spot, d0)}). The basis drifts during the day; re-check it against your chart."
+                   if conv else "Mapped price unavailable this run, so levels are in option units only.")
+        html.append(
+            f'<div class="card" style="--w:7"><div class="card-h"><h3>{meta["title"]} key levels <span class="muted-text">· {esc(meta["src"])}</span> {badge_}{stale}</h3></div>'
+            f'<div class="card-b">{stats}<div class="scroll"><table class="opttab"><thead><tr><th>Level</th><th>{esc(meta["src"].split()[0])}</th>{mapped_head}<th>vs price</th><th></th></tr></thead><tbody>{trs}</tbody></table></div>'
+            f'<p class="optread">{esc(read)}</p><p class="note">{esc(mapnote)}</p></div></div>'
+            f'<div class="card" style="--w:5"><div class="card-h"><h3>Gamma by strike <span class="muted-text">· {esc(meta["src"].split()[0])} strikes</span></h3><p class="note">Right: call gamma · left: put gamma · $M per 1% move</p></div><div class="card-b">{_opt_chart(s, meta, conv)}</div></div>'
+            f'<div class="card" style="--w:5"><div class="card-h"><h3>{meta["title"]}: biggest open-interest changes</h3><p class="note">Contracts, vs the previous update</p></div><div class="card-b scroll">{chg}</div></div>'
+            f'<div class="card" style="--w:7"><div class="card-h"><h3>{meta["title"]}: levels over the last 10 updates</h3><p class="note">In {esc(meta["src"].split()[0])} units</p></div><div class="card-b scroll">{htab or "<p class=quiet>Builds up one row per update.</p>"}</div></div>')
+    return "".join(html)
+
 TEMPLATE = (ROOT / "template.html").read_text(encoding="utf-8") if (ROOT / "template.html").exists() else None
 
 
@@ -1570,7 +1725,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
         "__FX_CARDS__": fx["fx"], "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
-        "__STATUS__": build_status(data, today),
+        "__STATUS__": build_status(data, today), "__OPTIONS__": build_options(data, today),
     }
     for k, v in rep.items():
         page = page.replace(k, v)

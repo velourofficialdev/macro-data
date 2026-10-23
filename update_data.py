@@ -631,6 +631,13 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         record("FX_MACRO", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
+    try:   # options positioning levels (SPX -> ES, GLD -> gold) from Cboe's free delayed chains; see options_levels.py
+        import options_levels
+        for key, (ok, last, err, note) in options_levels.update(DATA).items():
+            record(f"OPT_{key}", ok, last, error=err, note=note)
+    except Exception as exc:  # noqa: BLE001
+        record("OPT_SPX", False, error=f"{type(exc).__name__}: {exc}"[:200])
+
     (DATA / "status.json").write_text(json.dumps(status, indent=2))
     return 0 if any(s["ok"] for s in status.values()) else 1
 
