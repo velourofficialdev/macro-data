@@ -961,7 +961,7 @@ def build_fx_drivers(data: dict) -> str:
         vz = float((vix.iloc[-1] - vix.tail(252).mean()) / vix.tail(252).std())
         risk = -1 if vz > 0.5 else 1 if vz < -0.5 else 0          # +1 = risk appetite high
         vix_txt = f"VIX {vix.iloc[-1]:.1f}"
-    cards = []
+    trs = []
     for pair, (cur, cc, ten, pcol, side) in DRV_PAIRS.items():
         rows = []     # (name, tag, value, state)
         fy = (d.get("yc", {}).get(cc) or {}).get(ten)
@@ -971,40 +971,44 @@ def build_fx_drivers(data: dict) -> str:
             g = (j["f"] - j["u"]) * side            # positive = gap favours the pair rising
             now, chg = float(g.iloc[-1]), float(g.iloc[-1] - g.iloc[-21])
             st = 0 if abs(chg) < 0.05 else (1 if chg > 0 else -1)
-            rows.append((f"{ten} yield gap, 4-week trend", "Rates", f"{chg:+.2f} pp ({ten} gap {now:+.2f})", st))
+            rows.append((f"{ten} yield gap, 4-week trend", "Rates", f"{chg:+.2f} pp (gap {now:+.2f})", st))
         else:
             rows.append((f"{ten} yield gap, 4-week trend", "Rates", "n/a", 0))
         if pol is not None and pcol in pol and "US" in pol:
             f, u = float(pol[pcol].iloc[-1]), float(pol["US"].iloc[-1])
             gp = (f - u) * side
-            rows.append(("Policy rate gap", "Bank", f"{DRV_BANK['US']} {u:.2f} · {DRV_BANK[pcol]} {f:.2f}", 0 if abs(gp) < 0.25 else (1 if gp > 0 else -1)))
+            rows.append(("Policy rate gap", "Bank", f"{u:.2f} vs {f:.2f}", 0 if abs(gp) < 0.25 else (1 if gp > 0 else -1)))
         else:
             rows.append(("Policy rate gap", "Bank", "n/a", 0))
         net = (d.get("cot") or {}).get(cur)
         if net is not None and len(net) >= 52:
             z = float((net.iloc[-1] - net.tail(52).mean()) / net.tail(52).std(ddof=1))
-            rows.append((f"{cur} speculator positioning", "COT", f"net {int(net.iloc[-1]):+,} (Z {z:+.1f})", 0 if abs(z) < 0.5 else (1 if z * side > 0 else -1)))
+            rows.append((f"{cur} speculator positioning", "COT", f"Z {z:+.1f}", 0 if abs(z) < 0.5 else (1 if z * side > 0 else -1)))
         else:
             rows.append((f"{cur} speculator positioning", "COT", "n/a", 0))
         sens = DRV_RISK.get(cur, 0)
-        rows.append(("Risk appetite", "Risk", vix_txt + (" (calm)" if risk > 0 else " (stressed)" if risk < 0 else ""), 0 if not sens else risk * sens * side))
+        rows.append(("Risk appetite", "Risk", (vix_txt + (" calm" if risk > 0 else " stressed" if risk < 0 else "")) if DRV_RISK.get(cur) else "n/a", 0 if not sens else risk * sens * side))
         ups = sum(1 for r in rows if r[3] > 0)
         dns = sum(1 for r in rows if r[3] < 0)
         if ups - dns >= 2:
-            tone, label, line = "up", "HIGHER", f"{ups} of 4 drivers support {pair} higher"
+            tone, label, count = "up", "HIGHER", f"{ups} of 4 agree"
         elif dns - ups >= 2:
-            tone, label, line = "down", "LOWER", f"{dns} of 4 drivers support {pair} lower"
+            tone, label, count = "down", "LOWER", f"{dns} of 4 agree"
         else:
-            tone, label, line = "mid", "MIXED", f"Drivers mixed: {ups} higher, {dns} lower, {4 - ups - dns} neutral"
-        sig = "".join(
-            f'<div class="sig"><span class="dot {"up" if st > 0 else "down" if st < 0 else "flat"}" title="{"supports pair higher" if st > 0 else "supports pair lower" if st < 0 else "neutral"}"></span>'
-            f'<span class="sn">{esc(n)}</span><span class="st">{esc(t)}</span><span class="sv">{esc(v)}</span></div>' for n, t, v, st in rows)
-        cards.append(f'<article class="conf"><div class="ctop"><b>{esc(pair)}</b><span class="tag {tone}">{label}</span></div>'
-                     f'<div class="drvline {tone}">{esc(line)}</div>{sig}</article>')
-    return ('<div class="confgrid">' + "".join(cards) + '</div>'
-            '<p class="note">Context, not a forecast. Green dots support the pair rising, red dots support it falling, grey is neutral. '
-            'In a backtest of these 7 pairs (Apr 2025 to Oct 2026) only the yield-gap trend leaned forward, and only weakly; policy rates and positioning mostly describe moves already under way. '
-            'The risk row applies to AUD, NZD, CAD, JPY and CHF only.</p>')
+            tone, label, count = "mid", "MIXED", f"{ups} up, {dns} down"
+        def cell(r):
+            n, t, v, st = r
+            arrow = "&#9650;" if st > 0 else "&#9660;" if st < 0 else "&ndash;"
+            return (f'<td class="dc {"up" if st > 0 else "down" if st < 0 else "flat"}" title="{esc(n)}: {"supports the pair higher" if st > 0 else "supports the pair lower" if st < 0 else "neutral"}">'
+                    f'<span class="da">{arrow}</span><small>{esc(v)}</small></td>')
+        trs.append(f'<tr><th scope="row">{esc(pair)}</th>' + "".join(cell(r) for r in rows) +
+                   f'<td class="dread"><span class="tag {tone}">{label}</span><small>{esc(count)}</small></td></tr>')
+    return ('<div class="drvwrap"><table class="drv"><thead><tr><th>Pair</th><th>2Y yield gap<small>4-week trend</small></th>'
+            '<th>Policy rates<small>gap</small></th><th>Positioning<small>speculators, Z</small></th><th>Risk appetite<small>VIX</small></th>'
+            '<th>Read</th></tr></thead><tbody>' + "".join(trs) + '</tbody></table></div>'
+            '<p class="note">&#9650; green supports the pair rising, &#9660; red supports it falling, &ndash; grey is neutral. Context, not a forecast: '
+            'in a backtest of these 7 pairs (Apr 2025 to Oct 2026) only the yield-gap trend leaned forward, and only weakly; policy rates and positioning mostly describe moves already under way. '
+            'The risk column applies to AUD, NZD, CAD, JPY and CHF only. NZDUSD uses the 5Y gap.</p>')
 
 
 def build_cot_cards(playbook: dict, metrics: dict, split: bool = False):
