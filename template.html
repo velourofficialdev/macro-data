@@ -214,6 +214,12 @@
   .odbar2 span { position: absolute; right: 14px; font-size: 9px; color: var(--muted); white-space: nowrap; } .odbar2 span:first-child { top: 0; } .odbar2 span:last-child { bottom: 0; }
   .odgrid td.lvl { text-align: left; } .odgrid .pill { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
   .optin { padding: 0 12px 12px; } .optin > .card { box-shadow: none; }
+  nav.sections a.pagetab { margin-left: auto; color: var(--text); border: 1px solid var(--border-strong); }
+  nav.sections a.pagetab.active { border-color: transparent; }
+  .backlink { font-size: 12px; color: var(--primary-ink); text-decoration: none; margin-right: 6px; } .backlink:hover { text-decoration: underline; }
+  body.optpage main > .sec:not(#options) { display: none !important; }
+  body:not(.optpage) #options { display: none !important; }
+  .odvi { cursor: pointer; border-radius: 6px; padding: 4px 6px; } .odvi.on { background: var(--tint-primary); }
   .odmode { font-size: 12px; color: var(--muted); margin: 0; padding: 0 16px 8px; }
   .odstack { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 4px 12px 12px; }
   .odpane { border: 1px solid var(--border); border-radius: 8px; padding: 8px; min-width: 0; }
@@ -602,7 +608,7 @@
   </div>
 </div></header>
 <nav class="sections" aria-label="Sections"><div class="wrap">
-  <a href="#overview">Overview</a><a href="#rates">Rates</a><a href="#fed">Fed odds</a><a href="#positioning">Positioning</a><a href="#options">Options</a><a href="#fx">FX</a><a href="#economy">Economy</a>
+  <a href="#overview">Overview</a><a href="#rates">Rates</a><a href="#fed">Fed odds</a><a href="#positioning">Positioning</a><a href="#fx">FX</a><a href="#economy">Economy</a><a href="#options" class="pagetab" title="Opens the options desk as its own page">Options desk</a>
 </div></nav>
 </div>
 
@@ -694,7 +700,7 @@
 
   <!-- ============ FX ============ -->
   <section class="sec" id="options">
-    <div class="sechead"><h2>Options positioning</h2><p>From Cboe's free delayed option chains after the US close: open interest (settled, start of session) and closing prices. Gamma exposure assumes dealers hold the opposite side of customers who are long calls and long puts, a common simplification; it maps where hedging flows may cluster, not where price must go. S&amp;P levels come from SPX options and are shifted to ES by the closing basis; gold levels come from GLD options scaled to the COMEX gold future. Not a live trade tape.</p></div>
+    <div class="sechead"><a href="#overview" class="backlink">← Macro dashboard</a><h2>Options positioning</h2><p>From Cboe's free delayed option chains after the US close: open interest (settled, start of session) and closing prices. Gamma exposure assumes dealers hold the opposite side of customers who are long calls and long puts, a common simplification; it maps where hedging flows may cluster, not where price must go. S&amp;P levels come from SPX options and are shifted to ES by the closing basis; gold levels come from GLD options scaled to the COMEX gold future. Not a live trade tape.</p></div>
     <div class="grid" id="odesk">
       <div class="card" style="--w:12"><div class="card-b odbar">
         <div class="ranges" id="od-inst" role="group" aria-label="Instrument"></div>
@@ -723,6 +729,8 @@
         <div class="legend" id="od-tlg"></div><div class="cv" id="od-term" role="img" aria-label="ATM implied volatility and 25-delta risk reversal by expiry"></div></div>
       <div class="card" style="--w:6"><div class="card-h"><h3>08 · VIX term structure</h3><p class="note">VIX3M ÷ VIX, last 12 months · FRED</p></div>
         <div class="card-b"><p class="optread" id="od-vixread"></p></div><div class="cv" id="od-vix" role="img" aria-label="VIX3M divided by VIX over the last year"></div></div>
+      <div class="card" style="--w:12"><div class="card-h"><h3>11 · Implied vol index</h3><p class="note">Cboe's official 30-day implied vol index for each market (VIX, VXN, VXD, RVX, GVZ) via FRED · last 12 months</p></div>
+        <div class="card-b"><div class="odstats" id="od-viall"></div><p class="optread" id="od-viread"></p></div><div class="cv" id="od-vichart" role="img" aria-label="Implied volatility index over the last year"></div></div>
       <div class="card" style="--w:6"><div class="card-h"><h3>09 · Replay</h3><p class="note">Price against the walls and flip at each daily update</p></div>
         <div class="legend" id="od-rlg"></div><div class="cv" id="od-replay" role="img" aria-label="Price, call wall, put wall and gamma flip over time"></div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>10 · AI prompt</h3><div class="ranges" id="od-pt" role="group" aria-label="Prompt type"></div></div>
@@ -842,6 +850,24 @@ const P = __PAYLOAD__;
   }));
 })();
 
+/* Options desk is its own page: #options shows only the desk, every other link shows the dashboard */
+(function () {
+  const main = document.title;
+  function route(scrollTo) {
+    const opt = location.hash === "#options", was = document.body.classList.contains("optpage");
+    document.body.classList.toggle("optpage", opt);
+    document.title = opt ? "Velour Options Desk" : main;
+    if (opt !== was) {
+      window.dispatchEvent(new Event("resize"));
+      const t = !opt && scrollTo && location.hash ? document.querySelector(location.hash) : null;
+      if (t) { const go = () => t.scrollIntoView({ behavior: "auto", block: "start" }); requestAnimationFrame(() => requestAnimationFrame(go)); setTimeout(go, 400); }   // again after charts redraw
+      else window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }
+  window.addEventListener("hashchange", () => route(true));
+  route(false);
+})();
+
 /* nav highlight for the section being read */
 (function () {
   const links = [...document.querySelectorAll("nav.sections a[href^='#']")];
@@ -850,13 +876,15 @@ const P = __PAYLOAD__;
   let ticking = false;
   function update() {
     ticking = false; let idx = 0;
-    secs.forEach((s, i) => { if (s && s.getBoundingClientRect().top <= (document.querySelector('.stickyhead') || {offsetHeight: 90}).offsetHeight + 40) idx = i; });
-    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) idx = secs.length - 1;
+    if (document.body.classList.contains("optpage")) { set(links.findIndex(a => a.getAttribute("href") === "#options")); return; }
+    secs.forEach((s, i) => { if (s && !s.offsetParent) return;
+      if (s && s.getBoundingClientRect().top <= (document.querySelector('.stickyhead') || {offsetHeight: 90}).offsetHeight + 40) idx = i; });
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) { let j = secs.length - 1; while (j > 0 && (!secs[j] || !secs[j].offsetParent)) j--; idx = j; }
     set(idx);
     const act = links[idx]; if (act && act.scrollIntoView && act.parentElement.scrollWidth > act.parentElement.clientWidth) act.parentElement.scrollLeft = act.offsetLeft - 16;
   }
   window.addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
-  window.addEventListener("resize", update); update();
+  window.addEventListener("resize", update); window.addEventListener("hashchange", () => setTimeout(update, 0)); update();
 })();
 
 /* SVG line chart, no libraries. spec: {labels, sets:[{name,data,color}], dec, unit, yMin, yMax, shortX, endLabels} */
@@ -1726,6 +1754,25 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const svg = host.querySelector("svg"); if (!svg) return;
   }
 
+  /* ---------- 11 implied vol index ---------- */
+  const ord = n => { n = Math.round(n); const s = (n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th"); return n + s; };
+  function volidx() {
+    const VI = O._volidx || {}, host = $("od-vichart"), card = host.closest(".card"), tk = keys.filter(k => VI[k]);
+    if (!tk.length) { card.style.display = "none"; return; }
+    card.style.display = "";
+    const cur = VI[st.inst] ? st.inst : null, v = cur ? VI[cur] : null;
+    $("od-viall").innerHTML = tk.map(k => { const x = VI[k];
+      return `<div class="odvi${k === cur ? " on" : ""}" data-k="${k}"><div class="kl">${x.name} · ${O[k].title}</div><div class="v">${x.last.toFixed(2)}</div><div class="m">${x.chg5 == null ? "" : (x.chg5 >= 0 ? "+" : "") + x.chg5.toFixed(2) + " 5d · "}${ord(x.pct1y)} percentile, 1y</div></div>`; }).join("");
+    $("od-viall").querySelectorAll(".odvi").forEach(d => d.addEventListener("click", () => { st.inst = d.dataset.k; st.ex = -1; st.mv = null; paint(); }));
+    if (!v) { $("od-viread").innerHTML = `No implied vol index for ${(O[st.inst] || {}).title || "this market"} today.`; host.innerHTML = ""; return; }
+    const opt = O[cur] || {}, iv = opt.vol && opt.vol.iv30;
+    $("od-viread").innerHTML = `${v.name} closed at <b>${v.last.toFixed(2)}</b> on ${v.date}: higher than ${v.pct1y}% of the last year (range ${v.lo1y.toFixed(1)}–${v.hi1y.toFixed(1)}, average ${v.avg1y.toFixed(1)}). `
+      + (v.pct1y >= 80 ? "Implied vol is high for this market: options price large moves and fear is elevated. " : v.pct1y <= 20 ? "Implied vol is low for this market: options price calm conditions, which can change quickly. " : "Implied vol is mid-range for this market. ")
+      + (iv != null ? `<span class="muted-text">Our 30-day ATM estimate from the chain: ${iv.toFixed(1)}% (the index uses the full strip of options, so it usually sits a little above ATM).</span>` : "");
+    const lo = Math.min(...v.vals), hi = Math.max(...v.vals);
+    draw(host, { labels: v.dates, sets: [{ name: v.name, data: v.vals, color: "var(--s1)" }], dec: 2, axDec: (hi - lo) < 5 ? 1 : 0, shortX: mon, endLabels: true, title: "vol index" });
+  }
+
   /* ---------- 09 replay ---------- */
   function replay() {
     const h = (I().history || []).filter(r => r.spot != null), host = $("od-replay");
@@ -1757,10 +1804,10 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   $("od-pcopy").addEventListener("click", () => copy($("od-pcopy"), $("od-prompt").value, "Copy prompt"));
 
   function paint() {
-    controls(); stats(); spine($("od-spine"), Object.assign(cfgNow(), { sv: st.sv })); terrain(); grid(); smile(); guide(); vol(); replay(); promptUI();
+    controls(); stats(); spine($("od-spine"), Object.assign(cfgNow(), { sv: st.sv })); terrain(); grid(); smile(); guide(); vol(); replay(); volidx(); promptUI();
   }
   paint(); panes.forEach(pane); vix();
-  let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { spine($("od-spine"), Object.assign(cfgNow(), { sv: st.sv })); terrain(); smile(); vol(); vix(); replay(); panes.forEach(pane); }, 120); });
+  let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { spine($("od-spine"), Object.assign(cfgNow(), { sv: st.sv })); terrain(); smile(); vol(); vix(); replay(); volidx(); panes.forEach(pane); }, 120); });
   new MutationObserver(() => terrain()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   if (window.matchMedia) window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => terrain());
 })();

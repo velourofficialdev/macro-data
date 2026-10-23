@@ -9,7 +9,7 @@ This repo builds the Macro Dashboard (Brain item **B1**). It is private on purpo
 - Never edit `.github/workflows/`, secrets, tokens or the public repo. Never print a secret or a token.
 - Do not commit build output. Before committing run `git checkout -- docs data` and delete untracked build files, so a commit holds source changes only.
 - Do not copy data CSVs, `playbook.json` internals or source code into the public repo or any public place.
-- Use only free, key-less data sources. If a source needs a key, a paid plan or an account, stop and ask.
+- Data sources may use an API key (free or free-tier). Keys live only in repository secrets and reach the code as environment variables (for example `os.environ.get("FRED_API_KEY")`); never commit, log or print a key, and never put one in a URL that gets logged. A keyed source must fail soft: if its variable is missing, skip it and record that in `status.json` instead of failing the run. Adding a secret, or the `env:` line that passes it to the workflow, is the owner's step (workflows and secrets stay off-limits), so say exactly which secret name and line are needed. Ask before using anything that costs money or needs a paid plan, and check the source's terms allow showing its data on a public page.
 
 ## Layout
 
@@ -46,4 +46,4 @@ The owner's queue is the Notion database "Dashboard Requests (B1)" under the bra
 
 - `dashboard-dev`: layout, charts and new panels (`template.html`, `build_dashboard.py`).
 - `playbook-editor`: wording and thresholds in `playbook.json`.
-- `data-source-checker`: investigates failing or stale sources and finds free replacements.
+- `data-source-checker`: investigates failing or stale sources and finds free (or free-key) replacements.
