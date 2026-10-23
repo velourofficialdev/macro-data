@@ -223,8 +223,9 @@ def load_fx_drivers_data(data_dir: Path) -> dict:
     p = data_dir / "POLICY_RATES.csv"
     if p.exists():
         out["pol"] = pd.read_csv(p, parse_dates=["date"]).set_index("date").sort_index().apply(pd.to_numeric, errors="coerce")
-    for cur in ("EUR", "JPY", "GBP", "CHF", "CAD", "AUD", "NZD"):
-        p = data_dir / f"COT_{cur}.csv"
+    for cur, fname in (("EUR", "COT_EUR"), ("JPY", "COT_JPY"), ("GBP", "COT_GBP"), ("CHF", "COT_CHF"), ("CAD", "COT_CAD"), ("AUD", "COT_AUD"),
+                       ("NZD", "COT_NZD"), ("ES", "COT_ES"), ("NQ", "COT_NQ"), ("US30", "COT_US30"), ("GOLD", "COT_GOLD_LEGACY")):
+        p = data_dir / f"{fname}.csv"
         if p.exists():
             df = pd.read_csv(p, parse_dates=["Date"]).dropna(subset=["Long", "Short"]).set_index("Date").sort_index()
             out["cot"][cur] = (pd.to_numeric(df["Long"]) - pd.to_numeric(df["Short"])).astype(float)
@@ -279,11 +280,12 @@ def load_everything(data_dir: Path) -> dict:
         x = read_series(data_dir / "fx" / f"{pair}.csv", "date", "Close")
         if x is not None and len(x) > 60:
             fxp[pair] = x
+    idx = {k: x for k in ("ES", "NQ", "US30") if (x := read_series(data_dir / "idx" / f"{k}.csv", "date", "Close")) is not None and len(x) > 60}
     mkt = {c: x for c in ("SP500", "DCOILWTICO", "VIXCLS", "GVZCLS", "CBBTCUSD") if (x := read_series(data_dir / "econ" / f"{c}.csv", "date", c)) is not None}
     zq = pd.read_csv(data_dir / "fed" / "zq_odds.csv") if (data_dir / "fed" / "zq_odds.csv").exists() else None
     events = pd.read_csv(data_dir / "fed" / "events.csv") if (data_dir / "fed" / "events.csv").exists() else None
     drv = load_fx_drivers_data(data_dir)
-    return {"drv": drv, "zq": zq, "events": events, "fxp": fxp, "fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
+    return {"idx": idx, "drv": drv, "zq": zq, "events": events, "fxp": fxp, "fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
 
 
 def compute(data: dict, playbook: dict) -> dict:
@@ -736,7 +738,7 @@ def gauge_ring(score: float, cls: str) -> str:
             f'<div class="rn"><b>{score:.0f}</b><small>/100</small></div></div>')
 
 
-FX_DEC = {"USDJPY": 3, "XAUUSD": 2}
+FX_DEC = {"USDJPY": 3, "XAUUSD": 2, "ES": 2, "NQ": 2, "US30": 2}
 
 
 # FX confluence: a line-for-line port of the original engine (deiruuuu/fx-macro-engine, fetch-data.js),
@@ -833,18 +835,19 @@ def fx_from_data(data: dict) -> dict:
     series = dict(data.get("fxp", {}))
     if data.get("gold_px") is not None and len(data["gold_px"]) > 60:
         series["XAUUSD"] = data["gold_px"]
+    series.update(data.get("idx", {}))
     for sym, s in series.items():
         dec = FX_DEC.get(sym, 5)
         price, prev = float(s.iloc[-1]), float(s.iloc[-2])
         out[sym] = {"display": f"{price:,.{dec}f}", "value": price, "changePct": round((price / prev - 1) * 100, 3),
                     "date": s.index[-1].strftime("%Y-%m-%d"), "spark": [round(float(v), 6) for v in s.tail(30)],
-                    "confluence": fx_confluence(sym, s)}
+                    "confluence": fx_confluence(sym, s), "range": week_range(s)}
     return out
 
 
 def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
     empty = '<p class="muted-text">No FX feed saved yet. It appears after the first successful update.</p>'
-    out = {"tiles": "", "fx": empty, "conf": empty, "econ": empty, "news": empty, "upd": "n/a"}
+    out = {"picker": "", "tiles": "", "fx": empty, "conf": empty, "econ": empty, "news": empty, "upd": "n/a"}
     tiles = []
     # our own, correctly labelled DXY and gold futures
     for series, label, dec in ():  # DXY and gold now live in the overview KPI strip
@@ -873,6 +876,7 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
     cards, confs = [], []
     live = 0
     drivers = build_fx_drivers(data)
+    irows: list[dict] = []
     for sym, d in fx.items():
         cf = d.get("confluence")
         tone = "flat" if not cf else ("up" if cf["score"] >= 60 else "down" if cf["score"] <= 40 else "mid")
@@ -881,7 +885,7 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
         tag = f'<span class="tag {tone}">{esc(cf["label"].split(" ")[0].upper())}</span>' if cf else ""
         ch = d.get("changePct")
         cards.append(
-            f'<div class="tile fxc{"" if has else " empty"}"><div class="tl"><span>{esc(sym)}</span>{tag}</div>'
+            f'<div class="tile fxc{"" if has else " empty"}" data-sym="{esc(sym)}" title="{esc(INSTR_NAMES.get(sym, sym))}"><div class="tl"><span>{esc(sym)}</span>{tag}</div>'
             f'<div class="tv">{esc(d.get("display", "")) if has else "&ndash;"}</div>'
             f'<div class="tc {"" if ch is None else ("up" if ch >= 0 else "down")}">{esc(signed(ch, 3, "%")) if ch is not None else "&nbsp;"}</div>'
             f'{spark(d.get("spark"), None if ch is None else ch >= 0) if has else ""}</div>')
@@ -897,15 +901,35 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
             sr_html = "".join(
                 f'<div class="sr {"above" if x["distPct"] >= 0 else "below"}"><span>{esc(x["level"])}</span><span class="ss">{esc(x["strength"])}</span>'
                 f'<span class="sd">{esc(signed(x["distPct"], 2, "%"))}</span></div>' for x in cf.get("sr", []))
+            rg = d.get("range")
+            evs = week_events(sym)
+            rng_html = ""
+            if rg:
+                rng_html = (f'<div class="xr"><span>Likely range this week</span><b>&plusmn;{rg["pct"]:.2f}%</b>'
+                            f'</div><span class="xv">{rg["lo"]:,.{FX_DEC.get(sym, 5)}f} to {rg["hi"]:,.{FX_DEC.get(sym, 5)}f}</span>'
+                            f'<div class="xe">{(str(len(evs)) + " event" + ("s" if len(evs) != 1 else "") + " in the next 7 days: " + ", ".join(evs)) if evs else "No scheduled events in the next 7 days"}</div>')
             confs.append(
-                f'<article class="conf"><div class="ctop"><b>{esc(sym)}</b><span>{esc(d.get("display", ""))}</span></div>'
-                f'<div class="chead">{gauge_ring(cf["score"], tone)}<div class="verdict {tone}">{esc(cf["label"].split(" ")[0])} confluence<small>Confluence score</small></div></div>'
-                f'<h5>Signals</h5>{sig_html}{drivers.get(sym, "")}<h5>Support / resistance</h5>{sr_html}</article>')
+                f'<article class="conf" data-sym="{esc(sym)}"><div class="ctop"><b>{esc(sym)}{f" <small>{esc(INSTR_NAMES[sym])}</small>" if sym in INSTR_NAMES else ""}</b><span>{esc(d.get("display", ""))}</span></div>'
+                f'<div class="chead">{gauge_ring(cf["score"], tone)}<div class="verdict {tone}">{esc(cf["label"].split(" ")[0])} confluence<small>Confluence score</small></div></div>{rng_html}'
+                f'<h5>Signals</h5>{sig_html}{(drivers.get(sym) or {}).get("html", "")}<h5>Support / resistance</h5>{sr_html}</article>')
+            rg_ = d.get("range")
+            irows.append({"id": f"FX:{sym}", "label": sym, "ticker": INSTR_DESC.get(sym, ""), "group": instr_group(sym), "latest": d.get("display", ""),
+                          "d1": signed(d.get("changePct"), 2, "%") if d.get("changePct") is not None else "", "score": str(cf["score"]), "tone": tone,
+                          "lean": (drivers.get(sym) or {}).get("label", "").capitalize(), "range": f"±{rg_['pct']:.2f}%" if rg_ else "",
+                          "info": {"title": sym, "html": confs[-1]}})
     if cards:
         note = "" if live else '<p class="emptystate">No FX feed saved yet. It appears after the first successful update.</p>'
         out["fx"] = note + '<div class="tiles fxtiles">' + "".join(cards) + "</div>"
+    out["irows"] = irows
+    out["drivers"] = drivers
+    out["picker"] = ('<div class="picker" id="fxpick" role="group" aria-label="Choose which instruments to show">'
+                     '<span class="pl">My view</span>' + "".join(f'<button type="button" class="fxc" data-sym="{esc(k)}" aria-pressed="true" title="{esc(INSTR_NAMES.get(k, k))}">{esc(k)}</button>' for k in fx)
+                     + '<button type="button" class="fxc ghost" data-all="1">All</button><button type="button" class="fxc ghost" data-none="1">None</button></div>') if fx else ""
     if confs:
-        out["conf"] = '<div class="confgrid">' + "".join(confs) + "</div>"
+        out["conf"] = ('<div class="confgrid">' + "".join(confs) + "</div>"
+                       '<p class="note">Context, not a forecast. The likely range is the 68% range (+-1 sigma) from the last 20 and 60 days of price swings; in a 2001-2026 test on 7 pairs the weekly move stayed inside it 68.3% of weeks. '
+                       'The macro read (leans higher, lower or mixed) was right only about half of weeks in the same test, so treat it as background, not a signal. '
+                       'Rows marked info are shown but not counted. Choose which instruments to show with the buttons above (or My view in the Terminal); your choice is saved in this browser and shared by both views.</p>')
     else:
         out["conf"] = ('<p class="emptystate">No FX feed saved yet. It appears after the first successful update.</p>'
                        '<p class="note">Each pair will show a confluence score (0-100), its momentum, RSI, trend (price vs EMA) and Z-score signals, and nearby support and resistance.</p>')
@@ -944,75 +968,202 @@ DRV_PAIRS = {
 }
 DRV_BANK = {"US": "Fed", "EA": "ECB", "GB": "BoE", "JP": "BoJ", "CH": "SNB", "CA": "BoC", "AU": "RBA", "NZ": "RBNZ"}
 DRV_RISK = {"AUD": 1, "NZD": 1, "CAD": 1, "JPY": -1, "CHF": -1}     # +1 gains when risk appetite rises, -1 gains when it falls
+INSTR_NAMES = {"XAUUSD": "Gold futures", "ES": "S&P 500", "NQ": "Nasdaq 100", "US30": "Dow 30"}
+INDEX_SYMS = ("ES", "NQ", "US30")
+US_EVENT_SYMS = {"EURUSD", "GBPUSD", "USDJPY", "USDCAD", "AUDUSD", "USDCHF", "NZDUSD", "XAUUSD", *INDEX_SYMS}   # instruments that react to US events
 
 
-def build_fx_drivers(data: dict) -> dict[str, str]:
-    """Macro drivers per pair: each driver says whether it supports the pair higher (+1), lower (-1) or neither (0).
-    Context only, not a forecast: a backtest (Apr 2025 - Oct 2026) found only the yield-gap trend leaned forward, and weakly."""
+def week_range(s: pd.Series) -> dict | None:
+    """Likely range for the next 5 trading days, +-1 sigma, from recent daily swings (last 20 and 60 days, equal weight).
+    Backtest 2001-2026 on 7 pairs: the weekly move stayed inside this range in 68.3% of weeks (68.3% expected)."""
+    r = np.log(s.astype(float)).diff().dropna()
+    if len(r) < 70:
+        return None
+    sig = math.sqrt(5) * (0.5 * float(r.tail(20).std()) + 0.5 * float(r.tail(60).std()))
+    px = float(s.iloc[-1])
+    return {"pct": round(sig * 100, 2), "lo": px * math.exp(-sig), "hi": px * math.exp(sig)}
+
+
+def week_events(sym: str) -> list[str]:
+    """Names of calendar events in the next 7 days that move this instrument."""
+    p = Path(__file__).parent / "calendar.json"
+    if not p.exists():
+        return []
+    today = datetime.now(timezone.utc).date()
+    out = []
+    for e in json.loads(p.read_text()).get("events", []):
+        n = (date.fromisoformat(e["date"]) - today).days
+        if 0 <= n <= 7 and (sym in e["pairs"] or ("USD pairs" in e["pairs"] and sym in US_EVENT_SYMS)):
+            out.append(e["name"])
+    return out
+
+
+def _chg(s: pd.Series | None, n: int = 21) -> float | None:
+    return None if s is None or len(s) <= n else float(s.iloc[-1] - s.iloc[-n])
+
+
+def _stance(pol: pd.DataFrame, col: str) -> str:
+    ch = float(pol[col].iloc[-1] - pol[col].iloc[max(len(pol) - 183, 0)])      # direction over the last 6 months
+    return "hiking" if ch >= 0.25 else "cutting" if ch <= -0.25 else "holding"
+
+
+def _cot_row(net: pd.Series | None, name: str, side: int) -> dict:
+    if net is None or len(net) < 52:
+        return {"name": name, "value": "n/a", "state": 0, "counted": True}
+    z = float((net.iloc[-1] - net.tail(52).mean()) / net.tail(52).std(ddof=1))
+    crowded = abs(z) >= 2      # extreme positioning is as often a reversal risk as a trend, so it is shown but not counted
+    return {"name": name, "value": f"crowded {'long' if z > 0 else 'short'} (Z {z:+.1f})" if crowded else f"Z {z:+.1f}",
+            "state": 0 if (crowded or abs(z) < 0.5) else (1 if z * side > 0 else -1), "counted": True}
+
+
+def _drivers_for(sym: str, data: dict) -> list[dict]:
     d = data.get("drv") or {}
-    if not d or (not d.get("yc") and d.get("pol") is None):
-        return {}
     pol = d.get("pol")
-    us = {"2Y": data.get("yields", {}).get("DGS2"), "5Y": data.get("yields", {}).get("DGS5")}
+    yields = data.get("yields", {})
     vix = data.get("mkt", {}).get("VIXCLS")
-    risk = 0
-    vix_txt = "n/a"
-    if vix is not None and len(vix) > 120:
-        vz = float((vix.iloc[-1] - vix.tail(252).mean()) / vix.tail(252).std())
-        risk = -1 if vz > 0.5 else 1 if vz < -0.5 else 0          # +1 = risk appetite high
-        vix_txt = f"VIX {vix.iloc[-1]:.1f}"
-    out: dict[str, str] = {}
-    for pair, (cur, cc, ten, pcol, side) in DRV_PAIRS.items():
-        rows = []     # (name, tag, value, state)
+    vz = None if vix is None or len(vix) < 120 else float((vix.iloc[-1] - vix.tail(252).mean()) / vix.tail(252).std())
+    vix_txt = "n/a" if vz is None else f"VIX {vix.iloc[-1]:.1f}" + (" stressed" if vz > 0.5 else " calm" if vz < -0.5 else "")
+    rows: list[dict] = []
+    if sym in DRV_PAIRS:
+        cur, cc, ten, pcol, side = DRV_PAIRS[sym]
         fy = (d.get("yc", {}).get(cc) or {}).get(ten)
-        uy = us.get(ten)
+        uy = yields.get("DGS2" if ten == "2Y" else "DGS5")
+        yname = f"{ten} yield gap, 4-week"
         if fy is not None and uy is not None and len(fy) > 60 and len(uy) > 60:
             j = pd.concat([fy.rename("f"), uy.rename("u")], axis=1).sort_index().ffill().dropna()
-            g = (j["f"] - j["u"]) * side            # positive = gap favours the pair rising
-            now, chg = float(g.iloc[-1]), float(g.iloc[-1] - g.iloc[-21])
-            st = 0 if abs(chg) < 0.05 else (1 if chg > 0 else -1)
-            rows.append((f"{ten} yield gap, 4-week trend", "Rates", f"{chg:+.2f} pp", st))
+            g = (j["f"] - j["u"]) * side
+            chg = float(g.iloc[-1] - g.iloc[-21])
+            rows.append({"name": yname, "value": f"{chg:+.2f} pp", "state": 0 if abs(chg) < 0.05 else (1 if chg > 0 else -1), "counted": True})
         else:
-            rows.append((f"{ten} yield gap, 4-week trend", "Rates", "n/a", 0))
+            rows.append({"name": yname, "value": "n/a", "state": 0, "counted": True})
         if pol is not None and pcol in pol and "US" in pol:
             f, u = float(pol[pcol].iloc[-1]), float(pol["US"].iloc[-1])
             gp = (f - u) * side
-            def stance(col):     # direction of the last 6 months (policy changes are infrequent)
-                ch = float(pol[col].iloc[-1] - pol[col].iloc[max(len(pol) - 183, 0)])
-                return "hiking" if ch >= 0.25 else "cutting" if ch <= -0.25 else "holding"
-            rows.append(("Policy rate gap", "Bank", f"{u:.2f} vs {f:.2f}", 0 if abs(gp) < 0.25 else (1 if gp > 0 else -1),
-                         f"{DRV_BANK['US']} {stance('US')} · {DRV_BANK[pcol]} {stance(pcol)}"))
+            rows.append({"name": "Policy rates", "value": f"{u:.2f} vs {f:.2f}", "state": 0 if abs(gp) < 0.25 else (1 if gp > 0 else -1), "counted": True,
+                         "sub": f"{DRV_BANK['US']} {_stance(pol, 'US')} · {DRV_BANK[pcol]} {_stance(pol, pcol)}"})
         else:
-            rows.append(("Policy rate gap", "Bank", "n/a", 0))
-        net = (d.get("cot") or {}).get(cur)
-        if net is not None and len(net) >= 52:
-            z = float((net.iloc[-1] - net.tail(52).mean()) / net.tail(52).std(ddof=1))
-            crowded = abs(z) >= 2      # extreme positioning is as often a reversal risk as a trend, so it is shown but not counted
-            rows.append((f"{cur} speculator positioning", "COT",
-                         (f"crowded {'long' if z > 0 else 'short'} (Z {z:+.1f})" if crowded else f"Z {z:+.1f}"),
-                         0 if (crowded or abs(z) < 0.5) else (1 if z * side > 0 else -1)))
-        else:
-            rows.append((f"{cur} speculator positioning", "COT", "n/a", 0))
+            rows.append({"name": "Policy rates", "value": "n/a", "state": 0, "counted": True})
+        rows.append(_cot_row((d.get("cot") or {}).get(cur), "Positioning (Z)", side))
         sens = DRV_RISK.get(cur, 0)
-        rows.append(("Risk appetite", "Risk", (vix_txt + (" calm" if risk > 0 else " stressed" if risk < 0 else "")) if DRV_RISK.get(cur) else "n/a", 0 if not sens else risk * sens * side))
-        ups = sum(1 for r in rows if r[3] > 0)
-        dns = sum(1 for r in rows if r[3] < 0)
+        rk = 0 if (vz is None or not sens) else (-1 if vz > 0.5 else 1 if vz < -0.5 else 0) * sens * side
+        rows.append({"name": "Risk appetite", "value": vix_txt if sens else "n/a", "state": rk, "counted": False})
+        return rows
+    ry = yields.get("DFII10")
+    rchg = _chg(ry)
+    rrow = {"name": "10Y real yield, 4-week", "value": "n/a" if rchg is None else f"{rchg:+.2f} pp",
+            "state": 0 if rchg is None or abs(rchg) < 0.05 else (-1 if rchg > 0 else 1), "counted": True}      # falling real yields support gold and stocks
+    fed = {"name": "Fed policy (6 months)", "value": "n/a", "state": 0, "counted": True}
+    if pol is not None and "US" in pol:
+        st = _stance(pol, "US")
+        fed = {"name": "Fed policy (6 months)", "value": f"{float(pol['US'].iloc[-1]):.2f}% {st}", "state": {"cutting": 1, "hiking": -1}.get(st, 0), "counted": True}
+    if sym == "XAUUSD":
+        dxy = data.get("dxy")
+        dch = None if dxy is None or len(dxy) < 25 else float(dxy.iloc[-1] / dxy.iloc[-21] - 1) * 100
+        rows = [rrow, fed, _cot_row((d.get("cot") or {}).get("GOLD"), "Positioning (Z)", 1),
+                {"name": "Dollar (DXY), 4-week", "value": "n/a" if dch is None else f"{dch:+.1f}%", "state": 0 if dch is None or abs(dch) < 0.5 else (-1 if dch > 0 else 1), "counted": True}]
+    else:
+        rows = [rrow, fed, _cot_row((d.get("cot") or {}).get(sym), "Positioning (Z)", 1),
+                {"name": "Volatility", "value": vix_txt, "state": 0, "counted": False}]
+    return rows
+
+
+def build_fx_drivers(data: dict) -> dict[str, dict]:
+    """Macro drivers per instrument. Each counted driver says whether it supports the instrument higher (+1), lower (-1) or neither (0);
+    a lean needs a net of 2. Context only: a 2001-2026 backtest found the read right about half of weeks (no reliable edge)."""
+    d = data.get("drv") or {}
+    if not d or (not d.get("yc") and d.get("pol") is None):
+        return {}
+    out: dict[str, dict] = {}
+    for sym in [*DRV_PAIRS, "XAUUSD", *INDEX_SYMS]:
+        rows = _drivers_for(sym, data)
+        counted = [r for r in rows if r["counted"]]
+        ups = sum(1 for r in counted if r["state"] > 0)
+        dns = sum(1 for r in counted if r["state"] < 0)
         if ups - dns >= 2:
-            tone, label, count = "up", "HIGHER", f"{ups} of 4 agree"
+            label, count = "LEANS HIGHER", f"{ups} of {len(counted)} lean higher"
         elif dns - ups >= 2:
-            tone, label, count = "down", "LOWER", f"{dns} of 4 agree"
+            label, count = "LEANS LOWER", f"{dns} of {len(counted)} lean lower"
         else:
-            tone, label, count = "mid", "MIXED", f"{ups} up, {dns} down"
-        def row(r):
-            n, t, v, st, *extra = r
-            sub = f'<small class="ssub">{esc(extra[0])}</small>' if extra else ""
-            return (f'<div class="sig m"><span class="dot {"up" if st > 0 else "down" if st < 0 else "flat"}" '
-                    f'title="{"supports the pair higher" if st > 0 else "supports the pair lower" if st < 0 else "neutral"}"></span>'
-                    f'<span class="sn">{esc(n)}</span><span class="sv">{esc(v)}</span>{sub}</div>')
-        names = ("2Y yield gap, 4-week", "Policy rates", "Positioning (Z)", "Risk appetite")
-        out[pair] = (f'<h5>Macro drivers <span class="tag {tone}">{label}</span><small class="dcount">{esc(count)}</small></h5>'
-                     + "".join(row((names[k] if ten == "2Y" or k else "5Y yield gap, 4-week", r[1], r[2], r[3], *r[4:])) for k, r in enumerate(rows)))
+            label, count = "MIXED", f"{ups} up, {dns} down"
+        def row(r: dict) -> str:
+            st = r["state"]
+            sub = f'<small class="ssub">{esc(r["sub"])}</small>' if r.get("sub") else ""
+            title = ("supports it higher" if st > 0 else "supports it lower" if st < 0 else "neutral") + ("" if r["counted"] else " (shown, not counted)")
+            return (f'<div class="sig m"><span class="dot {"up" if st > 0 else "down" if st < 0 else "flat"}" title="{title}"></span>'
+                    f'<span class="sn">{esc(r["name"])}{"" if r["counted"] else " <i>info</i>"}</span><span class="sv">{esc(r["value"])}</span>{sub}</div>')
+        out[sym] = {"html": f'<h5>Macro drivers <span class="tag lean">{label}</span><small class="dcount">{esc(count)}</small></h5>' + "".join(row(r) for r in rows),
+                    "rows": rows, "label": label, "count": count}
     return out
+
+
+INSTR_DESC = {"EURUSD": "Euro / US dollar", "GBPUSD": "Pound / US dollar", "USDJPY": "US dollar / yen", "USDCAD": "US dollar / Canadian dollar",
+              "AUDUSD": "Australian dollar / US dollar", "USDCHF": "US dollar / Swiss franc", "NZDUSD": "New Zealand dollar / US dollar",
+              "XAUUSD": "Gold futures", "ES": "S&P 500", "NQ": "Nasdaq 100", "US30": "Dow 30"}
+
+
+def instr_group(sym: str) -> str:
+    return "Gold" if sym == "XAUUSD" else "US indices" if sym in INDEX_SYMS else "FX pairs"
+
+
+def build_instr_watch_html(rows: list[dict]) -> str:
+    cols = ('<th class="cb"><span class="sr-only">Select</span></th><th>Name</th><th class="c-tk">Market</th><th>Price</th><th>1D</th>'
+            '<th class="c-cf">Score</th><th class="c-ln">Macro lean</th><th class="c-rg">Range</th>')
+    out = [f'<table class="watch instr hide-c-tk"><thead><tr>{cols}</tr></thead>']
+    groups: list[str] = []
+    for r_ in rows:
+        if r_["group"] not in groups:
+            groups.append(r_["group"])
+    for g in groups:
+        out.append(f'<tbody data-group="{esc(g)}"><tr class="grp"><td class="cb"><span class="gbox" role="checkbox" aria-checked="false" tabindex="0" aria-label="Plot {esc(g)}"></span></td>'
+                   f'<th colspan="6"><button type="button" class="gt" aria-expanded="true"><span class="car"></span>{esc(g)}</button></th>'
+                   f'<td class="gmove"><button type="button" class="mv up" aria-label="Move {esc(g)} up">&#9650;</button><button type="button" class="mv dn" aria-label="Move {esc(g)} down">&#9660;</button></td></tr>')
+        for r_ in (x for x in rows if x["group"] == g):
+            out.append(
+                f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="fx">'
+                f'<td class="cb"><span class="pick" aria-hidden="true"></span></td>'
+                f'<th scope="row"><span class="plus">+</span>{esc(r_["label"])}</th><td class="c-tk tk">{esc(r_["ticker"])}</td>'
+                f'<td class="yd">{esc(r_["latest"])}</td><td class="{chg_class(r_["d1"])}">{esc(r_["d1"])}</td>'
+                f'<td class="c-cf {r_["tone"]}">{esc(r_["score"])}</td><td class="c-ln tk">{esc(r_["lean"])}</td><td class="c-rg tk">{esc(r_["range"])}</td></tr>')
+        out.append("</tbody>")
+    out.append("</table>")
+    return "".join(out)
+
+
+def build_drivers_matrix(rows: list[dict], drivers: dict) -> str:
+    """One row per instrument; arrows show whether each driver supports it higher, lower or neither."""
+    def cell(r: dict) -> str:
+        st = r["state"]
+        arrow = "&#9650;" if st > 0 else "&#9660;" if st < 0 else "&ndash;"
+        return (f'<td class="dc {"up" if st > 0 else "down" if st < 0 else "flat"}" title="{esc(r["name"])}: {"supports it higher" if st > 0 else "supports it lower" if st < 0 else "neutral"}{"" if r["counted"] else " (shown, not counted)"}">'
+                f'<span class="da">{arrow}</span><small>{esc(r["value"])}</small></td>')
+    body = []
+    for r_ in rows:
+        dv = drivers.get(r_["label"])
+        if not dv:
+            continue
+        body.append(f'<tr data-id="{esc(r_["id"])}"><th scope="row">{esc(r_["label"])}</th>' + "".join(cell(x) for x in dv["rows"][:4]) +
+                    f'<td class="dread"><span class="tag lean">{esc(dv["label"])}</span><small>{esc(dv["count"])}</small></td></tr>')
+    if not body:
+        return '<p class="muted-text pad">Macro drivers appear after the next data update.</p>'
+    return ('<table class="drv"><thead><tr><th>Instrument</th><th>Yields<small>FX gap trend / real yield</small></th><th>Policy<small>central banks</small></th>'
+            '<th>Positioning<small>speculators, Z</small></th><th>Risk / dollar<small>info for FX, indices</small></th><th>Macro lean</th></tr></thead><tbody>'
+            + "".join(body) + '</tbody></table>')
+
+
+def fx_family(data: dict) -> dict:
+    """Price history for the terminal chart: union of dates, one list per instrument (null where a market was closed)."""
+    ser: dict[str, pd.Series] = {}
+    for sym, s_ in {**data.get("fxp", {}), **({"XAUUSD": data["gold_px"]} if data.get("gold_px") is not None else {}), **data.get("idx", {})}.items():
+        ser[sym] = s_.dropna().tail(780)
+    if not ser:
+        return {"dates": [], "series": {}}
+    idx = sorted(set().union(*[set(x.index) for x in ser.values()]))
+    idx = idx[-780:]
+    out = {}
+    for sym, x in ser.items():
+        dec = 3 if sym == "USDJPY" else 2 if sym in INSTR_NAMES else 5
+        out[f"FX:{sym}"] = [None if d not in x.index else round(float(x[d]), dec) for d in idx]
+    return {"dates": [d.strftime("%Y-%m-%d") for d in idx], "series": out}
 
 
 def build_week(data: dict) -> str:
@@ -1543,6 +1694,8 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     zqh, zqp = build_zq(data, today)
     fam.update(efam)
     fx = build_fx(feed, data)
+    fam["fx"] = fx_family(data)
+    irows = fx.get("irows", [])
     cot_t = build_cot_tables(data)
     cot_cards = build_cot_cards(playbook, metrics, split=True)
 
@@ -1556,11 +1709,15 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     dates = [m["date"] for m in metrics.values() if m.get("date")]
     as_of = max(dates) if dates else "n/a"
     default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y", "S:5y-2y") if any(r_["id"] == x for r_ in rows)]
-    payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows + erows},
+    payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_.get("family", "fx"), "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows + erows + irows},
+               "fxm": {"horizons": ["Now", "1D", "1W", "1M", "3M", "6M", "1Y"], "bars": [1, 1, 5, 21, 63, 126, 252],
+                       "cols": [{"id": r_["id"], "sym": r_["label"], "name": r_["ticker"], "group": r_["group"], "score": r_["score"], "lean": r_["lean"], "range": r_["range"],
+                                 "dec": 3 if r_["label"] == "USDJPY" else 2 if r_["label"] in INSTR_NAMES else 5} for r_ in irows]},
+               "fxdefault": [x for x in ("FX:EURUSD", "FX:USDJPY", "FX:XAUUSD", "FX:ES", "FX:NQ") if any(r_["id"] == x for r_ in irows)],
                "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
                "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed, data), "curve": curve_payload(data), "cot": build_cot_charts(data),
-               "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
-               "unit": {"spreads": " pp", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
+               "dec": {"fx": 2, "spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
+               "unit": {"fx": "%", "spreads": " pp", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
 
     page = TEMPLATE
     rep = {
@@ -1568,7 +1725,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__TILES__": fx["tiles"], "__SIGNALS__": sig_html, "__WATCHLIST__": build_watch_html(rows), "__MATRIX__": build_matrix(data, computed),
         "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_GOLD_TABLE__": cot_t["gold"], "__COT_USD_TABLE__": cot_t["usd_index"],
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
-        "__FX_CARDS__": fx["fx"], "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
+        "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__FXPICK__": fx.get("picker", ""), "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
         "__STATUS__": build_status(data, today),
     }
