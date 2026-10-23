@@ -854,7 +854,7 @@ const P = __PAYLOAD__;
 (function () {
   const main = document.title;
   function route(scrollTo) {
-    const opt = location.hash.indexOf("#options") === 0, was = document.body.classList.contains("optpage");
+    const opt = location.hash === "#options", was = document.body.classList.contains("optpage");
     document.body.classList.toggle("optpage", opt);
     document.title = opt ? "Velour Options Desk" : main;
     if (opt !== was) {
@@ -1757,17 +1757,20 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   /* ---------- 11 implied vol index ---------- */
   const ord = n => { n = Math.round(n); const s = (n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th"); return n + s; };
   function volidx() {
-    const VI = O._volidx || {}, host = $("od-vichart");
-    if (!Object.keys(VI).length) { host.closest(".card").style.display = "none"; return; }
-    const cur = VI[st.inst] ? st.inst : Object.keys(VI)[0], v = VI[cur];
-    $("od-viall").innerHTML = keys.filter(k => VI[k]).map(k => { const x = VI[k];
+    const VI = O._volidx || {}, host = $("od-vichart"), card = host.closest(".card"), tk = keys.filter(k => VI[k]);
+    if (!tk.length) { card.style.display = "none"; return; }
+    card.style.display = "";
+    const cur = VI[st.inst] ? st.inst : null, v = cur ? VI[cur] : null;
+    $("od-viall").innerHTML = tk.map(k => { const x = VI[k];
       return `<div class="odvi${k === cur ? " on" : ""}" data-k="${k}"><div class="kl">${x.name} · ${O[k].title}</div><div class="v">${x.last.toFixed(2)}</div><div class="m">${x.chg5 == null ? "" : (x.chg5 >= 0 ? "+" : "") + x.chg5.toFixed(2) + " 5d · "}${ord(x.pct1y)} percentile, 1y</div></div>`; }).join("");
     $("od-viall").querySelectorAll(".odvi").forEach(d => d.addEventListener("click", () => { st.inst = d.dataset.k; st.ex = -1; st.mv = null; paint(); }));
-    const opt = O[cur], iv = opt.vol && opt.vol.iv30;
+    if (!v) { $("od-viread").innerHTML = `No implied vol index for ${(O[st.inst] || {}).title || "this market"} today.`; host.innerHTML = ""; return; }
+    const opt = O[cur] || {}, iv = opt.vol && opt.vol.iv30;
     $("od-viread").innerHTML = `${v.name} closed at <b>${v.last.toFixed(2)}</b> on ${v.date}: higher than ${v.pct1y}% of the last year (range ${v.lo1y.toFixed(1)}–${v.hi1y.toFixed(1)}, average ${v.avg1y.toFixed(1)}). `
       + (v.pct1y >= 80 ? "Implied vol is high for this market: options price large moves and fear is elevated. " : v.pct1y <= 20 ? "Implied vol is low for this market: options price calm conditions, which can change quickly. " : "Implied vol is mid-range for this market. ")
       + (iv != null ? `<span class="muted-text">Our 30-day ATM estimate from the chain: ${iv.toFixed(1)}% (the index uses the full strip of options, so it usually sits a little above ATM).</span>` : "");
-    draw(host, { labels: v.dates, sets: [{ name: v.name, data: v.vals, color: "var(--s1)" }], dec: 2, axDec: 0, shortX: mon, endLabels: true, title: "vol index" });
+    const lo = Math.min(...v.vals), hi = Math.max(...v.vals);
+    draw(host, { labels: v.dates, sets: [{ name: v.name, data: v.vals, color: "var(--s1)" }], dec: 2, axDec: (hi - lo) < 5 ? 1 : 0, shortX: mon, endLabels: true, title: "vol index" });
   }
 
   /* ---------- 09 replay ---------- */

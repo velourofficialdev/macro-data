@@ -1519,7 +1519,7 @@ def build_fingerprint(data: dict) -> str:
 
 def build_options(data: dict, today: date) -> str:
     opts = data.get("options") or {}
-    if not opts:
+    if not any(not str(k).startswith("_") for k in opts):
         return ('<div class="card" style="--w:12"><div class="card-b"><p class="quiet">No options data yet. It appears after the next scheduled update '
                 '(weekdays 22:30 UTC) downloads the Cboe chains.</p></div></div>')
     html = []
