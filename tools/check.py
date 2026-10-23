@@ -1,6 +1,6 @@
 """The standard quality gate. Every builder runs it before handing work over, and every checker starts from it.
 
-    python tools/check.py [--out DIR] [--base origin/main] [--quick] [--selftest]
+    python tools/check.py [--root DIR] [--out DIR] [--base origin/main] [--quick] [--selftest]
 
 It runs, in order, and writes DIR/check.json plus DIR/check.md (default DIR: a fresh temp dir, printed):
   1. rules     - the working tree (committed + staged + unstaged + untracked) against the merge-base with BASE: no workflow, docs/ or data/ changes committed, no secrets or keys in
@@ -12,6 +12,7 @@ It runs, in order, and writes DIR/check.json plus DIR/check.md (default DIR: a f
   5. browser   - headless Chromium on both builds: main page and #options, dark + light + phone,
                  console errors, empty page, horizontal scroll on phone, page switching, every
                  instrument x mode x Greek on the desk
+--root DIR checks that repo instead of the one holding this file (for a copy of this script saved elsewhere).
 --selftest checks the secret patterns only (also run as part of step 1).
 --quick skips step 4 and the click-through (for a fast loop while building).
 Exit code 0 only when everything passed. Never report a check as passed unless this printed PASS.
@@ -33,7 +34,8 @@ CHROME = next((str(p) for p in Path("/opt/pw-browsers").glob("chromium-*/chrome-
 BAD_WORDS = re.compile(r"\b(buy|sell|price target|go long|go short)\b", re.I)
 MARKER = "# check: not-a-secret"
 SECRETS = [   # (a) assignment / JSON / header, (b) bearer token, (c) URL query
-    re.compile(r"""[\w-]*(?:api[_-]?key|apikey|key|token|secret|password|passwd|bearer|auth)[\w-]*["']?\s*[=:]\s*["']([A-Za-z0-9._+/=\-]{16,})["']""", re.I),
+    re.compile(r"""(?:api[_-]?key|apikey|(?<![a-z])key(?![a-z])|token|secret|password|passwd|bearer|authorization)[\w-]*["']?\s*[=:]\s*["']([A-Za-z0-9._+/=\-]{16,})["']""", re.I),
+    re.compile(r"""(?:api[_-]?key|apikey|secret|token|password|passwd)[\w-]*["']?\s*[=:]\s*["']([A-Za-z0-9._+/=\-]{12,})["']""", re.I),   # short values, clear key names only
     re.compile(r"bearer\s+[A-Za-z0-9._+/=\-]{20,}", re.I),
     re.compile(r"[?&](?:api[_-]?key|apikey|key|token|access_token)=[A-Za-z0-9._+/\-]{12,}", re.I),
 ]
@@ -41,6 +43,7 @@ MARK_FILE = ".macro-check"
 
 
 def is_secret(line: str) -> bool:
+    """Only the secret patterns honour the marker; path rules and wording never do."""
     if line.rstrip().endswith(MARKER):
         return False
     return any(p.search(line) for p in SECRETS)
@@ -53,14 +56,31 @@ def selftest() -> list[str]:
         f'url = "https://api.stlouisfed.org/fred?api_key={h32}"', f'"apiKey": "{c20}"',
         '{"x-rapidapi-key": "' + c20 + '"}', f"Authorization: Bearer {c30}",
         'secret = "ab.cd+ef/gh1234567890=="',  # check: not-a-secret
+        'token = "abc123abc123abc"',  # check: not-a-secret
+        'api_key = "abc123abc123"',  # check: not-a-secret
+        'password: "hunter2hunter2"',  # check: not-a-secret
     ]
     must_not = [
         'key = os.environ.get("FRED_API_KEY")', 'api_key = os.environ.get("FRED_API_KEY", "")',
-        '"series_id": "DGS10"', "token_count = 3", f'KEY = "{h32}"  {MARKER}',
+        '"series_id": "DGS10"', "token_count = 3",
+        'author = "abcdefghijklmnop"', 'self.keyboard = "abcdefghijkl"', 'author = "abcdefghijklmnopqrstuv"',
+        'keyboard = "abcdefghijklmnopqrstuv"', f'KEY = "{h32}"  {MARKER}',
     ]
     errs = [f"selftest: secret NOT detected: {l[:60]}" for l in must if not is_secret(l)]
     errs += [f"selftest: false positive: {l[:60]}" for l in must_not if is_secret(l)]
+    if not bad_wording(f'"Buy now"  {MARKER}'):
+        errs.append("selftest: the marker must not exempt advice-like wording")
     return errs
+
+
+def bad_wording(line: str) -> list[str]:
+    """Reader-visible text in LINE (strings, markup, backticks) containing advice-like words."""
+    out = []
+    for txt in re.findall(r'"([^"]{3,})"|>([^<]{3,})<|`([^`]{3,})`', line):
+        t = next(x for x in txt if x)
+        if BAD_WORDS.search(t) and "option writers" not in t:
+            out.append(t[:100])
+    return out
 
 
 def allowed_roots() -> list[Path]:
@@ -85,12 +105,12 @@ def guard_out(path: Path, wipe: bool) -> Path:
     return p
 
 
-def sh(cmd: list[str], cwd: Path = ROOT) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+def sh(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, cwd=cwd or ROOT, capture_output=True, text=True)
 
 
 def git(args: list[str]) -> subprocess.CompletedProcess:
-    return sh(["git", *args])
+    return sh(["git", "--literal-pathspecs", "-c", "core.quotepath=off", *args])
 
 
 def first_err(r: subprocess.CompletedProcess) -> str:
@@ -124,15 +144,16 @@ def check_rules(base: str) -> tuple[list[str], str]:
         errs.append("rules scanned 0 files but git status is not clean (vacuous run)")
 
     added: dict[str, list[str]] = {}   # file -> added lines
-    d = git(["diff", "-U0", mbs, "--", "."])
-    if d.returncode != 0:
-        return errs + ["git failed: " + first_err(d)], note
-    cur = None
-    for line in d.stdout.splitlines():
-        if line.startswith("+++ "):
-            cur = line[6:] if line.startswith("+++ b/") else None
-        elif line.startswith("+") and cur:
-            added.setdefault(cur, []).append(line[1:])
+    for n in tracked:   # one diff per file, name passed literally: no git-quoted headers to parse
+        d = git(["diff", "-U0", "--no-renames", mbs, "--", n])
+        if d.returncode != 0:
+            return errs + ["git failed: " + first_err(d)], note
+        in_hunk = False
+        for line in d.stdout.splitlines():
+            if line.startswith("@@"):
+                in_hunk = True
+            elif in_hunk and line.startswith("+"):
+                added.setdefault(n, []).append(line[1:])
     for n in untracked:
         try:
             added.setdefault(n, []).extend((ROOT / n).read_text(errors="ignore").splitlines())
@@ -150,10 +171,8 @@ def check_rules(base: str) -> tuple[list[str], str]:
                 errs.append(f"possible secret in {n} (line text withheld)")
     for f in ("playbook.json", "template.html", "build_dashboard.py"):
         for l in added.get(f, []):   # only text a reader sees: strings and markup, not code identifiers
-            for txt in re.findall(r'"([^"]{3,})"|>([^<]{3,})<|`([^`]{3,})`', l):
-                t = next(x for x in txt if x)
-                if BAD_WORDS.search(t) and "option writers" not in t:
-                    errs.append(f"advice-like wording in {f}: {t[:100]}")
+            for t in bad_wording(l):
+                errs.append(f"advice-like wording in {f}: {t}")
     try:
         pb = json.loads((ROOT / "playbook.json").read_text())
         if not (pb.get("meta") or {}).get("disclaimer"):
@@ -222,11 +241,18 @@ def browser(html: Path, full: bool) -> list[str]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--root", default=None, help="repo to check (default: the repo containing this file)")
     ap.add_argument("--out", default=None, help="output dir (default: a fresh temp dir)")
     ap.add_argument("--base", default="origin/main")
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--selftest", action="store_true", help="check the secret patterns and exit")
     a = ap.parse_args()
+    global ROOT
+    if a.root:
+        ROOT = Path(a.root).resolve()
+        if not (ROOT / "build_dashboard.py").exists():
+            print(f"--root {ROOT} is not the macro-data repo", file=sys.stderr)
+            return 2
     if a.selftest:
         errs = selftest()
         print("selftest: " + ("PASS" if not errs else "FAIL\n" + "\n".join(errs)))
