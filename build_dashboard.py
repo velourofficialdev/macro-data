@@ -1232,6 +1232,9 @@ def build_status(data: dict, today: date) -> str:
 # ---------------------------------------------------------------- options positioning (data/options/*.json from options_levels.py)
 OPT_META = {
     "SPX": {"title": "S&amp;P 500", "src": "SPX options", "map": "ES", "mode": "add", "dec": 0, "mdec": 2},
+    "NDX": {"title": "Nasdaq 100", "src": "NDX options", "map": "NQ", "mode": "add", "dec": 0, "mdec": 2},
+    "DJX": {"title": "Dow", "src": "DJX options", "map": "YM", "mode": "mul", "dec": 2, "mdec": 0},
+    "RUT": {"title": "Russell 2000", "src": "RUT options", "map": "RTY", "mode": "add", "dec": 0, "mdec": 1},
     "GOLD": {"title": "Gold", "src": "GLD options", "map": "Gold (GC)", "mode": "mul", "dec": 2, "mdec": 1},
 }
 
@@ -1407,12 +1410,15 @@ def build_options(data: dict, today: date) -> str:
         mapnote = (f"{meta['map']} levels = {meta['src'].split()[0]} level {'+ basis ' + format(s['mapped_price'] - spot, '+,.2f') if meta['mode'] == 'add' else '× ' + format(s['mapped_price'] / spot, ',.3f')} "
                    f"(closes: {meta['map']} {f(s['mapped_price'], dm)}, {meta['src'].split()[0]} {f(spot, d0)}). The basis drifts during the day; re-check it against your chart."
                    if conv else "Mapped price unavailable this run, so levels are in option units only.")
+        first = not html
         html.append(
+            f'<details class="card collapse optgrp" style="--w:12"{" open" if first else ""}><summary class="card-h"><span class="ttl"><span class="chev"></span><h3>{meta["title"]} · level table, open-interest changes, history</h3></span>'
+            f'<span class="note">{badge_}{stale}</span></summary><div class="grid optin">'
             f'<div class="card" style="--w:7"><div class="card-h"><h3>{meta["title"]} key levels <span class="muted-text">· {esc(meta["src"])}</span> {badge_}{stale}</h3></div>'
             f'<div class="card-b">{stats}<div class="scroll"><table class="opttab"><thead><tr><th>Level</th><th>{esc(meta["src"].split()[0])}</th>{mapped_head}<th>vs price</th><th></th></tr></thead><tbody>{trs}</tbody></table></div>'
             f'<p class="optread">{esc(read)}</p><p class="note">{esc(mapnote)}</p></div></div>'
             f'<div class="card" style="--w:5"><div class="card-h"><h3>{meta["title"]}: biggest open-interest changes</h3><p class="note">Contracts, vs the previous update</p></div><div class="card-b scroll">{chg}</div></div>'
-            f'<div class="card" style="--w:12"><div class="card-h"><h3>{meta["title"]}: levels over the last 10 updates</h3><p class="note">In {esc(meta["src"].split()[0])} units</p></div><div class="card-b scroll">{htab or "<p class=quiet>Builds up one row per update.</p>"}</div></div>')
+            f'<div class="card" style="--w:12"><div class="card-h"><h3>{meta["title"]}: levels over the last 10 updates</h3><p class="note">In {esc(meta["src"].split()[0])} units</p></div><div class="card-b scroll">{htab or "<p class=quiet>Builds up one row per update.</p>"}</div></div></div></details>')
     return "".join(html)
 
 TEMPLATE = (ROOT / "template.html").read_text(encoding="utf-8") if (ROOT / "template.html").exists() else None

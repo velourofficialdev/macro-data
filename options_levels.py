@@ -39,15 +39,22 @@ RATE = 0.04          # flat risk-free rate for the gamma re-pricing; GEX is not 
 MAX_DTE = 60         # expiries further out than this add little gamma near price
 OPT_RE = re.compile(r"^(?P<root>[A-Z]+)(?P<ymd>\d{6})(?P<cp>[CP])(?P<k>\d{8})$")
 
-RV_SOURCE = {   # realised vol of the underlying: (file under data/, column, label)
-    "SPX": ("econ/SP500.csv", "SP500", "S&P 500 index closes (FRED SP500)"),
-    "GOLD": ("GOLD.csv", "Gold", "COMEX gold future closes (GC=F)"),
+RV_SOURCE = {   # realised vol of the underlying: (Yahoo symbol, fallback file under data/, column, label)
+    "SPX": ("^GSPC", "econ/SP500.csv", "SP500", "S&P 500 index closes"),
+    "NDX": ("^NDX", None, None, "Nasdaq-100 index closes"),
+    "DJX": ("^DJI", None, None, "Dow Jones Industrial Average closes"),
+    "RUT": ("^RUT", None, None, "Russell 2000 index closes"),
+    "GOLD": ("GC=F", "GOLD.csv", "Gold", "COMEX gold future closes (GC=F)"),
 }
 INSTRUMENTS = {
     # key: (Cboe symbol, label, mapped instrument label, Yahoo symbol of the mapped instrument, strike window around price)
     "SPX": ("_SPX", "SPX", "ES (E-mini S&P 500 future)", "ES=F", 0.06),
+    "NDX": ("_NDX", "NDX", "NQ (E-mini Nasdaq-100 future)", "NQ=F", 0.07),
+    "DJX": ("_DJX", "DJX", "YM (E-mini Dow future)", "YM=F", 0.06),
+    "RUT": ("_RUT", "RUT", "RTY (E-mini Russell 2000 future)", "RTY=F", 0.08),
     "GOLD": ("GLD", "GLD", "Gold future (GC)", "GC=F", 0.08),
 }
+MAX_STRIKES = 150   # bigger chains are grouped into wider strike buckets so the page stays light
 
 
 # ---------------------------------------------------------------- fetch
@@ -272,6 +279,9 @@ def build_surface(raw: pd.DataFrame, spot: float, asof: pd.Timestamp, window: fl
     if df.empty:
         return {}
     ex = greek_exposures(df, spot)
+    step = bucket_step(df["strike"].unique())
+    if step:
+        ex["strike"] = np.floor(ex["strike"] / step + 0.5) * step   # floor(x+0.5), not round(): banker's rounding makes uneven buckets
     strikes = sorted(ex["strike"].unique())
     exps = sorted(ex["expiry"].unique())
     oi_by_exp = df.groupby("expiry")["oi"].sum()
@@ -310,7 +320,12 @@ def build_surface(raw: pd.DataFrame, spot: float, asof: pd.Timestamp, window: fl
         p = se[se["type"] == "P"].groupby("strike")["iv"].mean()
         smile.append({"c": [[float(k), round(float(v) * 100, 2)] for k, v in c.items()],
                       "p": [[float(k), round(float(v) * 100, 2)] for k, v in p.items()]})
-    return {"strikes": [float(k) for k in strikes], "expiries": exp_meta, "greeks": greeks, "walls": walls,
+    for sm_e in smile:   # thin very dense smiles
+        for side in ("c", "p"):
+            n = len(sm_e[side])
+            if n > 120:
+                sm_e[side] = sm_e[side][::math.ceil(n / 120)]
+    return {"strikes": [float(k) for k in strikes], "step": step, "expiries": exp_meta, "greeks": greeks, "walls": walls,
             "smile": smile, "units": GREEK_UNITS}
 
 
@@ -331,7 +346,36 @@ def _sticky_moneyness_iv(df: pd.DataFrame, spot: float, new_spot: float) -> np.n
     return out
 
 
-def scenarios(df: pd.DataFrame, spot: float, strikes: list, cols: list, sigma_pct: float | None) -> dict:
+def bucket_step(ks) -> float | None:
+    ks = sorted(set(float(k) for k in ks))
+    if len(ks) <= MAX_STRIKES:
+        return None
+    span = ks[-1] - ks[0]
+    for st_ in (0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 250, 500):
+        if span / st_ <= MAX_STRIKES:
+            return st_
+    return 1000.0
+
+
+def fetch_closes(ysym: str) -> pd.Series | None:
+    try:
+        r = requests.get(YAHOO_URL.format(sym=ysym), params={"range": "6mo", "interval": "1d"}, headers=HEADERS, timeout=TIMEOUT)
+        r.raise_for_status()
+        res = r.json()["chart"]["result"][0]
+        s = pd.Series(res["indicators"]["quote"][0]["close"], index=pd.to_datetime(res["timestamp"], unit="s"), dtype="float64").dropna()
+        return s if len(s) > 30 else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def rv_from_closes(px: pd.Series | None) -> dict:
+    if px is None:
+        return {}
+    r = np.log(px).diff().dropna()
+    return {f"rv{n}": round(float(r.tail(n).std() * math.sqrt(252) * 100), 2) for n in (10, 20, 60) if len(r) >= n}
+
+
+def scenarios(df: pd.DataFrame, spot: float, strikes: list, cols: list, sigma_pct: float | None, step: float | None = None) -> dict:
     """Gamma exposure per strike after a price move.
     effective = repriced at the new price with each contract keeping its IV (sticky strike);
     shadow    = the extra change when IV instead slides along the smile with price (sticky moneyness)."""
@@ -352,7 +396,8 @@ def scenarios(df: pd.DataFrame, spot: float, strikes: list, cols: list, sigma_pc
             w = sub["sign"].values * sub["oi"].values * 100.0 * s2 * s2 * 0.01
             for rows, vals in ((eff_rows, w * g_ss), (sh_rows, w * (g_sm - g_ss))):
                 arr = [0] * len(strikes)
-                for k, v in pd.Series(vals, index=sub["strike"].values).groupby(level=0).sum().items():
+                kk = np.floor(sub["strike"].values / step + 0.5) * step if step else sub["strike"].values
+                for k, v in pd.Series(vals, index=kk).groupby(level=0).sum().items():
                     if k in kidx:
                         arr[kidx[k]] = _sig(float(v))
                 rows.append(arr)
@@ -469,17 +514,18 @@ def update(data_dir: Path) -> dict[str, tuple[bool, str | None, str | None, str 
                 df_w = df_w[(df_w["strike"] >= spot * (1 - window)) & (df_w["strike"] <= spot * (1 + window))]
                 cols = [pd.Timestamp(e["e"]) for e in snap["surface"]["expiries"]]
                 sig = (a["day_move"] / spot * 100) if a.get("day_move") else None
-                snap["surface"]["scen"] = scenarios(df_w, spot, snap["surface"]["strikes"], cols, sig)
+                snap["surface"]["scen"] = scenarios(df_w, spot, snap["surface"]["strikes"], cols, sig, snap["surface"].get("step"))
             except Exception as exc:  # noqa: BLE001
                 snap["surface"] = {}
                 snap["surface_error"] = f"{type(exc).__name__}: {exc}"[:200]
             try:   # volatility: term structure, skew, implied vs realised
                 term = vol_term(raw, spot, asof)
-                rv = realised_vol(data_dir / RV_SOURCE[key][0], RV_SOURCE[key][1])
+                ysym_rv, f_rv, c_rv, _ = RV_SOURCE[key]
+                rv = rv_from_closes(fetch_closes(ysym_rv)) or (realised_vol(data_dir / f_rv, c_rv) if f_rv else {})
                 iv30 = iv_at(term, 30)
                 snap["vol"] = {"term": term, "iv30": iv30, **rv,
                                "vrp": round(iv30 - rv["rv20"], 2) if iv30 is not None and "rv20" in rv else None,
-                               "rv_source": RV_SOURCE[key][2]}
+                               "rv_source": RV_SOURCE[key][3]}
             except Exception as exc:  # noqa: BLE001
                 snap["vol"] = {"error": f"{type(exc).__name__}: {exc}"[:200]}
             (outdir / f"{key}.json").write_text(json.dumps(snap, separators=(",", ":")))
