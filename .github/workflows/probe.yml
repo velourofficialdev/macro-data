@@ -1,0 +1,19 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+          for s in GB2Y-GB GB5Y-GB GB10Y-GB GB30Y-GB CH2Y-CH CH5Y-CH CH10Y-CH CH30Y-CH NZ2Y-NZ NZ5Y-NZ NZ10Y-NZ; do
+            echo "== $s"; curl -s -m 30 -A "$UA" "https://ts-api.cnbc.com/harmony/app/charts/1Y.json?symbol=$s" | python3 -c "
+          import sys,json
+          try:
+            b=json.load(sys.stdin)['barData']['priceBars']; print(len(b), b[0]['tradeTime'], b[0]['close'], b[-1]['tradeTime'], b[-1]['close'])
+          except Exception as e: print('ERR',e)"
+          done
+          echo "== BoE"; curl -sL -m 40 -A "$UA" "https://www.bankofengland.co.uk/boeapps/iadb/fromshowcolumns.asp?csv.x=yes&Datefrom=01/Oct/2026&Dateto=now&SeriesCodes=IUDSNZC,IUDMNZC&CSVF=TN&UsingCodes=Y&VPD=Y&VFD=N" | head -8
+          echo "== RBNZ"; curl -sL -m 40 -A "$UA" -o r.xlsx -w "%{http_code} %{size_download}\n" "https://www.rbnz.govt.nz/-/media/project/sites/rbnz/files/statistics/series/b/b2/hb2-daily.xlsx"; file r.xlsx
+          echo "== SNB"; curl -s -m 40 -A "$UA" "https://data.snb.ch/api/cube/rendoblid/data/csv/en?fromDate=2026-10-01" | head -8
+          echo "== FRED OECD"; for c in IRLTLT01GBM156N IRLTLT01CHM156N IRLTLT01NZM156N; do curl -s -m 30 -A "$UA" "https://fred.stlouisfed.org/graph/fredgraph.csv?id=$c&cosd=2026-06-01" | tail -3; done
