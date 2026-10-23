@@ -209,6 +209,105 @@ def analyse(raw: pd.DataFrame, spot: float, asof: pd.Timestamp, window: float) -
     }
 
 
+_erf = np.frompyfunc(math.erf, 1, 1)
+
+
+def _ncdf(x):
+    return 0.5 * (1.0 + _erf(np.asarray(x, dtype=float) / math.sqrt(2.0)).astype(float))
+
+
+GREEKS = ("gamma", "delta", "vanna", "charm", "theta", "vega")
+GREEK_UNITS = {   # what one unit of each exposure means, shown on the page
+    "gamma": "$ of delta per 1% move", "delta": "$ delta notional", "vanna": "$ of delta per 1 vol point",
+    "charm": "$ of delta per day", "theta": "$ per day", "vega": "$ per 1 vol point",
+}
+MAX_COLS = 12     # expiries shown one by one (the "All" view still uses every expiry up to MAX_DTE)
+
+
+def greek_exposures(df: pd.DataFrame, spot: float) -> pd.DataFrame:
+    """Dealer-book exposure per contract row under the same convention as GEX:
+    calls counted +, puts counted - (dealers long customer calls, short customer puts)."""
+    S, K, t, v = spot, df["strike"].values, df["t"].values, df["iv"].values
+    sq = np.sqrt(t)
+    d1 = (np.log(S / K) + (RATE + 0.5 * v * v) * t) / (v * sq)
+    d2 = d1 - v * sq
+    pdf = np.exp(-0.5 * d1 * d1) / math.sqrt(2 * math.pi)
+    call = df["type"].values == "C"
+    nd1, nd2 = _ncdf(d1), _ncdf(d2)
+    delta = np.where(call, nd1, nd1 - 1.0)
+    gamma = pdf / (S * v * sq)
+    vega = S * pdf * sq / 100.0                                   # per vol point
+    vanna = -pdf * d2 / v / 100.0                                 # d(delta)/d(vol point)
+    charm = -pdf * (2 * RATE * t - d2 * v * sq) / (2 * t * v * sq) / 365.0   # d(delta)/day
+    disc = np.exp(-RATE * t)
+    theta = np.where(call, -S * pdf * v / (2 * sq) - RATE * K * disc * nd2,
+                     -S * pdf * v / (2 * sq) + RATE * K * disc * (1 - nd2)) / 365.0
+    w = df["sign"].values * df["oi"].values * 100.0
+    out = pd.DataFrame({"strike": df["strike"].values, "expiry": df["expiry"].values, "type": df["type"].values})
+    out["gamma"] = w * gamma * S * S * 0.01
+    out["delta"] = w * delta * S
+    out["vanna"] = w * vanna * S
+    out["charm"] = w * charm * S
+    out["theta"] = w * theta
+    out["vega"] = w * vega
+    return out.replace([np.inf, -np.inf], 0.0).fillna(0.0)
+
+
+def _sig(x: float) -> float:
+    """4 significant figures keeps the page small without changing what is drawn."""
+    if not x or not math.isfinite(x):
+        return 0
+    return float(f"{x:.4g}")
+
+
+def build_surface(raw: pd.DataFrame, spot: float, asof: pd.Timestamp, window: float) -> dict:
+    df = prepare(raw, asof)
+    df = df[(df["strike"] >= spot * (1 - window)) & (df["strike"] <= spot * (1 + window))]
+    if df.empty:
+        return {}
+    ex = greek_exposures(df, spot)
+    strikes = sorted(ex["strike"].unique())
+    exps = sorted(ex["expiry"].unique())
+    oi_by_exp = df.groupby("expiry")["oi"].sum()
+    cols = exps[:10]
+    big = [e for e in oi_by_exp.sort_values(ascending=False).index if e not in cols][:MAX_COLS - len(cols)]
+    cols = sorted(cols + big)
+    kidx = {k: i for i, k in enumerate(strikes)}
+
+    def vec(frame: pd.DataFrame, col: str) -> list:
+        s = frame.groupby("strike")[col].sum()
+        arr = [0] * len(strikes)
+        for k, val in s.items():
+            arr[kidx[k]] = _sig(val)
+        return arr
+
+    greeks = {}
+    for g in GREEKS:
+        greeks[g] = {"all": vec(ex, g), "ex": [vec(ex[ex["expiry"] == e], g) for e in cols]}
+    calls, puts = ex[ex["type"] == "C"], ex[ex["type"] == "P"]
+    walls = {"all": {"c": vec(calls, "gamma"), "p": vec(puts, "gamma")},
+             "ex": [{"c": vec(calls[calls["expiry"] == e], "gamma"), "p": vec(puts[puts["expiry"] == e], "gamma")} for e in cols]}
+
+    exp_meta = []
+    for e in cols:
+        sub = df[df["expiry"] == e]
+        fl, _ = gamma_flip(sub, spot) if len(sub) else (None, None)
+        exp_meta.append({"e": pd.Timestamp(e).strftime("%Y-%m-%d"), "dte": int(sub["dte"].iloc[0]) if len(sub) else None,
+                         "oi": int(oi_by_exp.get(e, 0)), "flip": round(fl, 2) if fl else None})
+
+    # IV smile: every quoted contract (open interest not required) on the shown expiries
+    sm = raw[(raw["iv"] > 0.01) & (raw["iv"] < 5) & (raw["strike"] >= spot * (1 - window)) & (raw["strike"] <= spot * (1 + window))]
+    smile = []
+    for e in cols:
+        se = sm[sm["expiry"] == e]
+        c = se[se["type"] == "C"].groupby("strike")["iv"].mean()
+        p = se[se["type"] == "P"].groupby("strike")["iv"].mean()
+        smile.append({"c": [[float(k), round(float(v) * 100, 2)] for k, v in c.items()],
+                      "p": [[float(k), round(float(v) * 100, 2)] for k, v in p.items()]})
+    return {"strikes": [float(k) for k in strikes], "expiries": exp_meta, "greeks": greeks, "walls": walls,
+            "smile": smile, "units": GREEK_UNITS}
+
+
 def oi_changes(raw: pd.DataFrame, prev_path: Path, spot: float, window: float) -> tuple[list[dict], pd.DataFrame]:
     cur = raw.groupby(["strike", "type"])["oi"].sum().unstack(fill_value=0.0).rename(columns={"C": "call_oi", "P": "put_oi"})
     for col in ("call_oi", "put_oi"):
@@ -246,6 +345,11 @@ def update(data_dir: Path) -> dict[str, tuple[bool, str | None, str | None, str 
                     "mapped_ratio": round(mapped / spot, 6) if mapped else None,
                     "date": day, "source_time": stamp, "updated_utc": asof.strftime("%Y-%m-%d %H:%M UTC"),
                     "oi_changes": changes, **a}
+            try:   # the interactive Greek views; the level table above still works if this part fails
+                snap["surface"] = build_surface(raw, spot, asof, window)
+            except Exception as exc:  # noqa: BLE001
+                snap["surface"] = {}
+                snap["surface_error"] = f"{type(exc).__name__}: {exc}"[:200]
             (outdir / f"{key}.json").write_text(json.dumps(snap, separators=(",", ":")))
             oi_now.to_csv(outdir / f"{key}_oi.csv", index=False)
             hp = outdir / f"{key}_history.csv"

@@ -178,6 +178,29 @@
   .opttab td, .opttab th { padding: 5px 10px; }
   .opttab tr.optnow th, .opttab tr.optnow td { background: var(--tint-primary); font-weight: 600; }
   .optread { font-size: 13px; margin: 10px 0 6px; line-height: 1.5; }
+  .odbar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding-top: 12px; }
+  .odsel { font-size: 12px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+  .odsel select { font: inherit; font-size: 12px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 6px; padding: 3px 6px; }
+  .btn.ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong); margin-left: auto; }
+  .odstats { display: flex; flex-wrap: wrap; gap: 8px 22px; padding-top: 0; }
+  .odstats div { min-width: 92px; } .odstats .kl { font-size: 10px; } .odstats .v { font-size: 17px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .odstats .m { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .odcap { font-size: 11px; color: var(--muted); padding: 0 16px; min-height: 16px; }
+  .odbox { position: relative; height: 440px; margin: 4px 8px 10px; }
+  .odbox canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+  .odbox canvas:active { cursor: grabbing; }
+  .odlegend { display: flex; gap: 8px; align-items: center; font-size: 11px; color: var(--muted); padding: 0 16px 12px; }
+  .odlegend i { display: inline-block; width: 120px; height: 8px; border-radius: 4px; }
+  .odgrid { height: 440px; overflow: auto; margin: 4px 8px 10px; border: 1px solid var(--border); border-radius: 6px; }
+  .odgrid table { font-size: 11px; } .odgrid th, .odgrid td { padding: 3px 8px; text-align: right; }
+  .odgrid thead th { position: sticky; top: 0; background: var(--surface); z-index: 2; cursor: pointer; }
+  .odgrid tbody th { position: sticky; left: 0; background: var(--surface); z-index: 1; }
+  .odgrid td { cursor: pointer; background: color-mix(in srgb, var(--c, transparent) calc(var(--i, 0) * 1%), transparent); }
+  .odgrid td.sel, .odgrid th.sel { outline: 1px solid var(--primary); outline-offset: -1px; }
+  .odgrid tr.spot th, .odgrid tr.spot td { border-bottom: 1px dashed var(--text); }
+  .odgrid .tagw { font-size: 9px; font-weight: 600; padding: 0 4px; border-radius: 3px; margin-left: 4px; }
+  .odtip { position: absolute; pointer-events: none; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 6px; padding: 4px 8px; font-size: 11px; white-space: nowrap; z-index: 5; display: none; }
+  @media (max-width: 760px) { .odbox, .odgrid { height: 360px; } .btn.ghost { margin-left: 0; } }
   .quiet { margin: 8px 0 0; font-size: 12px; color: var(--muted); font-style: italic; }
   .signals { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
   .signals li { border-left: 2px solid var(--warn); padding: 4px 0 4px 10px; }
@@ -606,7 +629,24 @@
   <!-- ============ FX ============ -->
   <section class="sec" id="options">
     <div class="sechead"><h2>Options positioning</h2><p>From Cboe's free delayed option chains after the US close: open interest (settled, start of session) and closing prices. Gamma exposure assumes dealers hold the opposite side of customers who are long calls and long puts, a common simplification; it maps where hedging flows may cluster, not where price must go. S&amp;P levels come from SPX options and are shifted to ES by the closing basis; gold levels come from GLD options scaled to the COMEX gold future. Not a live trade tape.</p></div>
-    <div class="grid">
+    <div class="grid" id="odesk">
+      <div class="card" style="--w:12"><div class="card-b odbar">
+        <div class="ranges" id="od-inst" role="group" aria-label="Instrument"></div>
+        <div class="ranges" id="od-greek" role="group" aria-label="Greek"></div>
+        <label class="odsel">Expiry <select id="od-ex" aria-label="Expiry"></select></label>
+        <button type="button" class="btn ghost" id="od-copy">Copy levels</button>
+      </div>
+      <div class="card-b odstats" id="od-stats"></div></div>
+      <div class="card" style="--w:6"><div class="card-h"><h3>01 · Spine</h3><div class="ranges" id="od-sv" role="group" aria-label="Spine style"><button type="button" data-v="spine" aria-pressed="true">Spine</button><button type="button" data-v="bars" aria-pressed="false">Bars</button></div></div>
+        <div class="odcap" id="od-cap1"></div><div class="odbox" id="od-spine" role="img" aria-label="Exposure by strike with walls, gamma flip and price"></div></div>
+      <div class="card" style="--w:6"><div class="card-h"><h3>02 · Terrain</h3><p class="note">Strike × expiry · drag to rotate · scroll to zoom · double-click to reset</p></div>
+        <div class="odcap" id="od-cap2"></div><div class="odbox"><canvas id="od-terrain" aria-label="3D relief of the dealer book by strike and expiry"></canvas></div><div class="odlegend" id="od-leg"></div></div>
+      <div class="card" style="--w:6"><div class="card-h"><h3>03 · Grid</h3><p class="note">Click a cell to focus that expiry</p></div>
+        <div class="odcap" id="od-cap3"></div><div class="odgrid" id="od-grid"></div></div>
+      <div class="card" style="--w:6"><div class="card-h"><h3>04 · Smile</h3><p class="note" id="od-smn"></p></div>
+        <div class="odcap" id="od-cap4"></div><div class="odbox" id="od-smile" role="img" aria-label="Implied volatility smile for calls and puts with a fitted curve"></div></div>
+    </div>
+    <div class="grid" style="margin-top:12px">
       __OPTIONS__
     </div>
   </section>
@@ -1066,6 +1106,237 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   }
   render();
   let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(render, 120); });
+})();
+
+/* Options desk: Greek tabs, spine, 3D terrain, strike x expiry grid, IV smile. Data: P.opt (options_levels.py). No libraries. */
+(function () {
+  const O = P.opt || {}, desk = document.getElementById("odesk");
+  const keys = Object.keys(O).filter(k => O[k].surface && O[k].surface.strikes && O[k].surface.strikes.length);
+  if (!desk) return;
+  if (!keys.length) { desk.style.display = "none"; return; }
+  const GREEKS = ["gamma", "delta", "vanna", "charm", "theta", "vega"];
+  const st = { inst: keys[0], greek: "gamma", ex: -1, sv: "spine", yaw: -0.65, pitch: 0.55, zoom: 1 };
+  const $ = id => document.getElementById(id);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const money = v => { const a = Math.abs(v), s = v < 0 ? "-" : ""; return a >= 1e9 ? s + "$" + (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? s + "$" + (a / 1e6).toFixed(2) + "M" : a >= 1e3 ? s + "$" + (a / 1e3).toFixed(1) + "K" : s + "$" + a.toFixed(0); };
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const I = () => O[st.inst], S = () => I().surface;
+  const dec = () => I().dec;
+  const fk = k => k == null ? "n/a" : Number(k).toLocaleString("en-US", { minimumFractionDigits: dec(), maximumFractionDigits: dec() });
+  const mapped = k => { const m = I().map; if (k == null || !m) return null; return m.mode === "add" ? k + m.basis : k * m.ratio; };
+  const fm = k => { const v = mapped(k); return v == null ? "" : `${I().map.label} ${v.toLocaleString("en-US", { minimumFractionDigits: I().map.dec, maximumFractionDigits: I().map.dec })}`; };
+  const vals = (g, ex) => ex < 0 ? S().greeks[g].all : S().greeks[g].ex[ex];
+
+  function levels(ex) {
+    const s = S(), w = ex < 0 ? s.walls.all : s.walls.ex[ex], spot = I().spot, ks = s.strikes;
+    const above = ks.map((k, i) => [k, w.c[i]]).filter(x => x[0] > spot && x[1] > 0).sort((a, b) => b[1] - a[1]);
+    const below = ks.map((k, i) => [k, w.p[i]]).filter(x => x[0] < spot && x[1] < 0).sort((a, b) => a[1] - b[1]);
+    const flip = ex < 0 ? I().flip : s.expiries[ex].flip;
+    return { cw: above[0] && above[0][0], cw2: above[1] && above[1][0], pw: below[0] && below[0][0], pw2: below[1] && below[1][0], flip };
+  }
+
+  /* ---------- controls ---------- */
+  function buttons(host, items, cur, on) {
+    host.innerHTML = items.map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${v === cur}">${t}</button>`).join("");
+    host.querySelectorAll("button").forEach(b => b.addEventListener("click", () => on(b.dataset.v)));
+  }
+  function controls() {
+    buttons($("od-inst"), keys.map(k => [k, O[k].title]), st.inst, v => { st.inst = v; st.ex = -1; controls(); paint(); });
+    buttons($("od-greek"), GREEKS.map(g => [g, cap(g)]), st.greek, v => { st.greek = v; controls(); paint(); });
+    $("od-ex").innerHTML = `<option value="-1">All expiries ≤ 60 days</option>` + S().expiries.map((e, i) => `<option value="${i}">${e.e} · ${e.dte === 0 ? "0DTE" : e.dte + "d"}</option>`).join("");
+    $("od-ex").value = String(st.ex);
+    $("od-sv").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === st.sv)));
+  }
+  $("od-ex").addEventListener("change", e => { st.ex = +e.target.value; paint(); });
+  $("od-sv").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { st.sv = b.dataset.v; controls(); spine(); }));
+  $("od-copy").addEventListener("click", () => {
+    const L = levels(st.ex), i = I();
+    const row = (n, k) => k == null ? "" : `${n} ${fk(k)}${i.map ? " (" + fm(k) + ")" : ""}`;
+    const txt = [`${i.title} ${st.ex < 0 ? "all expiries" : S().expiries[st.ex].e} · ${i.date}`, row("Call wall", L.cw), row("Call wall #2", L.cw2), row("Gamma flip", L.flip), row("Put wall", L.pw), row("Put wall #2", L.pw2), row("Price", i.spot)].filter(Boolean).join("\n");
+    const done = () => { const b = $("od-copy"); b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy levels", 1200); };
+    try { navigator.clipboard.writeText(txt).then(done, () => prompt("Copy:", txt)); } catch (e) { prompt("Copy:", txt); }
+  });
+
+  function stats() {
+    const i = I(), L = levels(st.ex), v = vals(st.greek, st.ex), tot = v.reduce((a, b) => a + b, 0);
+    const gtot = vals("gamma", st.ex).reduce((a, b) => a + b, 0);
+    const pos = L.flip ? i.spot > L.flip : gtot > 0;
+    const cell = (k, val, m) => `<div><div class="kl">${k}</div><div class="v">${val}</div><div class="m">${m || "&nbsp;"}</div></div>`;
+    $("od-stats").innerHTML = cell(i.title + " · " + (st.ex < 0 ? "all ≤60d" : S().expiries[st.ex].e), fk(i.spot), i.date)
+      + cell("Call wall", `<span class="up">${fk(L.cw)}</span>`, fm(L.cw)) + cell("Put wall", `<span class="down">${fk(L.pw)}</span>`, fm(L.pw))
+      + cell("Gamma flip", fk(L.flip), fm(L.flip)) + cell("Σ " + cap(st.greek), money(tot), i.surface.units[st.greek])
+      + cell("ATM IV", i.atm_iv == null ? "n/a" : i.atm_iv.toFixed(1) + "%", i.day_move ? "1-day ±" + fk(i.day_move) : "")
+      + cell("Put/call OI", i.pcr_oi == null ? "n/a" : i.pcr_oi.toFixed(2), "")
+      + cell("Regime", `<span class="${pos ? "up" : "down"}">${pos ? "Positive" : "Negative"} gamma</span>`, pos ? "hedging tends to damp moves" : "hedging tends to extend moves");
+    const capTxt = `${cap(st.greek)} · ${st.ex < 0 ? "all expiries ≤ 60 days" : S().expiries[st.ex].e} · ${i.surface.units[st.greek]}`;
+    ["od-cap1", "od-cap2", "od-cap3"].forEach(id => $(id).textContent = capTxt);
+  }
+
+  /* ---------- 01 spine ---------- */
+  function spine() {
+    const host = $("od-spine"); host.innerHTML = "";
+    const s = S(), ks = s.strikes, v = vals(st.greek, st.ex), L = levels(st.ex), spot = I().spot;
+    const W = Math.max(320, host.clientWidth), H = host.clientHeight || 440, padT = 10, padB = 22, axX = 54, labW = Math.min(190, W * 0.38);
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: "display:block;font:10px Inter,system-ui,sans-serif" }, host);
+    const kmin = ks[0], kmax = ks[ks.length - 1];
+    const y = k => padT + (kmax - k) / (kmax - kmin || 1) * (H - padT - padB);
+    const mid = axX + (W - axX - labW) / 2, half = (W - axX - labW) / 2 - 6;
+    const mx = Math.max(...v.map(Math.abs)) || 1, x = val => mid + val / mx * half;
+    el("line", { x1: mid, y1: padT, x2: mid, y2: H - padB, stroke: "var(--border-strong)" }, svg);
+    niceTicks(kmin, kmax, 8).forEach(t => { if (t < kmin || t > kmax) return; const yy = y(t);
+      el("line", { x1: axX, y1: yy, x2: W - labW, y2: yy, stroke: "var(--grid)" }, svg);
+      el("text", { x: axX - 6, y: yy + 3, "text-anchor": "end", fill: "var(--muted)" }, svg).textContent = fk(t); });
+    if (st.sv === "bars") {
+      const bh = Math.max(1, (H - padT - padB) / ks.length - 1);
+      ks.forEach((k, i) => { if (!v[i]) return; const x0 = Math.min(mid, x(v[i]));
+        const r = el("rect", { x: x0, y: y(k) - bh / 2, width: Math.max(0.5, Math.abs(x(v[i]) - mid)), height: bh, fill: v[i] > 0 ? "var(--up)" : "var(--down)", opacity: 0.85 }, svg);
+        el("title", {}, r).textContent = `${fk(k)}: ${money(v[i])}`; });
+    } else {   // smooth profile: positive part right, negative part left
+      const pts = ks.map((k, i) => [x(v[i]), y(k)]);
+      const path = (sel, col) => { let d = `M${mid},${pts[0][1]}`; pts.forEach((p, i) => d += `L${sel(v[i]) ? p[0] : mid},${p[1]}`); d += `L${mid},${pts[pts.length - 1][1]}Z`;
+        el("path", { d, fill: col, "fill-opacity": 0.22, stroke: col, "stroke-width": 1.3, "stroke-linejoin": "round" }, svg); };
+      path(a => a > 0, "var(--up)"); path(a => a < 0, "var(--down)");
+    }
+    el("text", { x: mid - 6, y: H - 6, "text-anchor": "end", fill: "var(--muted)" }, svg).textContent = "− " + st.greek;
+    el("text", { x: mid + 6, y: H - 6, fill: "var(--muted)" }, svg).textContent = "+ " + st.greek;
+    // level labels on the right, pushed apart so they never overlap
+    const items = [["CALL WALL", L.cw, "var(--up)"], ["CALL WALL #2", L.cw2, "var(--up)"], ["G-FLIP", L.flip, "var(--warn)"], ["PUT WALL", L.pw, "var(--down)"], ["PUT WALL #2", L.pw2, "var(--down)"], ["PRICE", spot, "var(--text)"]]
+      .filter(a => a[1] != null && a[1] >= kmin && a[1] <= kmax).map(a => ({ n: a[0], k: a[1], c: a[2], y0: y(a[1]) })).sort((a, b) => a.y0 - b.y0);
+    let last = -1e9; items.forEach(it => { it.y = Math.max(it.y0, last + 13); last = it.y; });
+    const over = last - (H - padB); if (over > 0) items.forEach(it => it.y -= over);
+    items.forEach(it => {
+      const dash = it.n === "PRICE" ? "" : "3 3";
+      el("line", { x1: axX, y1: it.y0, x2: W - labW, y2: it.y0, stroke: it.c, "stroke-width": it.n === "PRICE" ? 1.4 : 1, "stroke-dasharray": dash, opacity: 0.9 }, svg);
+      el("line", { x1: W - labW, y1: it.y0, x2: W - labW + 10, y2: it.y, stroke: it.c, "stroke-dasharray": "2 2" }, svg);
+      const t = el("text", { x: W - labW + 13, y: it.y + 3.5, fill: it.c, "font-weight": 600 }, svg);
+      t.textContent = `${it.n} ${fk(it.k)}`;
+      const m = W < 560 ? null : mapped(it.k); if (m != null) { const ts = el("tspan", { fill: "var(--muted)", "font-weight": 400 }, t); ts.textContent = ` · ${m.toLocaleString("en-US", { maximumFractionDigits: I().map.dec })}`; }
+    });
+  }
+
+  /* ---------- 02 terrain (canvas, simple 3D projection) ---------- */
+  const cvs = $("od-terrain"), ctx = cvs.getContext("2d");
+  const rgb = c => { c = c.replace("#", ""); if (c.length === 3) c = c.split("").map(x => x + x).join(""); const n = parseInt(c, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+  const mix = (a, b, t) => a.map((x, i) => Math.round(x + (b[i] - x) * t));
+  function terrain() {
+    const s = S(), ks = s.strikes, ne = s.expiries.length, spot = I().spot;
+    const dpr = window.devicePixelRatio || 1, W = cvs.clientWidth, H = cvs.clientHeight;
+    cvs.width = W * dpr; cvs.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    const G = s.greeks[st.greek].ex; let mx = 0; G.forEach(r => r.forEach(v => mx = Math.max(mx, Math.abs(v)))); mx = mx || 1;
+    const up = rgb(css("--up")), dn = rgb(css("--down")), base = rgb(css("--surface-2")), line = css("--border-strong"), txt = css("--muted"), pri = css("--text");
+    const step = Math.max(1, Math.ceil(ks.length / 70));                       // keep it light on phones
+    const xi = []; for (let i = 0; i < ks.length; i += step) xi.push(i);
+    const cy = Math.cos(st.yaw), sy = Math.sin(st.yaw), cp = Math.cos(st.pitch), sp = Math.sin(st.pitch);
+    const sc = Math.min(W, H) * 0.42 * st.zoom;
+    const P3 = (u, w, h) => { // u: strike -1..1, w: expiry -1..1, h: height -1..1
+      const X = u * 1.25, Z = w * 0.8, Y = h * 0.55;
+      const x1 = X * cy - Z * sy, z1 = X * sy + Z * cy;
+      const y2 = Y * cp - z1 * sp, z2 = Y * sp + z1 * cp;
+      return [W / 2 + x1 * sc, H * 0.56 - y2 * sc, z2];
+    };
+    const U = i => (i / (ks.length - 1)) * 2 - 1, Wz = j => ne < 2 ? 0 : (j / (ne - 1)) * 2 - 1;
+    // floor grid
+    ctx.strokeStyle = line; ctx.lineWidth = 0.6;
+    for (let a = -1; a <= 1.001; a += 0.25) { let p = P3(a, -1, -1), q = P3(a, 1, -1); ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
+      p = P3(-1, a, -1); q = P3(1, a, -1); ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); }
+    const quads = [];
+    for (let j = 0; j < Math.max(1, ne - 1); j++) for (let a = 0; a < xi.length - 1; a++) {
+      const i0 = xi[a], i1 = xi[a + 1], j1 = ne < 2 ? j : j + 1;
+      const hv = (i, jj) => (G[jj][i] || 0) / mx;
+      const c = [[i0, j], [i1, j], [i1, j1], [i0, j1]].map(([i, jj]) => P3(U(i), Wz(jj), hv(i, jj) * 0.9 - 0.1));
+      const avg = (hv(i0, j) + hv(i1, j) + hv(i1, j1) + hv(i0, j1)) / 4;
+      quads.push({ c, z: c.reduce((t, p) => t + p[2], 0) / 4, v: avg });
+    }
+    quads.sort((a, b) => a.z - b.z);
+    quads.forEach(q => { const t = Math.min(1, Math.abs(q.v) * 1.6), col = mix(base, q.v >= 0 ? up : dn, t);
+      ctx.fillStyle = `rgb(${col})`; ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 0.5;
+      ctx.beginPath(); q.c.forEach((p, k) => k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fill(); ctx.stroke(); });
+    // spot line + wall markers along the expiry axis
+    const uOf = k => ((k - ks[0]) / (ks[ks.length - 1] - ks[0])) * 2 - 1;
+    const L = levels(st.ex), labs = [];
+    [[spot, pri, "price"], [L.cw, css("--up"), "call wall"], [L.pw, css("--down"), "put wall"], [L.flip, css("--warn"), "flip"]].forEach(([k, c, n]) => {
+      if (k == null || k < ks[0] || k > ks[ks.length - 1]) return;
+      const p = P3(uOf(k), -1, -1), q = P3(uOf(k), 1, -1);
+      ctx.setLineDash([4, 3]); ctx.strokeStyle = c; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); ctx.setLineDash([]);
+      labs.push({ x: q[0] + 4, y0: q[1] - 3, c, t: `${n} ${fk(k)}` });
+    });
+    labs.sort((a, b) => a.y0 - b.y0); let ly = -1e9;   // keep the end labels from overlapping
+    ctx.font = "600 10px Inter, system-ui, sans-serif";
+    labs.forEach(l => { l.y = Math.max(l.y0, ly + 12); ly = l.y; ctx.fillStyle = l.c; ctx.fillText(l.t, Math.min(l.x, W - ctx.measureText(l.t).width - 4), l.y); });
+    // axis labels
+    ctx.fillStyle = txt; ctx.font = "10px Inter, system-ui, sans-serif";
+    for (let a = 0; a <= 4; a++) { const i = Math.round(a / 4 * (ks.length - 1)), p = P3(U(i), -1.12, -1); ctx.fillText(fk(ks[i]), p[0] - 14, p[1] + 12); }
+    if (ne > 1) [0, ne - 1].forEach(j => { const p = P3(1.08, Wz(j), -1); ctx.fillText(s.expiries[j].e.slice(5) + (s.expiries[j].dte === 0 ? " 0DTE" : ""), p[0] + 4, p[1] + 3); });
+    $("od-leg").innerHTML = `<span>${money(-mx)}</span><i style="background:linear-gradient(90deg, rgb(${dn}), rgb(${base}), rgb(${up}))"></i><span>+ ${money(mx)}</span>`;
+  }
+  let drag = null;
+  cvs.addEventListener("pointerdown", e => { drag = [e.clientX, e.clientY, st.yaw, st.pitch]; cvs.setPointerCapture(e.pointerId); });
+  cvs.addEventListener("pointermove", e => { if (!drag) return; st.yaw = drag[2] + (e.clientX - drag[0]) * 0.008; st.pitch = Math.max(0.05, Math.min(1.45, drag[3] + (e.clientY - drag[1]) * 0.006)); requestAnimationFrame(terrain); });
+  cvs.addEventListener("pointerup", () => drag = null);
+  cvs.addEventListener("wheel", e => { e.preventDefault(); st.zoom = Math.max(0.5, Math.min(3, st.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); requestAnimationFrame(terrain); }, { passive: false });
+  cvs.addEventListener("dblclick", () => { st.yaw = -0.65; st.pitch = 0.55; st.zoom = 1; terrain(); });
+
+  /* ---------- 03 grid ---------- */
+  function grid() {
+    const s = S(), ks = s.strikes, spot = I().spot, G = s.greeks[st.greek];
+    const cols = [{ n: "All", v: G.all, i: -1 }].concat(s.expiries.map((e, i) => ({ n: e.e.slice(5) + (e.dte === 0 ? " 0D" : ""), v: G.ex[i], i })));
+    let mx = 0; cols.forEach(c => c.v.forEach(v => mx = Math.max(mx, Math.abs(v)))); mx = mx || 1;
+    const L = levels(st.ex), tag = k => (k === L.cw ? `<span class="tagw" style="background:var(--up);color:var(--on-primary)">CW</span>` : k === L.pw ? `<span class="tagw" style="background:var(--down);color:var(--on-primary)">PW</span>` : "");
+    const spotRow = ks.reduce((b, k, i) => Math.abs(k - spot) < Math.abs(ks[b] - spot) ? i : b, 0);
+    let html = `<table><thead><tr><th>Strike</th>${cols.map(c => `<th data-i="${c.i}" class="${c.i === st.ex ? "sel" : ""}">${c.n}</th>`).join("")}</tr></thead><tbody>`;
+    for (let r = ks.length - 1; r >= 0; r--) {
+      html += `<tr class="${r === spotRow ? "spot" : ""}"><th>${fk(ks[r])}${tag(ks[r])}</th>` + cols.map(c => { const v = c.v[r] || 0, int = Math.round(Math.sqrt(Math.abs(v) / mx) * 70);
+        return `<td data-i="${c.i}" class="${c.i === st.ex ? "sel" : ""}" style="--c:${v >= 0 ? "var(--up)" : "var(--down)"};--i:${int}" title="${fk(ks[r])} · ${c.n}: ${money(v)}">${v ? money(v) : "·"}</td>`; }).join("") + "</tr>";
+    }
+    const host = $("od-grid"); host.innerHTML = html + "</tbody></table>";
+    host.querySelectorAll("[data-i]").forEach(td => td.addEventListener("click", () => { st.ex = +td.dataset.i; $("od-ex").value = String(st.ex); paint(); }));
+    const sr = host.querySelector("tr.spot"); if (sr) host.scrollTop = sr.offsetTop - host.clientHeight / 2;
+  }
+
+  /* ---------- 04 smile ---------- */
+  function fit(pts) {   // weighted quadratic in log-moneyness: iv = a + b x + c x^2
+    if (pts.length < 4) return null;
+    const S_ = Array(5).fill(0), T = [0, 0, 0];
+    pts.forEach(([x, y]) => { let p = 1; for (let k = 0; k < 5; k++) { S_[k] += p; if (k < 3) T[k] += y * p; p *= x; } });
+    const A = [[S_[0], S_[1], S_[2]], [S_[1], S_[2], S_[3]], [S_[2], S_[3], S_[4]]], bv = T.slice();
+    for (let i = 0; i < 3; i++) { let p = i; for (let r = i + 1; r < 3; r++) if (Math.abs(A[r][i]) > Math.abs(A[p][i])) p = r; [A[i], A[p]] = [A[p], A[i]]; [bv[i], bv[p]] = [bv[p], bv[i]];
+      if (!A[i][i]) return null; for (let r = i + 1; r < 3; r++) { const m = A[r][i] / A[i][i]; for (let c = i; c < 3; c++) A[r][c] -= m * A[i][c]; bv[r] -= m * bv[i]; } }
+    const c = [0, 0, 0]; for (let i = 2; i >= 0; i--) { let s = bv[i]; for (let k = i + 1; k < 3; k++) s -= A[i][k] * c[k]; c[i] = s / A[i][i]; }
+    return x => c[0] + c[1] * x + c[2] * x * x;
+  }
+  function smile() {
+    const host = $("od-smile"); host.innerHTML = "";
+    const s = S(), j = st.ex < 0 ? 0 : st.ex, sm = s.smile[j], spot = I().spot;
+    $("od-smn").textContent = `Expiry ${s.expiries[j].e}${st.ex < 0 ? " (nearest; pick an expiry above to change)" : ""}`;
+    $("od-cap4").textContent = "Calls and puts implied volatility by strike · grey = fitted curve (out-of-the-money quotes)";
+    const all = sm.c.concat(sm.p); if (all.length < 3) { host.innerHTML = '<p class="quiet">Not enough quotes for this expiry.</p>'; return; }
+    const W = Math.max(300, host.clientWidth), H = host.clientHeight || 440, pl = 40, pr = 12, pt = 12, pb = 26;
+    const kx = all.map(a => a[0]), ky = all.map(a => a[1]);
+    const x0 = Math.min(...kx), x1 = Math.max(...kx), ys = ky.slice().sort((a, b) => a - b), yh = Math.min(ys[ys.length - 1], ys[Math.floor(ys.length * 0.97)] * 1.25) * 1.08, yl = Math.max(0, Math.floor(ys[0] * 0.85));
+    const X = k => pl + (k - x0) / (x1 - x0 || 1) * (W - pl - pr), Y = v => pt + (1 - (v - yl) / (yh - yl || 1)) * (H - pt - pb);
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: "display:block;font:10px Inter,system-ui,sans-serif" }, host);
+    niceTicks(yl, yh, 5).forEach(t => { if (t > yh) return; el("line", { x1: pl, y1: Y(t), x2: W - pr, y2: Y(t), stroke: "var(--grid)" }, svg);
+      el("text", { x: pl - 5, y: Y(t) + 3, "text-anchor": "end", fill: "var(--muted)" }, svg).textContent = t + "%"; });
+    niceTicks(x0, x1, 6).forEach(t => { if (t < x0 || t > x1) return; el("text", { x: X(t), y: H - 8, "text-anchor": "middle", fill: "var(--muted)" }, svg).textContent = fk(t); });
+    el("line", { x1: X(spot), y1: pt, x2: X(spot), y2: H - pb, stroke: "var(--text)", "stroke-dasharray": "3 3", opacity: 0.6 }, svg);
+    el("text", { x: X(spot) + 4, y: pt + 9, fill: "var(--muted)" }, svg).textContent = "spot";
+    const otm = sm.p.filter(a => a[0] <= spot).concat(sm.c.filter(a => a[0] >= spot)).map(a => [Math.log(a[0] / spot), a[1]]);
+    const fn = fit(otm);
+    if (fn) { let d = ""; for (let i = 0; i <= 80; i++) { const k = x0 + (x1 - x0) * i / 80, v = fn(Math.log(k / spot)); if (v > yl && v < yh * 1.2) d += (d ? "L" : "M") + X(k).toFixed(1) + "," + Y(Math.min(v, yh)).toFixed(1); }
+      if (d) el("path", { d, fill: "none", stroke: "var(--muted)", "stroke-width": 1.4 }, svg); }
+    [[sm.c, "var(--up)", "Call IV"], [sm.p, "var(--down)", "Put IV"]].forEach(([pts, col, n]) => {
+      const q = pts.filter(a => a[1] <= yh); if (!q.length) return;
+      el("path", { d: q.map((a, i) => (i ? "L" : "M") + X(a[0]).toFixed(1) + "," + Y(a[1]).toFixed(1)).join(""), fill: "none", stroke: col, "stroke-width": 1.4 }, svg);
+      const step = Math.max(1, Math.ceil(q.length / 40));
+      q.forEach((a, i) => { if (i % step) return; const c = el("circle", { cx: X(a[0]), cy: Y(a[1]), r: 2.4, fill: col }, svg); el("title", {}, c).textContent = `${n} ${fk(a[0])}: ${a[1].toFixed(1)}%`; });
+    });
+  }
+
+  function paint() { controls(); stats(); spine(); terrain(); grid(); smile(); }
+  paint();
+  let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { spine(); terrain(); smile(); }, 120); });
+  new MutationObserver(() => terrain()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => terrain());
 })();
 
 /* Collapsible panels: open on desktop, closed on phones (where marked); open everything for printing */

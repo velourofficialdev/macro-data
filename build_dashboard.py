@@ -1262,48 +1262,20 @@ def _opt_mapper(s: dict, meta: dict):
     return lambda k: None if k is None else k * ratio
 
 
-def _opt_chart(s: dict, meta: dict, conv) -> str:
-    st = s.get("strikes") or []
-    if not st:
-        return '<p class="quiet">No strike data.</p>'
-    spot = s["spot"]
-    lo, hi = min(x["k"] for x in st), max(x["k"] for x in st)
-    span = hi - lo
-    step = next((b for b in (1, 2, 2.5, 5, 10, 20, 25, 50, 100) if span / b <= 44), 100)
-    bk = {}
-    for x in st:
-        b = round(x["k"] / step) * step
-        c, p = bk.get(b, (0.0, 0.0))
-        bk[b] = (c + x["c"], p + x["p"])
-    rows = sorted(bk.items(), reverse=True)
-    mx = max(max(abs(c), abs(p)) for _, (c, p) in rows) or 1
-    rh, top, lw, W = 13, 6, 92, 520
-    mid = lw + (W - lw) / 2
-    half = (W - lw) / 2 - 8
-    H = top * 2 + rh * len(rows)
-
-    def y_of(k):
-        return top + (rows[0][0] - k) / step * rh + rh / 2
-    parts = [f'<svg viewBox="0 0 {W} {H}" width="100%" role="img" aria-label="Gamma exposure by strike: calls to the right, puts to the left" style="display:block;font:10px Inter,system-ui,sans-serif">',
-             f'<line x1="{mid}" y1="{top}" x2="{mid}" y2="{H - top}" stroke="var(--border-strong)"/>']
-    for k, (c, p) in rows:
-        y = y_of(k) - rh / 2 + 2
-        txt = f"{k:,.{meta['dec']}f}"
-        parts.append(f'<text x="{lw - 6}" y="{y + rh / 2 + 1}" text-anchor="end" fill="var(--muted)">{txt}</text>')
-        if c:
-            parts.append(f'<rect x="{mid}" y="{y}" width="{abs(c) / mx * half:.1f}" height="{rh - 4}" rx="2" fill="var(--up)"><title>{txt}: calls {c:,.0f}M $ per 1%</title></rect>')
-        if p:
-            w = abs(p) / mx * half
-            parts.append(f'<rect x="{mid - w:.1f}" y="{y}" width="{w:.1f}" height="{rh - 4}" rx="2" fill="var(--down)"><title>{txt}: puts {p:,.0f}M $ per 1%</title></rect>')
-    for val, name, col, dash in ((spot, "price", "var(--text)", ""), (s.get("gamma_flip"), "flip", "var(--warn)", ' stroke-dasharray="4 3"')):
-        if val and lo - step <= val <= hi + step:
-            y = y_of(val)
-            parts.append(f'<line x1="{lw}" y1="{y:.1f}" x2="{W}" y2="{y:.1f}" stroke="{col}" stroke-width="1.2"{dash}/>'
-                         + (f'<text x="{W - 2}" y="{y - 3:.1f}" text-anchor="end" fill="{col}" font-weight="600">{name}</text>' if name == "price"
-                          else f'<text x="{lw + 2}" y="{y + 11:.1f}" fill="{col}" font-weight="600">{name}</text>'))
-    parts.append("</svg>")
-    return "".join(parts)
-
+def opt_payload(data: dict) -> dict:
+    out = {}
+    for key, meta in OPT_META.items():
+        s = (data.get("options") or {}).get(key)
+        if not s or not s.get("surface"):
+            continue
+        mp, spot = s.get("mapped_price"), s.get("spot")
+        mapping = None
+        if mp and spot:
+            mapping = {"mode": meta["mode"], "basis": round(mp - spot, 4), "ratio": round(mp / spot, 6), "label": meta["map"].split(" (")[0], "dec": meta["mdec"]}
+        out[key] = {"title": meta["title"].replace("&amp;", "&"), "date": s.get("date"), "spot": spot, "flip": s.get("gamma_flip"),
+                    "atm_iv": s.get("atm_iv"), "day_move": s.get("day_move"), "pcr_oi": s.get("pcr_oi"), "dec": meta["dec"],
+                    "map": mapping, "surface": s["surface"]}
+    return out
 
 def build_options(data: dict, today: date) -> str:
     opts = data.get("options") or {}
@@ -1378,9 +1350,8 @@ def build_options(data: dict, today: date) -> str:
             f'<div class="card" style="--w:7"><div class="card-h"><h3>{meta["title"]} key levels <span class="muted-text">· {esc(meta["src"])}</span> {badge_}{stale}</h3></div>'
             f'<div class="card-b">{stats}<div class="scroll"><table class="opttab"><thead><tr><th>Level</th><th>{esc(meta["src"].split()[0])}</th>{mapped_head}<th>vs price</th><th></th></tr></thead><tbody>{trs}</tbody></table></div>'
             f'<p class="optread">{esc(read)}</p><p class="note">{esc(mapnote)}</p></div></div>'
-            f'<div class="card" style="--w:5"><div class="card-h"><h3>Gamma by strike <span class="muted-text">· {esc(meta["src"].split()[0])} strikes</span></h3><p class="note">Right: call gamma · left: put gamma · $M per 1% move</p></div><div class="card-b">{_opt_chart(s, meta, conv)}</div></div>'
             f'<div class="card" style="--w:5"><div class="card-h"><h3>{meta["title"]}: biggest open-interest changes</h3><p class="note">Contracts, vs the previous update</p></div><div class="card-b scroll">{chg}</div></div>'
-            f'<div class="card" style="--w:7"><div class="card-h"><h3>{meta["title"]}: levels over the last 10 updates</h3><p class="note">In {esc(meta["src"].split()[0])} units</p></div><div class="card-b scroll">{htab or "<p class=quiet>Builds up one row per update.</p>"}</div></div>')
+            f'<div class="card" style="--w:12"><div class="card-h"><h3>{meta["title"]}: levels over the last 10 updates</h3><p class="note">In {esc(meta["src"].split()[0])} units</p></div><div class="card-b scroll">{htab or "<p class=quiet>Builds up one row per update.</p>"}</div></div>')
     return "".join(html)
 
 TEMPLATE = (ROOT / "template.html").read_text(encoding="utf-8") if (ROOT / "template.html").exists() else None
@@ -1713,7 +1684,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y", "S:5y-2y") if any(r_["id"] == x for r_ in rows)]
     payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows + erows},
                "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
-               "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed, data), "curve": curve_payload(data), "cot": build_cot_charts(data),
+               "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed, data), "curve": curve_payload(data), "cot": build_cot_charts(data), "opt": opt_payload(data),
                "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
                "unit": {"spreads": " pp", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
 
