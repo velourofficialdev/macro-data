@@ -285,7 +285,7 @@
   table.watch .tk { color: var(--muted); font-size: 12px; text-align: left; }
   table.watch small.cu { color: var(--muted); font-size: 10px; margin-left: 2px; }
   table.watch td.yd small { color: var(--muted); font-size: 10px; margin-left: 1px; }
-  table.watch.hide-c-tk .c-tk, table.watch.hide-c-d5 .c-d5, table.watch.hide-c-d20 .c-d20, table.watch.hide-c-d252 .c-d252, table.watch.hide-c-z .c-z, table.watch.hide-c-per .c-per { display: none; }
+  table.watch.hide-c-tk .c-tk, table.watch.hide-c-d5 .c-d5, table.watch.hide-c-d20 .c-d20, table.watch.hide-c-d252 .c-d252, table.watch.hide-c-z .c-z, table.watch.hide-c-per .c-per, table.watch.hide-c-cf .c-cf, table.watch.hide-c-ln .c-ln, table.watch.hide-c-rg .c-rg { display: none; }
   table.watch tr.grp td, table.watch tr.grp th { background: color-mix(in srgb, var(--surface-2) 55%, var(--surface)); height: 32px; border-bottom: 1px solid var(--border); }
   table.watch tr.grp th { padding: 0; position: static; }
   .gt { font: inherit; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text); background: none; border: 0; cursor: pointer; padding: 4px 8px; display: inline-flex; align-items: center; gap: 8px; }
@@ -468,10 +468,51 @@
   table.weekly td.lefttd { text-align: left; }
 
   /* FX confluence */
-  .confgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-  .fxtiles { grid-template-columns: repeat(8, minmax(0, 1fr)); }
-  @media (max-width: 1200px) { .confgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fxtiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-  @media (max-width: 560px) { .confgrid { grid-template-columns: minmax(0, 1fr); } .fxtiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .confgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 12px; }
+  .fxtiles { grid-template-columns: repeat(auto-fill, minmax(min(100%, 112px), 1fr)); }
+  .fxtiles .tl { flex-wrap: wrap; gap: 2px 6px; }
+  .fxtiles [hidden], .confgrid [hidden] { display: none !important; }
+  .picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 12px; }
+  .picker .pl { font-size: 12px; color: var(--muted); margin-right: 4px; }
+  .chip { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-strong); background: transparent; color: var(--muted); cursor: pointer; }
+  .chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text, inherit); border-color: var(--accent); }
+  .chip.ghost { border-style: dashed; } .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .conf .xr { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; padding: 2px 0 0; color: var(--muted); } .conf .xr b { color: inherit; font-size: 13px; } .conf .xv { display: block; font-size: 11px; color: var(--muted); padding-bottom: 2px; }
+  .conf .xe { font-size: 11px; color: var(--muted); padding-bottom: 2px; }
+  .conf .ctop small { color: var(--muted); font-weight: 400; margin-left: 4px; font-size: 11px; }
+  .sig.m .sn i { font-style: normal; font-size: 9px; color: var(--muted); border: 1px solid var(--border-strong); border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+  .reading.fxread .conf { border: 0; padding: 0; }
+  .rterm table.watch.instr td.c-cf.up { color: var(--up); } .rterm table.watch.instr td.c-cf.down { color: var(--down); }
+  .rterm table.drv th, .rterm table.drv td { padding: 6px 8px; white-space: nowrap; } .rterm table.drv tbody tr { cursor: pointer; } .rterm table.drv tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  #fx .rterm { grid-template-rows: minmax(240px, 1fr) minmax(0, 350px); }
+  @media (max-width: 1024px) { #fx .rterm { grid-template-rows: auto; } #fx .rterm .chp { min-height: 340px; } #fx .rterm .mxp .mxs { max-height: 420px; } }
+  #fx .rterm .mxp .mxs { overflow: auto; }
+  #fx .confgrid { align-items: start; }
+  #fx .conf { position: relative; } #fx .conf.open { z-index: 30; }
+  #fx .conf .cdet[hidden] { display: none; }
+  #fx .confgrid:not(.allopen) .cdet { position: absolute; top: calc(100% + 6px); left: -1px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; padding: 4px 14px 12px; box-shadow: 0 12px 32px rgba(0,0,0,.35); z-index: 31; }
+  #fxv-cards .card, #fxv-cards .card-b { overflow: visible; }
+  #fx .conf .cmore { width: 100%; margin-top: 8px; font: inherit; font-size: 12px; color: var(--muted); background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; cursor: pointer; display: flex; justify-content: center; gap: 6px; align-items: center; }
+  #fx .conf .cmore:hover { color: var(--text); border-color: var(--border-strong); }
+  #fx .conf .cmore .car { display: inline-block; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); transition: transform .15s; }
+  #fx .conf .cmore[aria-expanded="true"] .car { transform: rotate(225deg) translate(-1px, -1px); }
+  #fx .conf .clean { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding-top: 4px; }
+  #fx .cardbar { display: flex; justify-content: flex-end; gap: 6px; margin: 0 0 8px; }
+  #fx .fxvbar { margin: 0 0 12px; display: flex; justify-content: flex-end; } #fx [hidden] { display: none !important; }
+  #fx .picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 12px; } #fx .picker .pl { font-size: 12px; color: var(--muted); margin-right: 4px; }
+  #fx .fxc { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-strong); background: transparent; color: var(--muted); cursor: pointer; }
+  #fx .fxc[aria-pressed="true"] { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--text); border-color: var(--primary); }
+  #fx .fxc.ghost { border-style: dashed; }
+  #fx .fxpickbox { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12.5px; align-items: center; }
+  #fx .mxctl [hidden], #fx #fxdrv[hidden], #fx .mxnote[hidden] { display: none !important; }
+  #fx .fxpickbox[hidden] { display: none; } #fx .fxpickbox .pg { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; } #fx .fxpickbox .pg b { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  #fx .fxpickbox label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+  #fx table.matrix td.post { color: var(--up, inherit); } #fx table.matrix td.negt { color: var(--down, inherit); }
+  #fx table.matrix td { white-space: nowrap; }
+  #fx table.drv td.dc .da { display: inline; font-size: 11px; margin-right: 6px; } #fx table.drv td.dc small, #fx table.drv td.dread small { display: inline; margin: 0 0 0 6px; }
+  #fx .rterm table.drv th, #fx .rterm table.drv td { padding: 4px 8px; } #fx table.drv thead th small { font-size: 10px; }
+  #fx .rterm table.drv thead th { position: sticky; top: 0; background: var(--surface, var(--tile)); z-index: 1; }
+  .tag.lean { background: var(--surface-2); color: var(--muted); }
   .conf { border: 1px solid var(--border-strong); border-radius: 8px; padding: 12px; }
   .conf .ctop { display: flex; justify-content: space-between; }
   .conf .chead { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
@@ -694,11 +735,51 @@
   </section>
 
   <section class="sec" id="fx">
-    <div class="sechead"><h2>FX confluence</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from the ECB's official euro reference rates (daily 14:15 CET fixing, crossed through the euro; Yahoo then FRED as fallbacks); XAUUSD uses COMEX gold futures. Latest close __FXUPD__.</p></div>
-    <div class="grid">
+    <div class="sechead"><h2>FX, gold and indices</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from the ECB's official euro reference rates (daily 14:15 CET fixing, crossed through the euro; Yahoo then FRED as fallbacks); XAUUSD uses COMEX gold futures. ES, NQ and US30 are the S&amp;P 500, Nasdaq 100 and Dow 30 cash index levels from Yahoo Finance (FRED as fallback). Latest close __FXUPD__.</p></div>
+    <div class="grid" style="margin-bottom:12px">
       <div class="card" style="--w:12"><div class="card-h"><h3>This week</h3></div><div class="card-b">__WEEK__</div></div>
-      <div class="card" style="--w:12"><div class="card-h"><h3>Spot</h3></div><div class="card-b">__FX_CARDS__</div></div>
-      <div class="card" style="--w:12"><div class="card-h"><h3>Confluence</h3></div><div class="card-b">__CONFLUENCE__</div></div>
+    </div>
+    <div class="fxvbar"><div class="ranges kindsw" id="fxv" role="group" aria-label="Choose the view"><button type="button" data-v="cards" aria-pressed="true">Cards</button><button type="button" data-v="term" aria-pressed="false">Terminal</button></div></div>
+    <div id="fxv-cards">
+      __FXPICK__
+      <div class="card"><div class="card-h"><h3>Confluence</h3></div><div class="card-b">__CONFLUENCE__</div></div>
+    </div>
+    <div id="fxv-term" hidden>
+    <div class="term rterm">
+      <div class="card wlp">
+        <div class="card-h"><h3>FX, Gold and Indices</h3><span class="ctools"><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></span></div>
+        <div class="tbar">
+          <button type="button" data-act="cols" aria-expanded="false"><svg class="ico"><use href="#i-cols"/></svg>Columns</button>
+          <button type="button" data-act="save" title="Remember the selected rows in this browser"><svg class="ico"><use href="#i-save"/></svg>Save as watchlist</button>
+          <button type="button" data-act="group" aria-pressed="true"><svg class="ico"><use href="#i-group"/></svg>Group</button>
+          <button type="button" data-act="flt" aria-expanded="false"><svg class="ico"><use href="#i-flt"/></svg>Filter</button>
+        </div>
+        <div class="colmenu" hidden><label><input type="checkbox" data-col="c-tk"> Market</label><label><input type="checkbox" data-col="c-cf" checked> Score</label><label><input type="checkbox" data-col="c-ln" checked> Macro lean</label><label><input type="checkbox" data-col="c-rg" checked> Range</label></div>
+        <div class="filter" hidden><input type="search" placeholder="Filter: EURUSD, gold, Nasdaq…" aria-label="Filter FX, gold and indices"></div>
+        <div class="wl">__FXWATCH__</div>
+      </div>
+      <div class="card chp">
+        <div class="card-h"><h3>Performance (% change)</h3><button type="button" class="tool" data-act="export"><svg class="ico"><use href="#i-up"/></svg>Export</button></div>
+        <div class="rbar"><div class="ranges rng" role="group" aria-label="Date range"></div></div>
+        <div class="chips" aria-label="Plotted instruments"></div>
+        <div class="cv main" role="img" aria-label="Percent change since the start of the range for the selected instruments"></div>
+      </div>
+      <div class="card mxp">
+        <div class="card-h"><h3 id="fxmt">FX Matrix</h3><div class="mxctl"><div class="ranges kindsw" id="fxmk" role="group" aria-label="Show moves or drivers"><button type="button" data-kind="moves" aria-pressed="true">Moves</button><button type="button" data-kind="drivers" aria-pressed="false">Drivers</button></div><div class="ranges" id="fxhz" role="group" aria-label="Matrix date"></div><button type="button" class="tool" id="fxcust" aria-expanded="false"><svg class="ico"><use href="#i-cols"/></svg>My view</button></div></div>
+        <div class="fxpickbox" id="fxcols" hidden></div>
+        <div class="scroll mxs"><table class="matrix" id="fxmx"></table><div id="fxdrv">__FXMATRIX__</div></div>
+        <p class="mxnote" id="fxmn">Shading = move since the chosen date (Now: last day); blue higher, red lower. Pick a date above, or use My view to choose which markets to show.</p>
+      </div>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <div class="card" style="--w:5"><div class="card-h"><h3>Reading: last row you clicked</h3></div><div class="card-b reading fxread" id="fxreading"></div></div>
+      <div class="card" style="--w:7"><div class="card-h"><h3>How to read this</h3></div><div class="card-b">
+        <p><b>Likely range this week</b> is the 68% range (&plusmn;1 sigma) from the last 20 and 60 days of price swings. In a 2001-2026 test on 7 pairs the weekly move stayed inside it 68.3% of weeks, so it is a size estimate you can rely on.</p>
+        <p><b>Macro lean</b> counts the drivers that support the instrument higher or lower (a net of 2 is a lean). In the same test the read was right only about half of weeks, so treat it as background, not a signal. Crowded positioning (Z of 2 or more) and the risk or volatility rows are shown but not counted.</p>
+        <p><b>Confluence score</b> (0-100) combines momentum, RSI, trend and Z-score; 60 or more reads bullish, 40 or less bearish. It also showed no reliable edge in the backtest.</p>
+        <p class="note">Pairs use ECB reference rates, gold uses COMEX futures, indices are the S&amp;P 500, Nasdaq 100 and Dow 30 cash levels (Yahoo Finance, FRED as fallback). Latest close __FXUPD__. The chart shows % change from the start of the selected range.</p>
+      </div></div>
+    </div>
     </div>
   </section>
 
@@ -752,6 +833,13 @@ const P = __PAYLOAD__;
     paint();
   }));
   paint();
+})();
+
+/* macro drivers matrix: clicking a row picks that instrument in the list */
+(function () {
+  document.querySelectorAll("#fx table.drv tbody tr[data-id]").forEach(tr => tr.addEventListener("click", () => {
+    const r = document.querySelector('#fx tr.row[data-id="' + tr.dataset.id + '"]'); if (r) r.click();
+  }));
 })();
 
 /* nav highlight for the section being read */
@@ -959,12 +1047,14 @@ function Terminal(root, cfg) {
       let i0 = F.dates.findIndex(d => d >= st); if (i0 < 0) i0 = 0;
       const labels = F.dates.slice(i0);
       const sets = sel.map((id, k) => ({ name: P.rows[id].label, tk: P.rows[id].ticker, data: F.series[id].slice(i0), color: colorOf(k) }));
+      if (cfg.rebase) sets.forEach(s => { const b = s.data.find(v => v !== null && v !== undefined && v !== 0); s.data = s.data.map(v => (v === null || v === undefined || b === undefined) ? null : (v / b - 1) * 100); });
       chart = { labels, sets };
       const dec = P.dec[fam] !== undefined ? P.dec[fam] : 2;
       draw(host, { labels, sets, dec, axDec: Math.min(dec, 3), unit: P.unit[fam] || "", endLabels: true, term: true, title: cfg.title });
     }
     const info = focus && P.rows[focus] && P.rows[focus].info, box = document.getElementById(cfg.reading);
-    if (info && box) {
+    if (info && info.html && box) box.innerHTML = info.html;
+    else if (info && box) {
       const b = info.band || {};
       box.innerHTML = `<h5>${esc(info.title)} ${b.label ? `<span class="badge${/invert|extreme|very/i.test(b.label) ? " warn" : ""}">${esc(b.label)}</span>` : ""}</h5>` +
         (b.meaning ? `<p>${esc(b.meaning)}</p>` : "") + (b.so_what ? `<p class="so"><b>So what:</b> ${esc(b.so_what)}</p>` : "") +
@@ -1013,6 +1103,7 @@ function Terminal(root, cfg) {
   if (window.ResizeObserver) { let w0 = host.clientWidth, h0 = host.clientHeight; new ResizeObserver(() => { if (host.clientWidth !== w0 || host.clientHeight !== h0) { w0 = host.clientWidth; h0 = host.clientHeight; later(); } }).observe(host); }
 }
 Terminal(document.querySelector("#rates .term"), { defaults: P.default, ranges: ["MTD", "1M", "QTD", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "10Y"], range: "1Y", store: "macro-watchlist", reading: "reading", csv: "yield_spreads", title: "Historical yields" });
+Terminal(document.querySelector("#fx .term"), { defaults: P.fxdefault, ranges: ["1M", "3M", "6M", "YTD", "1Y", "2Y", "3Y"], range: "6M", store: "macro-fx-watchlist", reading: "fxreading", csv: "fx_gold_indices", title: "FX, gold and indices", rebase: true });
 Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, ranges: ["YTD", "1Y", "2Y", "3Y", "5Y", "10Y"], range: "5Y", store: "macro-econ-watchlist", reading: "ereading", csv: "us_economy", title: "US economy", openWhat: true });
 
 /* Yields / spreads matrix by country */
@@ -1053,6 +1144,104 @@ Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, range
     tbl.innerHTML = h + "</tbody>";
   }
   paint();
+})();
+
+
+/* FX matrix: moves by date + drivers, with a saved "My view" of chosen markets */
+(function () {
+  const M = P.fxm, tbl = document.getElementById("fxmx"); if (!M || !tbl) return;
+  const hz = document.getElementById("fxhz"), kb = document.getElementById("fxmk"), box = document.getElementById("fxcols"), cb = document.getElementById("fxcust"), drv = document.getElementById("fxdrv"), note = document.getElementById("fxmn"), ttl = document.getElementById("fxmt");
+  const KEY = "macro-fx-cols"; let cur = 0, kind = "moves", sel = null;
+  const reload = () => { sel = null; try { const v = JSON.parse(localStorage.getItem(KEY) || "null"); if (Array.isArray(v)) sel = new Set(v); } catch (e) {} }; reload();
+  const save = () => { try { sel ? localStorage.setItem(KEY, JSON.stringify([...sel])) : localStorage.removeItem(KEY); } catch (e) {} window.dispatchEvent(new Event("fxsel")); };
+  window.addEventListener("fxsel", () => { reload(); if (!box.hidden) paintPicker(); paint(); });
+  const cols = () => { const c = M.cols.filter(x => !sel || sel.has(x.id)); return c.length ? c : M.cols; };
+  const ser = id => P.families.fx.series[id] || [];
+  const at = (a, back) => { let last = a.length - 1; while (last >= 0 && a[last] === null) last--; if (last < 0) return [null, null]; let i = last - back; while (i >= 0 && a[i] === null) i--; return [a[last], i < 0 ? null : a[i]]; };
+  const nf = (v, d) => v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+  const tint = (v, peak) => Math.min(100, Math.round(100 * Math.pow(Math.abs(v) / peak, .7)));
+  M.horizons.forEach((h, i) => { const b = document.createElement("button"); b.type = "button"; b.textContent = h === "Now" ? "Now" : h + " ago"; b.addEventListener("click", () => { cur = i; paint(); }); hz.appendChild(b); });
+  kb.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { kind = b.dataset.kind; paint(); }));
+  function paintPicker() {
+    const groups = [...new Set(M.cols.map(c => c.group))];
+    box.innerHTML = groups.map(g => `<div class="pg"><b>${g}</b>` + M.cols.filter(c => c.group === g).map(c => `<label title="${c.name}"><input type="checkbox" data-id="${c.id}" ${!sel || sel.has(c.id) ? "checked" : ""}>${c.sym}</label>`).join("") + "</div>").join("") + '<button type="button" class="tool" data-all>Show all</button>';
+    box.querySelectorAll("input").forEach(i => i.addEventListener("change", () => {
+      const s = new Set(M.cols.filter(c => !sel || sel.has(c.id)).map(c => c.id)); i.checked ? s.add(i.dataset.id) : s.delete(i.dataset.id);
+      sel = s.size === M.cols.length ? null : s; save(); paint();
+    }));
+    box.querySelector("[data-all]").addEventListener("click", () => { sel = null; save(); paintPicker(); paint(); });
+  }
+  cb.addEventListener("click", () => { const o = box.hidden; box.hidden = !o; cb.setAttribute("aria-expanded", String(o)); if (o) paintPicker(); });
+  function paint() {
+    hz.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === cur)));
+    kb.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.kind === kind)));
+    const C = cols(), D = kind === "drivers";
+    tbl.hidden = D; hz.hidden = D; note.hidden = D; drv.hidden = !D; ttl.textContent = D ? "Macro Drivers" : "FX Matrix";
+    drv.querySelectorAll("tbody tr[data-id]").forEach(tr => { tr.hidden = !C.some(c => c.id === tr.dataset.id); });
+    if (D) return;
+    const chg = C.map(c => { const [n, o] = at(ser(c.id), M.bars[cur]); return n === null || o === null || !o ? null : (n / o - 1) * 100; });
+    const peak = Math.max(.01, ...chg.filter(v => v !== null).map(Math.abs));
+    let h = "<thead><tr><th></th>" + C.map(c => `<th title="${c.name}">${c.sym}</th>`).join("") + "</tr></thead><tbody>";
+    h += "<tr><th scope=\"row\">Price</th>" + C.map((c, j) => { const [n] = at(ser(c.id), 0); if (n === null) return '<td class="na">-</td>'; const d = chg[j];
+      return `<td class="heat ${d !== null && d < 0 ? "neg" : "pos"}" style="--i:${d === null ? 0 : tint(d, peak)}" title="${d === null ? "" : (d > 0 ? "+" : "") + nf(d, 2) + "% " + (cur === 0 ? "1-day" : "since " + M.horizons[cur] + " ago")}">${nf(n, c.dec)}</td>`; }).join("") + "</tr>";
+    h += `<tr><th scope="row">${cur === 0 ? "1D change" : "Change"}</th>` + chg.map(d => d === null ? '<td class="na">-</td>' : `<td class="${d < 0 ? "neg" : "pos"}t">${d > 0 ? "+" : ""}${nf(d, 2)}%</td>`).join("") + "</tr>";
+    h += "<tr><th scope=\"row\">Score</th>" + C.map(c => `<td>${c.score}</td>`).join("") + "</tr>";
+    h += "<tr><th scope=\"row\">Macro lean</th>" + C.map(c => `<td>${c.lean || "-"}</td>`).join("") + "</tr>";
+    h += "<tr><th scope=\"row\">Week range</th>" + C.map(c => `<td>${c.range || "-"}</td>`).join("") + "</tr>";
+    tbl.innerHTML = h + "</tbody>";
+  }
+  paint();
+})();
+
+
+/* FX: Cards / Terminal switch + shared "My view" selection (chips, cards and matrix) */
+(function () {
+  const sw = document.getElementById("fxv"); if (!sw) return;
+  const set = v => { sw.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === v)));
+    document.getElementById("fxv-cards").hidden = v !== "cards"; document.getElementById("fxv-term").hidden = v !== "term";
+    try { localStorage.setItem("macro-fx-view", v); } catch (e) {} if (v === "term") setTimeout(() => window.dispatchEvent(new Event("resize")), 30); };
+  sw.querySelectorAll("button").forEach(b => b.addEventListener("click", () => set(b.dataset.v)));
+  let v = "cards"; try { v = localStorage.getItem("macro-fx-view") || "cards"; } catch (e) {} set(v === "term" ? "term" : "cards");
+  const box = document.getElementById("fxpick"); if (!box) return;
+  const chips = [...box.querySelectorAll(".fxc[data-sym]")], all = chips.map(c => "FX:" + c.dataset.sym);
+  const load = () => { try { const x = JSON.parse(localStorage.getItem("macro-fx-cols") || "null"); if (Array.isArray(x)) return new Set(x.filter(i => all.includes(i))); } catch (e) {} return new Set(all); };
+  const paint = () => { const sel = load();
+    chips.forEach(c => c.setAttribute("aria-pressed", String(sel.has("FX:" + c.dataset.sym))));
+    document.querySelectorAll(".confgrid [data-sym]").forEach(el => { el.hidden = !sel.has("FX:" + el.dataset.sym); });
+    let m = document.getElementById("fxnone"); if (!m) { m = document.createElement("p"); m.id = "fxnone"; m.className = "muted-text pad"; m.textContent = "No instruments selected. Choose some above."; box.after(m); }
+    m.hidden = sel.size > 0; };
+  box.addEventListener("click", ev => { const b = ev.target.closest(".fxc"); if (!b) return; let sel = load();
+    if (b.dataset.all) sel = new Set(all); else if (b.dataset.none) sel = new Set(); else { const k = "FX:" + b.dataset.sym; sel.has(k) ? sel.delete(k) : sel.add(k); }
+    try { sel.size === all.length ? localStorage.removeItem("macro-fx-cols") : localStorage.setItem("macro-fx-cols", JSON.stringify([...sel])); } catch (e) {}
+    window.dispatchEvent(new Event("fxsel")); });
+  window.addEventListener("fxsel", paint); paint();
+})();
+
+
+/* FX cards: compact by default; More detail opens a panel that floats over the next column, so the grid never reflows */
+(function () {
+  const grid = document.querySelector("#fx .confgrid"); if (!grid) return;
+  const cards = [...grid.querySelectorAll(".conf")];
+  const setC = (c, on) => { c._d.hidden = !on; c.classList.toggle("open", on); c._b.setAttribute("aria-expanded", String(on)); c._b.querySelector("span").textContent = on ? "Show less" : "More detail";
+    if (on && !grid.classList.contains("allopen")) { const g = grid.getBoundingClientRect(), r = c.getBoundingClientRect(), w = Math.min(r.width * 2 + 12, g.width), l = Math.min(Math.max(r.left, g.left), g.right - w) - r.left; c._d.style.width = w + "px"; c._d.style.left = (l - 1) + "px"; c._d.style.right = "auto"; } };
+  const closeAll = except => cards.forEach(c => { if (c !== except && c._d && !c._d.hidden) setC(c, false); });
+  cards.forEach(c => {
+    const h = c.querySelector("h5"); if (!h) return;
+    const d = document.createElement("div"); d.className = "cdet"; d.id = "cdet-" + c.dataset.sym;
+    while (h.nextSibling) d.appendChild(h.nextSibling); d.insertBefore(h, d.firstChild);
+    const tag = d.querySelector("h5 .tag.lean"), cnt = d.querySelector("h5 .dcount");
+    if (tag) { const l = document.createElement("div"); l.className = "clean"; l.innerHTML = `<span>Macro lean</span><span><span class="tag lean">${tag.textContent}</span> <small>${cnt ? cnt.textContent : ""}</small></span>`; c.appendChild(l); }
+    const b = document.createElement("button"); b.type = "button"; b.className = "cmore"; b.setAttribute("aria-controls", d.id); b.innerHTML = '<span></span><i class="car"></i>';
+    c.appendChild(b); c.appendChild(d); c._d = d; c._b = b;
+    b.addEventListener("click", () => { const on = d.hidden; if (!grid.classList.contains("allopen")) closeAll(c); setC(c, on); });
+    setC(c, false);
+  });
+  const bar = document.createElement("div"); bar.className = "cardbar";
+  bar.innerHTML = '<button type="button" class="fxc" data-e="1" title="Open every card in place (the grid grows)">Expand all</button><button type="button" class="fxc" data-e="0">Collapse all</button>';
+  grid.before(bar);
+  bar.addEventListener("click", ev => { const b = ev.target.closest("[data-e]"); if (!b) return; const on = b.dataset.e === "1"; grid.classList.toggle("allopen", on); cards.forEach(c => c._d && setC(c, on)); });
+  document.addEventListener("click", ev => { if (!grid.classList.contains("allopen") && !ev.target.closest(".conf")) closeAll(null); });
+  document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !grid.classList.contains("allopen")) closeAll(null); });
 })();
 
 /* US across-time table: yields / spreads switch */
