@@ -436,7 +436,11 @@
   @media (max-width: 1024px) { #fx .rterm { grid-template-rows: auto; } #fx .rterm .chp { min-height: 340px; } #fx .rterm .mxp .mxs { max-height: 420px; } }
   #fx .rterm .mxp .mxs { overflow: auto; }
   #fx .confgrid { align-items: start; }
+  #fx .conf { position: relative; } #fx .conf.open { z-index: 30; }
   #fx .conf .cdet[hidden] { display: none; }
+  #fx .confgrid:not(.allopen) .cdet { position: absolute; top: calc(100% + 6px); left: -1px; width: calc(200% + 14px); box-sizing: border-box; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; padding: 4px 14px 12px; box-shadow: 0 12px 32px rgba(0,0,0,.35); z-index: 31; }
+  #fx .confgrid:not(.allopen) .cdet.left { left: auto; right: -1px; }
+  @media (max-width: 640px) { #fx .confgrid:not(.allopen) .cdet, #fx .confgrid:not(.allopen) .cdet.left { width: 100%; left: -1px; right: auto; } }
   #fx .conf .cmore { width: 100%; margin-top: 8px; font: inherit; font-size: 12px; color: var(--muted); background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; cursor: pointer; display: flex; justify-content: center; gap: 6px; align-items: center; }
   #fx .conf .cmore:hover { color: var(--text); border-color: var(--border-strong); }
   #fx .conf .cmore .car { display: inline-block; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); transition: transform .15s; }
@@ -1121,13 +1125,13 @@ Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, range
 })();
 
 
-/* FX cards: compact by default, expand for signals, drivers and levels */
+/* FX cards: compact by default; More detail opens a panel that floats over the next column, so the grid never reflows */
 (function () {
   const grid = document.querySelector("#fx .confgrid"); if (!grid) return;
   const cards = [...grid.querySelectorAll(".conf")];
-  const KEY = "macro-fx-open"; let open = new Set(); try { open = new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch (e) {}
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...open])); } catch (e) {} };
-  const setC = (c, on) => { c._d.hidden = !on; c._b.setAttribute("aria-expanded", String(on)); c._b.querySelector("span").textContent = on ? "Show less" : "More detail"; on ? open.add(c.dataset.sym) : open.delete(c.dataset.sym); };
+  const setC = (c, on) => { c._d.hidden = !on; c.classList.toggle("open", on); c._b.setAttribute("aria-expanded", String(on)); c._b.querySelector("span").textContent = on ? "Show less" : "More detail";
+    if (on) { c._d.classList.remove("left"); const g = grid.getBoundingClientRect(), r = c.getBoundingClientRect(); if (r.left + r.width * 2 + 12 > g.right + 2) c._d.classList.add("left"); } };
+  const closeAll = except => cards.forEach(c => { if (c !== except && c._d && !c._d.hidden) setC(c, false); });
   cards.forEach(c => {
     const h = c.querySelector("h5"); if (!h) return;
     const d = document.createElement("div"); d.className = "cdet"; d.id = "cdet-" + c.dataset.sym;
@@ -1136,13 +1140,15 @@ Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, range
     if (tag) { const l = document.createElement("div"); l.className = "clean"; l.innerHTML = `<span>Macro lean</span><span><span class="tag lean">${tag.textContent}</span> <small>${cnt ? cnt.textContent : ""}</small></span>`; c.appendChild(l); }
     const b = document.createElement("button"); b.type = "button"; b.className = "cmore"; b.setAttribute("aria-controls", d.id); b.innerHTML = '<span></span><i class="car"></i>';
     c.appendChild(b); c.appendChild(d); c._d = d; c._b = b;
-    b.addEventListener("click", () => { setC(c, d.hidden); save(); });
-    setC(c, open.has(c.dataset.sym));
+    b.addEventListener("click", () => { const on = d.hidden; if (!grid.classList.contains("allopen")) closeAll(c); setC(c, on); });
+    setC(c, false);
   });
   const bar = document.createElement("div"); bar.className = "cardbar";
-  bar.innerHTML = '<button type="button" class="fxc" data-e="1">Expand all</button><button type="button" class="fxc" data-e="0">Collapse all</button>';
+  bar.innerHTML = '<button type="button" class="fxc" data-e="1" title="Open every card in place (the grid grows)">Expand all</button><button type="button" class="fxc" data-e="0">Collapse all</button>';
   grid.before(bar);
-  bar.addEventListener("click", ev => { const b = ev.target.closest("[data-e]"); if (!b) return; cards.forEach(c => c._d && setC(c, b.dataset.e === "1")); save(); });
+  bar.addEventListener("click", ev => { const b = ev.target.closest("[data-e]"); if (!b) return; const on = b.dataset.e === "1"; grid.classList.toggle("allopen", on); cards.forEach(c => c._d && setC(c, on)); });
+  document.addEventListener("click", ev => { if (!grid.classList.contains("allopen") && !ev.target.closest(".conf")) closeAll(null); });
+  document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !grid.classList.contains("allopen")) closeAll(null); });
 })();
 
 /* US across-time table: yields / spreads switch */
