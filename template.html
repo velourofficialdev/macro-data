@@ -202,6 +202,17 @@
   .odgrid .tagw { font-size: 9px; font-weight: 600; padding: 0 4px; border-radius: 3px; margin-left: 4px; }
   .odtip { position: absolute; pointer-events: none; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 6px; padding: 4px 8px; font-size: 11px; white-space: nowrap; z-index: 5; display: none; }
   @media (max-width: 760px) { .odbox, .odgrid { height: 360px; } .btn.ghost { margin-left: 0; } }
+  .odfeed { font-size: 11px; color: var(--muted); margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+  .odfeed i { width: 7px; height: 7px; border-radius: 50%; background: var(--up); display: inline-block; } .odfeed.stale i { background: var(--warn); }
+  .odfeed + .btn.ghost { margin-left: 0; }
+  .odreg { margin: 0 16px 14px; padding: 6px 10px; border-left: 3px solid var(--c, var(--muted)); background: var(--surface-2); border-radius: 0 6px 6px 0; font-size: 12px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .odreg b { color: var(--c); text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
+  .odsw { display: flex; gap: 5px; } .odsw button { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border-strong); cursor: pointer; padding: 0; }
+  .odsw button[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: 1px; }
+  .odgwrap { display: flex; gap: 6px; margin: 4px 8px 10px; } .odgwrap .odgrid { flex: 1; margin: 0; }
+  .odbar2 { width: 10px; border-radius: 5px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; position: relative; }
+  .odbar2 span { position: absolute; right: 14px; font-size: 9px; color: var(--muted); white-space: nowrap; } .odbar2 span:first-child { top: 0; } .odbar2 span:last-child { bottom: 0; }
+  .odgrid td.lvl { text-align: left; } .odgrid .pill { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
   .odmode { font-size: 12px; color: var(--muted); margin: 0; padding: 0 16px 8px; }
   .odstack { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 4px 12px 12px; }
   .odpane { border: 1px solid var(--border); border-radius: 8px; padding: 8px; min-width: 0; }
@@ -649,16 +660,17 @@
         <label class="odsel">Expiry <select id="od-ex" aria-label="Expiry"></select></label>
         <div class="ranges" id="od-mode" role="group" aria-label="Mode"></div>
         <label class="odsel" id="od-mvw">Move <select id="od-mv" aria-label="Price move"></select></label>
+        <span class="odfeed" id="od-feed"></span>
         <button type="button" class="btn ghost" id="od-copy">Copy levels</button>
       </div>
       <p class="odmode" id="od-mnote"></p>
-      <div class="card-b odstats" id="od-stats"></div></div>
+      <div class="card-b odstats" id="od-stats"></div><div class="odreg" id="od-reg"></div></div>
       <div class="card" style="--w:6"><div class="card-h"><h3>01 · Spine</h3><div class="ranges" id="od-sv" role="group" aria-label="Spine style"><button type="button" data-v="spine" aria-pressed="true">Spine</button><button type="button" data-v="bars" aria-pressed="false">Bars</button></div></div>
         <div class="odcap" id="od-cap1"></div><div class="odbox" id="od-spine" role="img" aria-label="Exposure by strike with walls, gamma flip and price"></div></div>
-      <div class="card" style="--w:6"><div class="card-h"><h3>02 · Terrain</h3><p class="note">Drag to rotate · scroll to zoom · double-click to reset</p></div>
+      <div class="card" style="--w:6"><div class="card-h"><h3>02 · Terrain</h3><div class="ranges" id="od-pal" role="group" aria-label="Terrain colours"><button type="button" data-v="div" aria-pressed="true">Calls / puts</button><button type="button" data-v="heat" aria-pressed="false">Heat</button></div></div>
         <div class="odcap" id="od-cap2"></div><div class="odbox"><canvas id="od-terrain" aria-label="3D relief of the dealer book"></canvas></div><div class="odlegend" id="od-leg"></div></div>
-      <div class="card" style="--w:6"><div class="card-h"><h3>03 · Grid</h3><p class="note">Click a column to focus it</p></div>
-        <div class="odcap" id="od-cap3"></div><div class="odgrid" id="od-grid"></div></div>
+      <div class="card" style="--w:6"><div class="card-h"><h3>03 · Grid</h3><div class="odsw" id="od-sw" role="group" aria-label="Grid colours"></div></div>
+        <div class="odcap" id="od-cap3"></div><div class="odgwrap"><div class="odgrid" id="od-grid"></div><div class="odbar2" id="od-gbar"></div></div></div>
       <div class="card" style="--w:6"><div class="card-h"><h3>04 · Smile</h3><p class="note" id="od-smn"></p></div>
         <div class="odcap" id="od-cap4"></div><div class="odbox" id="od-smile" role="img" aria-label="Implied volatility smile for calls and puts with a fitted curve"></div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>05 · Cross-expiry stack</h3><p class="note">Two views side by side: pick instrument, Greek, expiry and mode for each</p></div>
@@ -1151,7 +1163,9 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     eff: "Effective: gamma re-priced as if price had already moved by the chosen amount, each option keeping its own implied vol. Shows how the hedging picture changes once price gets there. Gamma only.",
     shadow: "Shadow: only the extra part of that re-priced gamma that comes from implied vol sliding along the smile with price (sticky moneyness minus sticky strike). Usually small; matters most near the money. Gamma only.",
   };
-  const st = { inst: keys[0], greek: "gamma", ex: -1, mode: "trad", mv: null, sv: "spine", yaw: -0.65, pitch: 0.55, zoom: 1, pt: "master" };
+  const st = { inst: keys[0], greek: "gamma", ex: -1, mode: "trad", mv: null, sv: "spine", yaw: -0.65, pitch: 0.55, zoom: 1, pt: "master", pal: "div", gpal: 0, spin: true };
+  const prevSpot = inst => { const hh = (O[inst].history || []).filter(r => r.spot != null); return hh.length > 1 ? hh[hh.length - 2].spot : null; };
+  const GPAL = [["var(--up)", "var(--down)", "Calls green / puts red"], ["var(--primary)", "var(--secondary)", "Brand colours"], ["var(--text)", "var(--muted)", "Mono"], ["var(--warn)", "var(--secondary)", "Warm"]];
   const $ = id => document.getElementById(id);
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const money = v => { const a = Math.abs(v), s = v < 0 ? "-" : ""; return a >= 1e9 ? s + "$" + (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? s + "$" + (a / 1e6).toFixed(2) + "M" : a >= 1e3 ? s + "$" + (a / 1e3).toFixed(1) + "K" : s + "$" + a.toFixed(0); };
@@ -1241,13 +1255,21 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const cfg = cfgNow(), i = I(), ser = series(cfg), L = levels(cfg, ser.vals), tot = ser.vals.reduce((a, b) => a + b, 0), R = regime(st.inst, ser.ex);
     const cell = (k, val, m) => `<div><div class="kl">${k}</div><div class="v">${val}</div><div class="m">${m || "&nbsp;"}</div></div>`;
     const lab = st.mode === "trad" ? cap(cfg.greek) : (st.mode === "eff" ? "Eff. gamma" : "Shadow gamma") + " @ " + mvLabel(st.inst, st.mv);
-    $("od-stats").innerHTML = cell(i.title + " · " + (ser.ex < 0 ? "all ≤60d" : S().expiries[ser.ex].e), fk(i.spot), i.date + (st.mode !== "trad" ? " · scenario " + fk(L.px) : ""))
+    const pv = prevSpot(st.inst), chg = pv ? i.spot - pv : null;
+    const arrow = chg == null ? "" : ` <small class="${chg >= 0 ? "up" : "down"}">${chg >= 0 ? "▲" : "▼"} ${fk(Math.abs(chg))}</small>`;
+    const exLab = ser.ex < 0 ? "all ≤60d" : S().expiries[ser.ex].e + (S().expiries[ser.ex].dte === 0 ? " · 0DTE" : "");
+    $("od-stats").innerHTML = cell(i.title + " · " + exLab, fk(i.spot) + arrow, (i.map ? fm(i.spot) + " · " : "") + i.date + (st.mode !== "trad" ? " · scenario " + fk(L.px) : ""))
       + cell("Call wall", `<span class="up">${fk(L.cw)}</span>`, fm(L.cw)) + cell("Put wall", `<span class="down">${fk(L.pw)}</span>`, fm(L.pw))
-      + cell("Gamma flip", fk(L.flip), fm(L.flip)) + cell("King node", L.king ? `<span class="${L.king.v > 0 ? "up" : "down"}">${fk(L.king.k)}</span>` : "n/a", L.king ? (L.king.v > 0 ? "positive · pin" : "negative · repel") : "")
+      + cell("Max pain", fk(i.max_pain), i.front_move ? "front expiry" : "") + cell("G-flip", fk(L.flip), fm(L.flip))
+      + cell("King node", L.king ? `<span class="${L.king.v > 0 ? "up" : "down"}">${fk(L.king.k)}</span>` : "n/a", L.king ? (L.king.v > 0 ? "positive · pin" : "negative · repel") : "")
       + cell("Σ " + lab, money(tot), S().units[cfg.greek])
-      + cell("ATM IV", i.atm_iv == null ? "n/a" : i.atm_iv.toFixed(1) + "%", i.day_move ? "1σ day ±" + fk(i.day_move) : "")
-      + cell("Put/call OI", i.pcr_oi == null ? "n/a" : i.pcr_oi.toFixed(2), i.pcr_vol == null ? "" : "volume " + i.pcr_vol.toFixed(2))
-      + cell("Regime", `<span class="${R.pos ? "up" : "down"}">${R.name}</span>`, R.why);
+      + cell("±1σ day", i.day_move == null ? "n/a" : fk(i.day_move), i.day_move ? `${fk(i.spot - i.day_move)} – ${fk(i.spot + i.day_move)}` : "")
+      + cell("P/C", i.pcr_oi == null ? "n/a" : i.pcr_oi.toFixed(2), i.pcr_vol == null ? "open interest" : "volume " + i.pcr_vol.toFixed(2))
+      + cell("ATM IV", i.atm_iv == null ? "n/a" : i.atm_iv.toFixed(1) + "%", (i.vol && i.vol.iv30 != null) ? "30-day " + i.vol.iv30.toFixed(1) + "%" : "");
+    const reg = $("od-reg"); reg.style.setProperty("--c", R.pos ? "var(--up)" : "var(--down)");
+    reg.innerHTML = `<b>● ${R.name}</b><span>${R.pos ? "Positive" : "Negative"} gamma: ${R.why}.</span>`;
+    const age = i.date ? Math.round((Date.now() - Date.parse(i.date)) / 864e5) : 0, feed = $("od-feed");
+    feed.className = "odfeed" + (age > 4 ? " stale" : ""); feed.innerHTML = `<i></i>${age > 4 ? "Stale · " : ""}Cboe close data ${i.date}`;
     const capTxt = `${lab} · ${ser.ex < 0 ? "all expiries ≤ 60 days" : S().expiries[ser.ex].e} · ${S().units[cfg.greek]}${ser.note ? " · " + ser.note : ""}`;
     ["od-cap1", "od-cap2", "od-cap3"].forEach(id => $(id).textContent = capTxt);
   }
@@ -1284,12 +1306,23 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       [L.king ? (L.king.v > 0 ? "KING · PIN" : "KING · REPEL") : "", L.king && L.king.k, "var(--secondary)"], ["PRICE", spot, "var(--text)"]]
       .concat(cfg.mode !== "trad" ? [["SCENARIO", L.px, "var(--primary)"]] : [])
       .filter(a => a[0] && a[1] != null && a[1] >= kmin && a[1] <= kmax).map(a => ({ n: a[0], k: a[1], c: a[2], y0: y(a[1]) })).sort((a, b) => a.y0 - b.y0);
+    const sg = O[cfg.inst].day_move;   // ±1σ day bracket on the left
+    if (sg && spot - sg >= kmin && spot + sg <= kmax) { const a = y(spot + sg), b = y(spot - sg), bx = axX + 6;
+      el("path", { d: `M${bx + 6},${a}H${bx}V${b}H${bx + 6}`, fill: "none", stroke: "var(--muted)" }, svg);
+      el("text", { x: bx - 2, y: (a + b) / 2, fill: "var(--muted)", "font-size": 9, transform: `rotate(-90 ${bx - 2} ${(a + b) / 2})`, "text-anchor": "middle" }, svg).textContent = "±1σ"; }
     let last = -1e9; items.forEach(it => { it.y = Math.max(it.y0, last + 13); last = it.y; });
     const over = last - (H - padB); if (over > 0) items.forEach(it => it.y -= over);
     items.forEach(it => {
+      if (it.n !== "PRICE") el("circle", { cx: mid, cy: it.y0, r: 2.6, fill: it.c }, svg);
       const solid = it.n === "PRICE" || it.n === "SCENARIO";
       el("line", { x1: axX, y1: it.y0, x2: W - labW, y2: it.y0, stroke: it.c, "stroke-width": solid ? 1.4 : 1, "stroke-dasharray": solid ? "" : "3 3", opacity: 0.9 }, svg);
       el("line", { x1: W - labW, y1: it.y0, x2: W - labW + 10, y2: it.y, stroke: it.c, "stroke-dasharray": "2 2" }, svg);
+      if (it.n === "PRICE") {   // boxed price tag, arrow = change since the previous update
+        const pv = prevSpot(cfg.inst), ar = pv == null ? "" : (spot >= pv ? "▲ " : "▼ ");
+        el("rect", { x: W - labW + 10, y: it.y - 8, width: Math.min(labW - 12, 96), height: 16, rx: 2, fill: "var(--text)" }, svg);
+        el("text", { x: W - labW + 15, y: it.y + 3.5, fill: "var(--surface)", "font-weight": 700 }, svg).textContent = ar + F(it.k);
+        return;
+      }
       const t = el("text", { x: W - labW + 13, y: it.y + 3.5, fill: it.c, "font-weight": 600 }, svg);
       t.textContent = `${it.n} ${F(it.k)}`;
       const m = W < 560 ? null : mapI(cfg.inst, it.k); if (m != null) { const ts = el("tspan", { fill: "var(--muted)", "font-weight": 400 }, t); ts.textContent = ` · ${m.toLocaleString("en-US", { maximumFractionDigits: O[cfg.inst].map.dec })}`; }
@@ -1324,7 +1357,9 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       quads.push({ c, z: c.reduce((t, p) => t + p[2], 0) / 4, v: (hv(i0, j) + hv(i1, j) + hv(i1, j1) + hv(i0, j1)) / 4 });
     }
     quads.sort((a, b) => a.z - b.z);
-    quads.forEach(q => { const col = mix(base, q.v >= 0 ? up : dn, Math.min(1, Math.abs(q.v) * 1.6));
+    const heat = [base, rgb(css("--primary")), rgb(css("--secondary")), rgb(css("--warn"))];
+    const heatAt = t => { t = Math.min(1, Math.max(0, t)) * 3; const k = Math.min(2, Math.floor(t)); return mix(heat[k], heat[k + 1], t - k); };
+    quads.forEach(q => { const col = st.pal === "heat" ? heatAt(Math.sqrt(Math.abs(q.v))) : mix(base, q.v >= 0 ? up : dn, Math.min(1, Math.abs(q.v) * 1.6));
       ctx.fillStyle = `rgb(${col})`; ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 0.5;
       ctx.beginPath(); q.c.forEach((p, k) => k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fill(); ctx.stroke(); });
     const uOf = k => ((k - ks[0]) / (ks[ks.length - 1] - ks[0])) * 2 - 1;
@@ -1340,13 +1375,19 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     ctx.fillStyle = txt; ctx.font = "10px Inter, system-ui, sans-serif";
     for (let a = 0; a <= 4; a++) { const i = Math.round(a / 4 * (ks.length - 1)), p = P3(U(i), -1.12, -1); ctx.fillText(fk(ks[i]), p[0] - 14, p[1] + 12); }
     if (ne > 1) [0, ne - 1].forEach(j => { const p = P3(1.08, Wz(j), -1), t = zl[j]; ctx.fillText(t, Math.min(p[0] + 4, W - ctx.measureText(t).width - 4), p[1] + 3); });
-    $("od-leg").innerHTML = `<span>${money(-mx)}</span><i style="background:linear-gradient(90deg, rgb(${dn}), rgb(${base}), rgb(${up}))"></i><span>+${money(mx)}</span><span style="margin-left:auto">depth axis: ${st.mode === "trad" ? "expiry" : "price move"}</span>`;
+    $("od-leg").innerHTML = (st.pal === "heat" ? `<span>0</span><i style="background:linear-gradient(90deg, ${heat.map(c => `rgb(${c})`).join(",")})"></i><span>${money(mx)} size</span>`
+      : `<span>${money(-mx)} puts</span><i style="background:linear-gradient(90deg, rgb(${dn}), rgb(${base}), rgb(${up}))"></i><span>+${money(mx)} calls</span>`) + `<span style="margin-left:auto">depth axis: ${st.mode === "trad" ? "expiry" : "price move"}</span>`;
   }
-  let drag = null;
-  cvs.addEventListener("pointerdown", e => { drag = [e.clientX, e.clientY, st.yaw, st.pitch]; cvs.setPointerCapture(e.pointerId); });
+  let drag = null, visible = false;
+  buttons($("od-pal"), [["div", "Calls / puts"], ["heat", "Heat"]], st.pal, function onPal(v) { st.pal = v; buttons($("od-pal"), [["div", "Calls / puts"], ["heat", "Heat"]], st.pal, onPal); terrain(); });
+  // slow auto-rotate while the terrain is on screen, until the reader grabs it (off for reduced motion)
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) st.spin = false;
+  if (window.IntersectionObserver) new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(cvs);
+  let lastT = 0; (function tick(ts) { if (st.spin && visible && !drag && ts - lastT > 50) { st.yaw += 0.006; lastT = ts; terrain(); } requestAnimationFrame(tick); })(0);
+  cvs.addEventListener("pointerdown", e => { st.spin = false; drag = [e.clientX, e.clientY, st.yaw, st.pitch]; cvs.setPointerCapture(e.pointerId); });
   cvs.addEventListener("pointermove", e => { if (!drag) return; st.yaw = drag[2] + (e.clientX - drag[0]) * 0.008; st.pitch = Math.max(0.05, Math.min(1.45, drag[3] + (e.clientY - drag[1]) * 0.006)); requestAnimationFrame(terrain); });
   cvs.addEventListener("pointerup", () => drag = null);
-  cvs.addEventListener("wheel", e => { e.preventDefault(); st.zoom = Math.max(0.5, Math.min(3, st.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); requestAnimationFrame(terrain); }, { passive: false });
+  cvs.addEventListener("wheel", e => { e.preventDefault(); st.spin = false; st.zoom = Math.max(0.5, Math.min(3, st.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); requestAnimationFrame(terrain); }, { passive: false });
   cvs.addEventListener("dblclick", () => { st.yaw = -0.65; st.pitch = 0.55; st.zoom = 1; terrain(); });
 
   /* ---------- 03 grid ---------- */
@@ -1364,14 +1405,20 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       selIdx = 1 + s.scen.moves.indexOf(st.mv);
     }
     let mx = 0; cols.forEach(c => c.v.forEach(v => mx = Math.max(mx, Math.abs(v)))); mx = mx || 1;
+    const [cPos, cNeg] = GPAL[st.gpal];
+    const pill = k => { const p = [[L.cw, "Call wall", cPos], [L.cw2, "Call wall #2", cPos], [L.pw, "Put wall", cNeg], [L.pw2, "Put wall #2", cNeg], [L.flip != null ? ks.reduce((b, x) => Math.abs(x - L.flip) < Math.abs(b - L.flip) ? x : b, ks[0]) : null, "G-flip", "var(--warn)"], [L.king && L.king.k, "King", "var(--secondary)"]]
+      .filter(x => x[0] === k).map(x => `<span class="pill" style="background:color-mix(in srgb, ${x[2]} 22%, transparent);color:${x[2]}">${x[1]} ${fk(k)}</span>`); return p.join(" "); };
     const tag = k => (k === L.cw ? `<span class="tagw" style="background:var(--up);color:var(--on-primary)">CW</span>` : k === L.pw ? `<span class="tagw" style="background:var(--down);color:var(--on-primary)">PW</span>` : L.king && k === L.king.k ? `<span class="tagw" style="background:var(--secondary);color:var(--on-primary)">K</span>` : "");
     const spotRow = ks.reduce((b, k, i) => Math.abs(k - spot) < Math.abs(ks[b] - spot) ? i : b, 0);
-    let html = `<table><thead><tr><th>Strike</th>${cols.map((c, ci) => `<th data-c="${ci}" class="${ci === selIdx ? "sel" : ""}">${c.n}</th>`).join("")}</tr></thead><tbody>`;
+    let html = `<table><thead><tr><th>Strike</th>${cols.map((c, ci) => `<th data-c="${ci}" class="${ci === selIdx ? "sel" : ""}">${c.n}</th>`).join("")}<th>Level</th></tr></thead><tbody>`;
     for (let r = ks.length - 1; r >= 0; r--) {
       html += `<tr class="${r === spotRow ? "spot" : ""}"><th>${fk(ks[r])}${tag(ks[r])}</th>` + cols.map((c, ci) => { const v = c.v[r] || 0, int = Math.round(Math.sqrt(Math.abs(v) / mx) * 70);
-        return `<td data-c="${ci}" class="${ci === selIdx ? "sel" : ""}" style="--c:${v >= 0 ? "var(--up)" : "var(--down)"};--i:${int}" title="${fk(ks[r])} · ${c.n}: ${money(v)}">${v ? money(v) : "·"}</td>`; }).join("") + "</tr>";
+        return `<td data-c="${ci}" class="${ci === selIdx ? "sel" : ""}" style="--c:${v >= 0 ? cPos : cNeg};--i:${int}" title="${fk(ks[r])} · ${c.n}: ${money(v)}">${v ? money(v) : "·"}</td>`; }).join("") + `<td class="lvl">${pill(ks[r])}</td></tr>`;
     }
     const host = $("od-grid"), keep = host.scrollTop; host.innerHTML = html + "</tbody></table>";
+    const gb = $("od-gbar"); gb.style.background = `linear-gradient(${cPos}, var(--surface-2), ${cNeg})`; gb.innerHTML = ""; gb.title = `Colour scale: +${money(mx)} (top) to ${money(-mx)} (bottom)`;
+    $("od-sw").innerHTML = GPAL.map((p, i) => `<button type="button" aria-pressed="${i === st.gpal}" title="${p[2]}" style="background:linear-gradient(135deg, ${p[0]} 50%, ${p[1]} 50%)"></button>`).join("");
+    $("od-sw").querySelectorAll("button").forEach((b, i) => b.addEventListener("click", () => { st.gpal = i; grid(); }));
     host.querySelectorAll("[data-c]").forEach(td => td.addEventListener("click", () => { cols[+td.dataset.c].act(); paint(); }));
     const sr = host.querySelector("tr.spot"); host.scrollTop = keep || (sr ? sr.offsetTop - host.clientHeight / 2 : 0);
   }
