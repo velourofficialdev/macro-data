@@ -5,7 +5,7 @@ This repo builds the Macro Dashboard (Brain item **B1**). It is private on purpo
 ## Hard rules
 
 - Use the **velourofficialdev** GitHub account only. Never the deiruuuu account.
-- Work on a branch and open a pull request. **Never push to `main`.** A push to `main` publishes the public page. Merging is done only by the `merger` agent, under the owner's standing permission (2026-10-23): a PR may be merged when `judge` has given PASS on its current head sha, and a merge that breaks the live page is reverted at once. Nobody else merges.
+- Work on a branch and open a pull request. **Never push to `main`.** A push to `main` publishes the public page. A PR is merged only by the `merger` agent, only on a `judge` PASS for that exact head sha, or as a revert of a merge that broke the live page. Standing permission given by the owner in chat to the lead on 2026-10-23: agents do everything except truly human tasks; a PR is auto-merged after judge PASS on its head and auto-reverted if the live page breaks. Nobody else merges.
 - Never edit `.github/workflows/`, secrets, tokens or the public repo. Never print a secret or a token.
 - Do not commit build output. Before committing run `git checkout -- docs data` and delete untracked build files, so a commit holds source changes only.
 - Do not copy data CSVs, `playbook.json` internals or source code into the public repo or any public place.
@@ -34,7 +34,7 @@ python tools/check.py            # rules, playbook, real build, fixture build, b
 python tools/shots.py PAGE OUT    # screenshots + layout suspects for design review
 ```
 
-`tools/check.py` builds into `/tmp/macro-check`, never into `docs/`. Chromium is preinstalled under `/opt/pw-browsers`; never run `playwright install`. The sandbox cannot reach Cboe or Yahoo, so options code is tested with `tools/fixtures.py`. A pull request also triggers a build-only check that deploys nothing.
+`tools/check.py` builds into a fresh temporary folder (or the `--out` you give it, usually `$TEAM_DIR/<agent>-check`), never into `docs/`; `python tools/check.py --selftest` checks the gate's own secret patterns. Chromium is preinstalled under `/opt/pw-browsers`; never run `playwright install`. The sandbox cannot reach Cboe or Yahoo, so options code is tested with `tools/fixtures.py`. A pull request also triggers a build-only check that deploys nothing.
 
 ## Design and wording
 
@@ -51,8 +51,8 @@ The owner asks in chat. The Notion database "Dashboard Requests (B1)" (under the
 | Agent | Role | Model |
 |---|---|---|
 | `planner` | request -> plan.md: tier, acceptance criteria, parallel packages, checkers, human-only items | sonnet |
-| `data-dev` | feeds and calculations: `update_data.py`, `options_levels.py`, `tools/fixtures.py` | sonnet |
-| `dashboard-dev` | layout, charts, panels, options desk: `template.html`, `build_dashboard.py`, `export_excel.py` | sonnet |
+| `data-dev` | feeds and calculations: `update_data.py`, `options_levels.py`, `fed_rate_odds.py`; owns `tools/check.py` and `tools/fixtures.py` | sonnet |
+| `dashboard-dev` | layout, charts, panels, options desk: `template.html`, `build_dashboard.py`, `export_excel.py`; owns `tools/shots.py` | sonnet |
 | `playbook-editor` | wording, bands, cross-signals: `playbook.json` | sonnet |
 | `data-source-checker` | failing or stale sources, replacements | sonnet |
 | `qa-tester` | full gate + every acceptance criterion tested in Chromium | sonnet |
@@ -60,4 +60,6 @@ The owner asks in chat. The Notion database "Dashboard Requests (B1)" (under the
 | `data-auditor` | recomputes numbers, checks units, dates, honest labels, licensing, key handling | sonnet |
 | `code-reviewer` | diff: rule breaks, bugs, fail-soft, size | sonnet |
 | `judge` | PASS / FIX (routed fix list) / HUMAN, re-verifies key claims | opus |
-| `merger` | catch up with main, CI, merge, watch publish, verify live, auto-revert | sonnet |
+| `merger` | catch up with main, CI, merge the judged head only, watch publish, verify live, auto-revert | sonnet |
+
+The lead (the session running `/team`) owns the instruction files: `CLAUDE.md`, `.claude/skills/`, `.claude/agents/` and the process text in `README.md`.

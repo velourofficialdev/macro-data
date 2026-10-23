@@ -7,7 +7,7 @@ description: Run any Macro Dashboard change through the agent team - plan, paral
 
 You are the **lead**. You coordinate; the agents do the work. The owner only wants to hear about things that need a human. Keep your own context small: never read big files yourself, read the agents' report files (`$TEAM_DIR/*.md`) and their short replies.
 
-Standing permissions from the owner (2026-10-23): requests come through chat; a PR with a judge PASS on its current head is merged by the `merger` without asking; a merge that breaks the live page is reverted without asking. Everything in `CLAUDE.md` hard rules still applies (no workflows, no secrets, no build output, velourofficialdev only).
+Standing permission given by the owner in chat to the lead on 2026-10-23: agents do everything except truly human tasks; a PR is auto-merged after judge PASS on its head and auto-reverted if the live page breaks. Requests come through chat. Everything in `CLAUDE.md` hard rules still applies (no workflows, no secrets, no build output, velourofficialdev only).
 
 ## 0. Set up (once per request)
 
@@ -38,24 +38,34 @@ The PR body: what changed in plain words, the acceptance criteria, the human-onl
 
 ## 4. Check in parallel
 
+Checker areas (the single source for which reports a change makes stale):
+
+| Checker | Area: re-run when the change touches |
+|---|---|
+| `qa-tester` | anything (always re-run after any fix) |
+| `code-reviewer` | anything outside `data/` and `docs/` (all code, `tools/`, `.claude/`, `CLAUDE.md`, `.gitignore`) |
+| `design-reviewer` | `template.html`, `build_dashboard.py`, `playbook.json`, `tools/shots.py`, any CSS or JS |
+| `data-auditor` | `update_data.py`, `options_levels.py`, `fed_rate_odds.py`, `export_excel.py`, `build_dashboard.py`, `playbook.json`, `calendar.json` |
+
+
 In **one message**, launch every checker the plan names, all `run_in_background: true`, all on the PR branch's current head (tell each the sha):
 - `qa-tester` (always), `code-reviewer` (always), `design-reviewer` (any page change), `data-auditor` (data, calculations, labels or sources changed).
-Checkers that need their own checkout use `isolation: "worktree"` and `git checkout team/<slug>`. Wait for all of them.
+Checkers that need their own checkout use `isolation: "worktree"` and `git checkout team/<slug>`. Each writes its gate output to `$TEAM_DIR/<checker>-check`. Wait for all of them.
 
 ## 5. Judge
 
-Run `judge`. Then:
+Run `judge`, and pass `round: <n>` (1 for the first verdict) in its prompt. Then:
 - **PASS** go to step 6.
-- **FIX**: launch the named owners in parallel with the judge's fix items (same worktree pattern, branch `fix/<slug>-r<round>-<n>` from `team/<slug>`), integrate, push, then re-run only the checkers the fix list names plus `qa-tester`, then the judge again. At most 3 rounds; the judge returns HUMAN after that.
+- **FIX**: launch the named owners in parallel with the judge's fix items (same worktree pattern, branch `fix/<slug>-r<round>-<n>` from `team/<slug>`); items owned by `lead` (instruction files) you edit yourself meanwhile. Integrate and push, then compute `git diff --name-only <old head> <new head>` and re-run `qa-tester` plus every planned checker whose area (table in step 4) that list touches, not only the ones the fix list names. Then the judge again. At most 2 FIX rounds; the third non-PASS verdict is HUMAN. A judge item "re-run <checker>" (stale report) does not count as a round.
 - **HUMAN**: ask the owner the judge's one question (AskUserQuestion), then continue from the step it affects.
 
 ## 6. Merge and watch
 
-Run `merger`. It merges, watches the publish run, checks the live page and reverts on its own if needed. If it reports "needs builder" or "needs quick re-judge", do exactly that, then run the merger again.
+Run `merger` with the judge's head sha. It merges exactly that head, watches the publish run, checks the live page and reverts on its own if needed. If it reports "needs builder", route the conflict to the owning builder. If it reports "needs quick re-judge" or "head moved", run the judge on the new head (the area rule keeps reports valid when only `data/`/`docs/` changed, so this is cheap), then the merger again.
 
 ## 7. Tell the owner
 
-At most 6 lines: what is now live (one line per visible change), the PR and merge links, anything reverted and why, and the human-only follow-ups as numbered steps (exact secret name, exact workflow line, exact email to send). Attach one or two screenshots from `$TEAM_DIR/shots` with SendUserFile when the change is visible. No step-by-step recap.
+If the request came from a Notion row, update its Status and notes. Then tell the owner in at most 6 lines: what is now live (one line per visible change), the PR and merge links, anything reverted and why, and the human-only follow-ups as numbered steps (exact secret name, exact workflow line, exact email to send). Attach one or two screenshots from `$TEAM_DIR/shots` with SendUserFile when the change is visible. No step-by-step recap.
 
 ## When the owner says "merge" on an existing PR
 

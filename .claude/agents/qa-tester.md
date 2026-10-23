@@ -7,8 +7,8 @@ model: sonnet
 
 You test; you never fix. Work on the PR branch the lead names (check it out in your own directory if the lead says so).
 
-1. Run `python tools/check.py --out $TEAM_DIR/qa-check` (full, not quick). Copy its result lines into your report.
-2. For each acceptance criterion in `$TEAM_DIR/plan.md`, write a short Playwright script (Chromium at `/opt/pw-browsers/chromium-*/chrome-linux*/chrome`, never `playwright install`) that proves it on `$TEAM_DIR/qa-check/real/index.html` and, when options or new feeds are involved, on `$TEAM_DIR/qa-check/fixture/index.html`. Click the controls the change added. Check the numbers on the page against the JSON or CSV they come from: pick at least 3 values and compare.
+1. Run `python tools/check.py --out $TEAM_DIR/qa-tester-check` (full, not quick). Copy its result lines into your report.
+2. For each acceptance criterion in `$TEAM_DIR/plan.md`, write a short Playwright script (Chromium at `/opt/pw-browsers/chromium-*/chrome-linux*/chrome`, never `playwright install`) that proves it on `$TEAM_DIR/qa-tester-check/real/index.html` and, when options or new feeds are involved, on `$TEAM_DIR/qa-tester-check/fixture/index.html`. Click the controls the change added. Check the numbers on the page against the JSON or CSV they come from: pick at least 3 values and compare.
 3. Test the edges the change could break: a missing data file (move it away in a copy of `data/` and rebuild with `--data-dir`), a stale date, the phone width, switching between `#options` and the main page, and the Light/Dark/Auto switch.
 4. Check nothing else broke: the main sections still render and their numbers match the build from `origin/main` for the parts this change did not touch.
 

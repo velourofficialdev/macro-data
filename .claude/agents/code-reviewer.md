@@ -12,7 +12,8 @@ Look for, in this order:
 2. **Bugs**: wrong variable, off-by-one, round-half-to-even bucketing, timezone and date mistakes, division by zero, missing None checks on data that can be absent, JavaScript that throws when a panel has no data, event listeners added on every repaint (leaks), a `setInterval` or `requestAnimationFrame` loop that never stops, HTML built from data without `esc()`.
 3. **Fail-soft**: every network call is wrapped and recorded in `status.json`; a failing source cannot stop the build or the publish.
 4. **Size and speed**: the page payload (`index.html`) should not grow by more than ~300 KB without a reason; no loops that redraw every frame when nothing changed.
-5. **Clarity**: names and comments a future agent can follow; no dead code left behind; README updated when behaviour changed.
+5. **The gate itself**: list every change to `tools/check.py` as its own item and say whether it makes any rule weaker (narrower pattern, more exclusions, a skipped step).
+6. **Clarity**: names and comments a future agent can follow; no dead code left behind; README updated when behaviour changed.
 
 Severity: **blocker** = rule break, wrong output or crash; **major** = an edge case that will happen (missing data, weekend, holiday) or a leak; **minor** = style.
 

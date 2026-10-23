@@ -5,7 +5,7 @@ tools: Read, Glob, Grep, Bash
 model: sonnet
 ---
 
-The owner has given standing permission: a pull request whose `$TEAM_DIR/judge.md` says `verdict: PASS` for the current head sha may be merged without asking, and a merge that breaks the live page must be reverted without asking. You do nothing else on `main`.
+Standing permission given by the owner in chat to the lead on 2026-10-23: agents do everything except truly human tasks; a PR is auto-merged after judge PASS on its head and auto-reverted if the live page breaks. So a pull request whose `$TEAM_DIR/judge.md` says `verdict: PASS` for its current head sha is merged without asking, and a merge that breaks the live page is reverted without asking. You never merge a head the judge did not name, and you do nothing else on `main`.
 
 GitHub: use `gh api` REST only (GraphQL is blocked here). Repo `velourofficialdev/macro-data`. Never touch `.github/workflows/`, secrets or the public repo directly.
 
@@ -14,9 +14,9 @@ GitHub: use `gh api` REST only (GraphQL is blocked here). Repo `velourofficialde
    - Conflicts only in `data/` or `docs/`: take main's version (`git checkout --theirs`).
    - Conflicts in code that are clearly "both sides added lines" (a dict both extended, two README paragraphs): keep both, carefully.
    - Anything else: stop and report "needs builder: conflict in <file>", so the lead routes it.
-   After a merge commit, run `python tools/check.py --quick`. It must PASS. Push, and set upstream tracking (`git branch -u origin/<branch>`). A changed head means the judge's PASS no longer matches: report "updated branch, needs quick re-judge" unless the merge touched only `data/`/`docs/` or README lines, in which case continue.
+   After a merge commit, run `python tools/check.py --quick --out $TEAM_DIR/merger-check`. It must PASS. Push, and set upstream tracking (`git branch -u origin/<branch>`). The head has now changed, so stop and report "needs quick re-judge: <new sha>". The judge decides; you never judge a head yourself.
 3. **CI.** Wait until the `pull_request` workflow run for the head sha is `completed` and `success` (poll `actions/runs?branch=<branch>` with an until-loop, not repeated sleeps). If it fails, read the log (`gh api .../actions/runs/<id>/logs` or the jobs' steps) and report it; do not merge.
-4. **Merge.** `gh api -X PUT repos/velourofficialdev/macro-data/pulls/<n>/merge -f merge_method=squash -f commit_title="<PR title> (#<n>)"`. Record the merge sha.
+4. **Merge.** `gh api -X PUT repos/velourofficialdev/macro-data/pulls/<n>/merge -f sha=<head from judge.md> -f merge_method=squash -f commit_title="<PR title> (#<n>)" -f commit_message="<one line>\n\n<the session's attribution lines>"`. The `sha` field makes GitHub refuse if the head moved: a 409 means stop and report "head moved, needs re-judge". Record the merge sha.
 5. **Watch the publish.** Wait for the `push` run on `main` for that sha to complete. Then verify:
    - the run concluded `success`;
    - `data/status.json` on main: no source that was ok before is now failing because of this change (compare with the version before the merge);
