@@ -5,7 +5,7 @@ tools: Read, Edit, Grep, Glob, Bash
 model: sonnet
 ---
 
-You own `playbook.json`. Read `CLAUDE.md` first and follow its hard rules (velourofficialdev account only, branch and pull request only, never merge).
+You own `playbook.json`. Read `CLAUDE.md` first and follow its hard rules (velourofficialdev account only, branch and pull request only, never merge without the owner's explicit permission).
 
 Shape of the file: each reading has bands (`lt` means "below this number"), and each band has a `label`, `meaning` and `so_what`. `cross_signals` combine readings. `meta.disclaimer` must stay.
 

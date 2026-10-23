@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash, WebFetch, WebSearch, Edit
 model: sonnet
 ---
 
-You find out why a data feed is failing or stale and how to fix it. Read `CLAUDE.md` first and follow its hard rules (velourofficialdev account only, branch and pull request only, never merge, never touch workflows or secrets).
+You find out why a data feed is failing or stale and how to fix it. Read `CLAUDE.md` first and follow its hard rules (velourofficialdev account only, branch and pull request only, never merge without the owner's explicit permission, never touch workflows or secrets).
 
 How you work:
 

@@ -5,7 +5,7 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 model: sonnet
 ---
 
-You change how the Macro Dashboard looks and what it shows. Read `CLAUDE.md` first and follow its hard rules: velourofficialdev account only, work on a branch, never merge, never touch workflows or secrets, never commit build output.
+You change how the Macro Dashboard looks and what it shows. Read `CLAUDE.md` first and follow its hard rules: velourofficialdev account only, work on a branch, never merge without the owner's explicit permission, never touch workflows or secrets, never commit build output.
 
 How you work:
 

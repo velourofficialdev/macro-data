@@ -5,7 +5,7 @@ This repo builds the Macro Dashboard (Brain item **B1**). It is private on purpo
 ## Hard rules
 
 - Use the **velourofficialdev** GitHub account only. Never the deiruuuu account.
-- Work on a branch and open a pull request. **Never push to `main` and never merge.** A push to `main` publishes the public page, so only the owner merges.
+- Work on a branch and open a pull request. **Never push to `main`, and never merge unless the owner explicitly says to.** A push to `main` publishes the public page. When the owner gives permission to merge, merge that PR only, then check the publish run succeeded.
 - Never edit `.github/workflows/`, secrets, tokens or the public repo. Never print a secret or a token.
 - Do not commit build output. Before committing run `git checkout -- docs data` and delete untracked build files, so a commit holds source changes only.
 - Do not copy data CSVs, `playbook.json` internals or source code into the public repo or any public place.
