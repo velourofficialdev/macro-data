@@ -16,7 +16,7 @@ RUN=$(date -u +%Y%m%d-%H%M)-<slug>
 TEAM_DIR=<repo>/.team/$RUN        # absolute path; .team/ is gitignored; every agent gets this path
 git fetch origin main && git checkout -b team/<slug> origin/main
 ```
-Pass `TEAM_DIR`, the branch name and the repo path in every agent prompt. Agents write their full report to `$TEAM_DIR/<agent>.md` and reply in at most 6 lines.
+Pass `TEAM_DIR`, the branch name and the repo path in every agent prompt. Each Bash call starts a fresh shell, so tell agents to run the tools as `TEAM_DIR=<path> python tools/check.py --out <path>/<agent>-check`: the gate refuses to delete an output folder outside `/tmp` or `$TEAM_DIR`. Agents write their full report to `$TEAM_DIR/<agent>.md` and reply in at most 6 lines.
 
 ## 1. Plan
 
