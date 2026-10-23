@@ -64,6 +64,13 @@ for _cur, _code in (("EUR", "099741"), ("JPY", "097741"), ("GBP", "096742"), ("C
     CFTC_SOURCES[f"COT_{_cur}"] = ("6dca-aqww", _code, "noncomm_positions_long_all",
                                    "noncomm_positions_short_all", "CHICAGO MERCANTILE EXCHANGE")
 
+for _k, _code, _kw in (("ES", "13874A", "CHICAGO MERCANTILE EXCHANGE"), ("NQ", "209742", "CHICAGO MERCANTILE EXCHANGE"),
+                       ("US30", "124603", "CHICAGO BOARD OF TRADE")):
+    CFTC_SOURCES[f"COT_{_k}"] = ("6dca-aqww", _code, "noncomm_positions_long_all", "noncomm_positions_short_all", _kw)
+
+# US index levels (cash indices, so there are no futures roll jumps): symbol -> (Yahoo, FRED fallback)
+INDEX_SYMBOLS = {"ES": ("^GSPC", "SP500"), "NQ": ("^NDX", "NASDAQ100"), "US30": ("^DJI", "DJIA")}
+
 # BIS central bank policy rates (daily, official): area code -> label used on the dashboard
 POLICY_AREAS = {"US": "US", "XM": "EA", "GB": "GB", "JP": "JP", "CH": "CH", "CA": "CA", "AU": "AU", "NZ": "NZ"}
 
@@ -505,6 +512,19 @@ def fetch_fx_pair(pair: str) -> tuple[pd.DataFrame, str]:
     return df, f"FRED {fred}"
 
 
+def fetch_index(sym: str) -> tuple[pd.DataFrame, str]:
+    ysym, fred = INDEX_SYMBOLS[sym]
+    try:
+        df = fetch_yahoo(ysym, "Close").rename(columns={"Date": "date"})
+        df = df[df["date"] >= pd.Timestamp.today() - pd.Timedelta(days=3 * 365)]
+        if len(df) > 200:
+            return df, f"Yahoo {ysym}"
+    except Exception as exc:  # noqa: BLE001 - fall back to FRED
+        print(f"WARN {sym} via Yahoo failed ({type(exc).__name__}: {exc}); trying FRED")
+    df = fetch_fred(fred, 3).rename(columns={fred: "Close"})
+    return df, f"FRED {fred}"
+
+
 def main() -> int:
     status: dict[str, dict] = {}
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -593,6 +613,21 @@ def main() -> int:
             record(f"FX_{pair}", True, saved["date"].iloc[-1], note=src)
         except Exception as exc:  # noqa: BLE001
             record(f"FX_{pair}", False, error=f"{type(exc).__name__}: {exc}"[:200])
+
+    (DATA / "idx").mkdir(exist_ok=True)
+    for sym in INDEX_SYMBOLS:
+        try:
+            df, src = fetch_index(sym)
+            p = DATA / "idx" / f"{sym}.csv"
+            if p.exists():   # keep one source per file so the history stays consistent
+                old = pd.read_csv(p)
+                if "source" in old and str(old["source"].iloc[-1]) != src:
+                    p.unlink()
+            df["source"] = src
+            saved = merge_save(p, df, "date", 800)
+            record(f"IDX_{sym}", True, saved["date"].iloc[-1], note=src)
+        except Exception as exc:  # noqa: BLE001
+            record(f"IDX_{sym}", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
     try:   # Fed Rate Odds from 30-Day Fed Funds futures (ZQ) + EFFR + Fed calendar; see fed_rate_odds.py
         import fed_rate_odds

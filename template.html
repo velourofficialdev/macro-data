@@ -416,10 +416,20 @@
   table.weekly td.lefttd { text-align: left; }
 
   /* FX confluence */
-  .confgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-  .fxtiles { grid-template-columns: repeat(8, minmax(0, 1fr)); }
-  @media (max-width: 1200px) { .confgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fxtiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-  @media (max-width: 560px) { .confgrid { grid-template-columns: minmax(0, 1fr); } .fxtiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .confgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 12px; }
+  .fxtiles { grid-template-columns: repeat(auto-fill, minmax(min(100%, 112px), 1fr)); }
+  .fxtiles .tl { flex-wrap: wrap; gap: 2px 6px; }
+  .fxtiles [hidden], .confgrid [hidden] { display: none !important; }
+  .picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 12px; }
+  .picker .pl { font-size: 12px; color: var(--muted); margin-right: 4px; }
+  .chip { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-strong); background: transparent; color: var(--muted); cursor: pointer; }
+  .chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text, inherit); border-color: var(--accent); }
+  .chip.ghost { border-style: dashed; } .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .conf .xr { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; padding: 2px 0 0; color: var(--muted); } .conf .xr b { color: inherit; font-size: 13px; } .conf .xv { display: block; font-size: 11px; color: var(--muted); padding-bottom: 2px; }
+  .conf .xe { font-size: 11px; color: var(--muted); padding-bottom: 2px; }
+  .conf .ctop small { color: var(--muted); font-weight: 400; margin-left: 4px; font-size: 11px; }
+  .sig.m .sn i { font-style: normal; font-size: 9px; color: var(--muted); border: 1px solid var(--border-strong); border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+  .tag.lean { background: var(--surface-2); color: var(--muted); }
   .conf { border: 1px solid var(--border-strong); border-radius: 8px; padding: 12px; }
   .conf .ctop { display: flex; justify-content: space-between; }
   .conf .chead { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
@@ -600,7 +610,8 @@
 
   <!-- ============ FX ============ -->
   <section class="sec" id="fx">
-    <div class="sechead"><h2>FX confluence</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from the ECB's official euro reference rates (daily 14:15 CET fixing, crossed through the euro; Yahoo then FRED as fallbacks); XAUUSD uses COMEX gold futures. Latest close __FXUPD__.</p></div>
+    <div class="sechead"><h2>FX, gold and indices</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from the ECB's official euro reference rates (daily 14:15 CET fixing, crossed through the euro; Yahoo then FRED as fallbacks); XAUUSD uses COMEX gold futures. ES, NQ and US30 are the S&amp;P 500, Nasdaq 100 and Dow 30 cash index levels from Yahoo Finance (FRED as fallback). Latest close __FXUPD__.</p></div>
+    __FXPICK__
     <div class="grid">
       <div class="card" style="--w:12"><div class="card-h"><h3>This week</h3></div><div class="card-b">__WEEK__</div></div>
       <div class="card" style="--w:12"><div class="card-h"><h3>Spot</h3></div><div class="card-b">__FX_CARDS__</div></div>
@@ -657,6 +668,27 @@ const P = __PAYLOAD__;
     try { v === "auto" ? localStorage.removeItem("macro-theme") : localStorage.setItem("macro-theme", v); } catch (e) {}
     paint();
   }));
+  paint();
+})();
+
+/* choose which FX, gold and index cards to show (saved in this browser) */
+(function () {
+  const box = document.getElementById("fxpick"); if (!box) return;
+  const chips = [...box.querySelectorAll(".chip[data-sym]")], all = chips.map(c => c.dataset.sym), KEY = "macro-fx-pick";
+  let sel = new Set(all);
+  try { const sv = JSON.parse(localStorage.getItem(KEY) || "null"); if (Array.isArray(sv)) sel = new Set(sv.filter(x => all.includes(x))); } catch (e) {}
+  const paint = () => {
+    chips.forEach(c => c.setAttribute("aria-pressed", String(sel.has(c.dataset.sym))));
+    document.querySelectorAll(".fxtiles [data-sym], .confgrid [data-sym]").forEach(el => { el.hidden = !sel.has(el.dataset.sym); });
+    let m = document.getElementById("fxnone"); if (!m) { m = document.createElement("p"); m.id = "fxnone"; m.className = "muted-text pad"; m.textContent = "No instruments selected. Choose some above."; box.after(m); }
+    m.hidden = sel.size > 0;
+    try { localStorage.setItem(KEY, JSON.stringify([...sel])); } catch (e) {}
+  };
+  box.addEventListener("click", ev => {
+    const b = ev.target.closest(".chip"); if (!b) return;
+    if (b.dataset.all) sel = new Set(all); else if (b.dataset.none) sel = new Set(); else { const k = b.dataset.sym; sel.has(k) ? sel.delete(k) : sel.add(k); }
+    paint();
+  });
   paint();
 })();
 

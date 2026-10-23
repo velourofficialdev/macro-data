@@ -2,22 +2,107 @@
   "checked": "2026-10-23",
   "note": "Hand-maintained. Dates taken from each central bank's or the BLS's own calendar on the check date; 'inferred' means derived from the bank's release schedule, 'third-party' means from a market calendar. RBNZ dates after July 2026 are not published yet and are left out.",
   "events": [
-    {"date": "2026-10-28", "name": "Fed decision (FOMC)", "pairs": "USD pairs", "source": "federalreserve.gov"},
-    {"date": "2026-10-28", "name": "Bank of Canada decision", "pairs": "USDCAD", "source": "bankofcanada.ca"},
-    {"date": "2026-10-29", "name": "ECB decision", "pairs": "EURUSD", "source": "ecb.europa.eu"},
-    {"date": "2026-10-30", "name": "Bank of Japan decision", "pairs": "USDJPY", "source": "boj.or.jp"},
-    {"date": "2026-11-03", "name": "RBA decision", "pairs": "AUDUSD", "source": "rba.gov.au (inferred)"},
-    {"date": "2026-11-05", "name": "Bank of England decision", "pairs": "GBPUSD", "source": "bankofengland.co.uk"},
-    {"date": "2026-11-06", "name": "US jobs report", "pairs": "USD pairs", "source": "bls.gov"},
-    {"date": "2026-11-10", "name": "US CPI inflation", "pairs": "USD pairs", "source": "bls.gov"},
-    {"date": "2026-12-04", "name": "US jobs report", "pairs": "USD pairs", "source": "bls.gov"},
-    {"date": "2026-12-08", "name": "RBA decision", "pairs": "AUDUSD", "source": "rba.gov.au (inferred)"},
-    {"date": "2026-12-09", "name": "Fed decision (FOMC)", "pairs": "USD pairs", "source": "federalreserve.gov"},
-    {"date": "2026-12-09", "name": "Bank of Canada decision", "pairs": "USDCAD", "source": "bankofcanada.ca"},
-    {"date": "2026-12-10", "name": "SNB decision", "pairs": "USDCHF", "source": "financecalendar.com (third-party)"},
-    {"date": "2026-12-10", "name": "US CPI inflation", "pairs": "USD pairs", "source": "bls.gov"},
-    {"date": "2026-12-17", "name": "ECB decision", "pairs": "EURUSD", "source": "ecb.europa.eu"},
-    {"date": "2026-12-17", "name": "Bank of England decision", "pairs": "GBPUSD", "source": "bankofengland.co.uk"},
-    {"date": "2026-12-18", "name": "Bank of Japan decision", "pairs": "USDJPY", "source": "boj.or.jp"}
+    {
+      "date": "2026-10-28",
+      "name": "Fed decision (FOMC)",
+      "pairs": "USD pairs, gold, indices",
+      "source": "federalreserve.gov"
+    },
+    {
+      "date": "2026-10-28",
+      "name": "Bank of Canada decision",
+      "pairs": "USDCAD",
+      "source": "bankofcanada.ca"
+    },
+    {
+      "date": "2026-10-29",
+      "name": "ECB decision",
+      "pairs": "EURUSD",
+      "source": "ecb.europa.eu"
+    },
+    {
+      "date": "2026-10-30",
+      "name": "Bank of Japan decision",
+      "pairs": "USDJPY",
+      "source": "boj.or.jp"
+    },
+    {
+      "date": "2026-11-03",
+      "name": "RBA decision",
+      "pairs": "AUDUSD",
+      "source": "rba.gov.au (inferred)"
+    },
+    {
+      "date": "2026-11-05",
+      "name": "Bank of England decision",
+      "pairs": "GBPUSD",
+      "source": "bankofengland.co.uk"
+    },
+    {
+      "date": "2026-11-06",
+      "name": "US jobs report",
+      "pairs": "USD pairs, gold, indices",
+      "source": "bls.gov"
+    },
+    {
+      "date": "2026-11-10",
+      "name": "US CPI inflation",
+      "pairs": "USD pairs, gold, indices",
+      "source": "bls.gov"
+    },
+    {
+      "date": "2026-12-04",
+      "name": "US jobs report",
+      "pairs": "USD pairs, gold, indices",
+      "source": "bls.gov"
+    },
+    {
+      "date": "2026-12-08",
+      "name": "RBA decision",
+      "pairs": "AUDUSD",
+      "source": "rba.gov.au (inferred)"
+    },
+    {
+      "date": "2026-12-09",
+      "name": "Fed decision (FOMC)",
+      "pairs": "USD pairs, gold, indices",
+      "source": "federalreserve.gov"
+    },
+    {
+      "date": "2026-12-09",
+      "name": "Bank of Canada decision",
+      "pairs": "USDCAD",
+      "source": "bankofcanada.ca"
+    },
+    {
+      "date": "2026-12-10",
+      "name": "SNB decision",
+      "pairs": "USDCHF",
+      "source": "financecalendar.com (third-party)"
+    },
+    {
+      "date": "2026-12-10",
+      "name": "US CPI inflation",
+      "pairs": "USD pairs, gold, indices",
+      "source": "bls.gov"
+    },
+    {
+      "date": "2026-12-17",
+      "name": "ECB decision",
+      "pairs": "EURUSD",
+      "source": "ecb.europa.eu"
+    },
+    {
+      "date": "2026-12-17",
+      "name": "Bank of England decision",
+      "pairs": "GBPUSD",
+      "source": "bankofengland.co.uk"
+    },
+    {
+      "date": "2026-12-18",
+      "name": "Bank of Japan decision",
+      "pairs": "USDJPY",
+      "source": "boj.or.jp"
+    }
   ]
 }
