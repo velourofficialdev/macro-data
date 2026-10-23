@@ -12,7 +12,9 @@ Numbers here are made up. Never publish them and never describe them as market d
 """
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -102,16 +104,32 @@ def run(out: Path) -> dict:
     return ol.update(out)
 
 
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        raise SystemExit(__doc__)
-    res = run(Path(sys.argv[1]))
+def guard_out(path: Path) -> Path:
+    """Only write under /tmp, the scratchpad or $TEAM_DIR (never $TEAM_DIR itself or the repo)."""
+    p = path.resolve()
+    roots = [Path("/tmp").resolve()] + [Path(os.environ[v]).resolve() for v in ("TEAM_DIR", "CLAUDE_SCRATCHPAD") if os.environ.get(v)]
+    team = Path(os.environ["TEAM_DIR"]).resolve() if os.environ.get("TEAM_DIR") else None
+    if not any(p != r and r in p.parents for r in roots) or p == team or p == ROOT:
+        print(f"refusing to write to {p}", file=sys.stderr)
+        raise SystemExit(2)
+    return p
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Write fake Cboe-shaped option feeds into OUT_DIR/options (offline test data, never market data).")
+    ap.add_argument("out_dir", help="directory to write options/ into (copy the real data/ in first for a full page)")
+    out = guard_out(Path(ap.parse_args().out_dir))
+    res = run(out)
     bad = {k: v for k, v in res.items() if not v[0]}
     for k, v in res.items():
         print(("OK   " if v[0] else "FAIL ") + k + "  " + (v[3] or v[2] or ""))
     for k in ol.INSTRUMENTS:
-        s = json.loads((Path(sys.argv[1]) / "options" / f"{k}.json").read_text())
+        s = json.loads((out / "options" / f"{k}.json").read_text())
         if s.get("surface_error"):
             bad[k + " surface"] = s["surface_error"]
             print("FAIL " + k + " surface: " + s["surface_error"])
-    raise SystemExit(1 if bad else 0)
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

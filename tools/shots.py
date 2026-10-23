@@ -13,6 +13,8 @@ The suspects are hints, not verdicts: the design reviewer looks at the PNGs and 
 from __future__ import annotations
 
 import argparse
+import os
+import re
 import sys
 from pathlib import Path
 
@@ -58,8 +60,14 @@ def main() -> int:
     ap.add_argument("--sections", default="")
     a = ap.parse_args()
     from playwright.sync_api import sync_playwright
-    out = Path(a.out)
+    out = Path(a.out).resolve()
+    roots = [Path("/tmp").resolve()] + [Path(os.environ[v]).resolve() for v in ("TEAM_DIR", "CLAUDE_SCRATCHPAD") if os.environ.get(v)]
+    team = Path(os.environ["TEAM_DIR"]).resolve() if os.environ.get("TEAM_DIR") else None
+    if not any(out != r and r in out.parents for r in roots) or out == team:
+        print(f"refusing to write to {out}", file=sys.stderr)
+        return 2
     out.mkdir(parents=True, exist_ok=True)
+    (out / ".macro-check").write_text("written by tools/shots.py\n")
     url = Path(a.page).resolve().as_uri()
     want = set(filter(None, a.sections.split(",")))
     report = ["# layout suspects", ""]
@@ -72,7 +80,7 @@ def main() -> int:
                 pg = b.new_page(viewport={"width": w, "height": 1000}, color_scheme=theme)
                 pg.goto(url + frag)
                 pg.wait_for_timeout(1200)
-                pg.evaluate("(() => { const h = document.querySelector('.stickyhead'); if (h) h.style.position = 'static'; window.__noSpin = true; })()")
+                pg.evaluate("(() => { const h = document.querySelector('.stickyhead'); if (h) h.style.position = 'static' })()")
                 tag = f"{theme}-{w}"
                 if page_name == "main":
                     for sec in pg.eval_on_selector_all("main > section.sec", "s => s.filter(x => x.offsetParent).map(x => x.id)"):
@@ -85,7 +93,8 @@ def main() -> int:
                         if cards.nth(i).is_visible():
                             h = cards.nth(i).locator("h3")
                             title = h.first.inner_text() if h.count() else "controls"
-                            slug = "".join(c if c.isalnum() else "-" for c in title.lower()).strip("-")[:40] or f"card{i}"
+                            title = re.sub(r"^\s*\d+[\s.:)\-]*", "", title)   # the file name already carries the number
+                            slug = "".join(c if c.isalnum() else "-" for c in title.lower()).strip("-")[:40] or "card"
                             cards.nth(i).screenshot(path=str(out / f"{tag}-options-{i:02d}-{slug}.png"))
                 sus = pg.evaluate(SUSPECTS_JS, pg.query_selector("main"))
                 report.append(f"## {tag} {page_name}: {len(sus)} suspect(s)")
@@ -94,7 +103,11 @@ def main() -> int:
         b.close()
     (out / "layout.md").write_text("\n".join(report))
     print("\n".join(report))
-    print(f"\nscreenshots: {len(list(out.glob('*.png')))} in {out}")
+    n_png = len(list(out.glob("*.png")))
+    print(f"\nscreenshots: {n_png} in {out}")
+    if n_png == 0:
+        print("no screenshots written", file=sys.stderr)
+        return 1
     return 0
 
 
