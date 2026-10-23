@@ -212,6 +212,25 @@ def attach_price(c: dict | None, price: pd.Series | None) -> None:
 
 
 # ----------------------------------------------------------------- data
+def load_fx_drivers_data(data_dir: Path) -> dict:
+    """Extra inputs for the FX macro-drivers card: 2Y/5Y yields of the pairs' other currencies, policy rates, currency COT."""
+    out: dict = {"yc": {}, "pol": None, "cot": {}}
+    for cc in ("DE", "GB", "JP", "CH", "CA", "AU", "NZ"):
+        p = data_dir / f"YC_{cc}.csv"
+        if p.exists():
+            df = pd.read_csv(p, parse_dates=["date"]).set_index("date").sort_index()
+            out["yc"][cc] = {t: pd.to_numeric(df[t], errors="coerce").dropna() for t in ("2Y", "5Y") if t in df}
+    p = data_dir / "POLICY_RATES.csv"
+    if p.exists():
+        out["pol"] = pd.read_csv(p, parse_dates=["date"]).set_index("date").sort_index().apply(pd.to_numeric, errors="coerce")
+    for cur in ("EUR", "JPY", "GBP", "CHF", "CAD", "AUD", "NZD"):
+        p = data_dir / f"COT_{cur}.csv"
+        if p.exists():
+            df = pd.read_csv(p, parse_dates=["Date"]).dropna(subset=["Long", "Short"]).set_index("Date").sort_index()
+            out["cot"][cur] = (pd.to_numeric(df["Long"]) - pd.to_numeric(df["Short"])).astype(float)
+    return out
+
+
 def load_everything(data_dir: Path) -> dict:
     yields = {c: s for c in YIELD_CODES if (s := read_series(data_dir / f"{c}.csv", "date", c)) is not None}
 
@@ -263,7 +282,8 @@ def load_everything(data_dir: Path) -> dict:
     mkt = {c: x for c in ("SP500", "DCOILWTICO", "VIXCLS", "GVZCLS", "CBBTCUSD") if (x := read_series(data_dir / "econ" / f"{c}.csv", "date", c)) is not None}
     zq = pd.read_csv(data_dir / "fed" / "zq_odds.csv") if (data_dir / "fed" / "zq_odds.csv").exists() else None
     events = pd.read_csv(data_dir / "fed" / "events.csv") if (data_dir / "fed" / "events.csv").exists() else None
-    return {"zq": zq, "events": events, "fxp": fxp, "fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
+    drv = load_fx_drivers_data(data_dir)
+    return {"drv": drv, "zq": zq, "events": events, "fxp": fxp, "fed": fed, "mkt": mkt, "econ": econ, "intl": intl, "yields": yields, "dxy": dxy, "gold_px": gold_px, "cot": cot, "status": status}
 
 
 def compute(data: dict, playbook: dict) -> dict:
@@ -915,6 +935,82 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
     return out
 
 
+# pair -> (other currency, its yield country, tenor, its policy-rate column, side); side +1 = pair rises when that currency rises
+DRV_PAIRS = {
+    "EURUSD": ("EUR", "DE", "2Y", "EA", 1), "GBPUSD": ("GBP", "GB", "2Y", "GB", 1), "AUDUSD": ("AUD", "AU", "2Y", "AU", 1),
+    "NZDUSD": ("NZD", "NZ", "5Y", "NZ", 1), "USDJPY": ("JPY", "JP", "2Y", "JP", -1), "USDCHF": ("CHF", "CH", "2Y", "CH", -1),
+    "USDCAD": ("CAD", "CA", "2Y", "CA", -1),
+}
+DRV_BANK = {"US": "Fed", "EA": "ECB", "GB": "BoE", "JP": "BoJ", "CH": "SNB", "CA": "BoC", "AU": "RBA", "NZ": "RBNZ"}
+DRV_RISK = {"AUD": 1, "NZD": 1, "CAD": 1, "JPY": -1, "CHF": -1}     # +1 gains when risk appetite rises, -1 gains when it falls
+
+
+def build_fx_drivers(data: dict) -> str:
+    """Macro drivers per pair: each driver says whether it supports the pair higher (+1), lower (-1) or neither (0).
+    Context only, not a forecast: a backtest (Apr 2025 - Oct 2026) found only the yield-gap trend leaned forward, and weakly."""
+    d = data.get("drv") or {}
+    empty = '<p class="emptystate">Macro drivers appear after the first update with the new yield, policy-rate and COT feeds.</p>'
+    if not d or (not d.get("yc") and d.get("pol") is None):
+        return empty
+    pol = d.get("pol")
+    us = {"2Y": data.get("yields", {}).get("DGS2"), "5Y": data.get("yields", {}).get("DGS5")}
+    vix = data.get("mkt", {}).get("VIXCLS")
+    risk = 0
+    vix_txt = "n/a"
+    if vix is not None and len(vix) > 120:
+        vz = float((vix.iloc[-1] - vix.tail(252).mean()) / vix.tail(252).std())
+        risk = -1 if vz > 0.5 else 1 if vz < -0.5 else 0          # +1 = risk appetite high
+        vix_txt = f"VIX {vix.iloc[-1]:.1f}"
+    trs = []
+    for pair, (cur, cc, ten, pcol, side) in DRV_PAIRS.items():
+        rows = []     # (name, tag, value, state)
+        fy = (d.get("yc", {}).get(cc) or {}).get(ten)
+        uy = us.get(ten)
+        if fy is not None and uy is not None and len(fy) > 60 and len(uy) > 60:
+            j = pd.concat([fy.rename("f"), uy.rename("u")], axis=1).sort_index().ffill().dropna()
+            g = (j["f"] - j["u"]) * side            # positive = gap favours the pair rising
+            now, chg = float(g.iloc[-1]), float(g.iloc[-1] - g.iloc[-21])
+            st = 0 if abs(chg) < 0.05 else (1 if chg > 0 else -1)
+            rows.append((f"{ten} yield gap, 4-week trend", "Rates", f"{chg:+.2f} pp (gap {now:+.2f})", st))
+        else:
+            rows.append((f"{ten} yield gap, 4-week trend", "Rates", "n/a", 0))
+        if pol is not None and pcol in pol and "US" in pol:
+            f, u = float(pol[pcol].iloc[-1]), float(pol["US"].iloc[-1])
+            gp = (f - u) * side
+            rows.append(("Policy rate gap", "Bank", f"{u:.2f} vs {f:.2f}", 0 if abs(gp) < 0.25 else (1 if gp > 0 else -1)))
+        else:
+            rows.append(("Policy rate gap", "Bank", "n/a", 0))
+        net = (d.get("cot") or {}).get(cur)
+        if net is not None and len(net) >= 52:
+            z = float((net.iloc[-1] - net.tail(52).mean()) / net.tail(52).std(ddof=1))
+            rows.append((f"{cur} speculator positioning", "COT", f"Z {z:+.1f}", 0 if abs(z) < 0.5 else (1 if z * side > 0 else -1)))
+        else:
+            rows.append((f"{cur} speculator positioning", "COT", "n/a", 0))
+        sens = DRV_RISK.get(cur, 0)
+        rows.append(("Risk appetite", "Risk", (vix_txt + (" calm" if risk > 0 else " stressed" if risk < 0 else "")) if DRV_RISK.get(cur) else "n/a", 0 if not sens else risk * sens * side))
+        ups = sum(1 for r in rows if r[3] > 0)
+        dns = sum(1 for r in rows if r[3] < 0)
+        if ups - dns >= 2:
+            tone, label, count = "up", "HIGHER", f"{ups} of 4 agree"
+        elif dns - ups >= 2:
+            tone, label, count = "down", "LOWER", f"{dns} of 4 agree"
+        else:
+            tone, label, count = "mid", "MIXED", f"{ups} up, {dns} down"
+        def cell(r):
+            n, t, v, st = r
+            arrow = "&#9650;" if st > 0 else "&#9660;" if st < 0 else "&ndash;"
+            return (f'<td class="dc {"up" if st > 0 else "down" if st < 0 else "flat"}" title="{esc(n)}: {"supports the pair higher" if st > 0 else "supports the pair lower" if st < 0 else "neutral"}">'
+                    f'<span class="da">{arrow}</span><small>{esc(v)}</small></td>')
+        trs.append(f'<tr><th scope="row">{esc(pair)}</th>' + "".join(cell(r) for r in rows) +
+                   f'<td class="dread"><span class="tag {tone}">{label}</span><small>{esc(count)}</small></td></tr>')
+    return ('<div class="drvwrap"><table class="drv"><thead><tr><th>Pair</th><th>2Y yield gap<small>4-week trend</small></th>'
+            '<th>Policy rates<small>gap</small></th><th>Positioning<small>speculators, Z</small></th><th>Risk appetite<small>VIX</small></th>'
+            '<th>Read</th></tr></thead><tbody>' + "".join(trs) + '</tbody></table></div>'
+            '<p class="note">&#9650; green supports the pair rising, &#9660; red supports it falling, &ndash; grey is neutral. Context, not a forecast: '
+            'in a backtest of these 7 pairs (Apr 2025 to Oct 2026) only the yield-gap trend leaned forward, and only weakly; policy rates and positioning mostly describe moves already under way. '
+            'The risk column applies to AUD, NZD, CAD, JPY and CHF only. NZDUSD uses the 5Y gap.</p>')
+
+
 def build_cot_cards(playbook: dict, metrics: dict, split: bool = False):
     cards = []
     for key in ("gold", "usd_index"):
@@ -1429,7 +1525,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__TILES__": fx["tiles"], "__SIGNALS__": sig_html, "__WATCHLIST__": build_watch_html(rows), "__MATRIX__": build_matrix(data, computed),
         "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_GOLD_TABLE__": cot_t["gold"], "__COT_USD_TABLE__": cot_t["usd_index"],
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
-        "__FX_CARDS__": fx["fx"], "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
+        "__FX_CARDS__": fx["fx"], "__DRIVERS__": build_fx_drivers(data), "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
         "__STATUS__": build_status(data, today),
     }
