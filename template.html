@@ -435,6 +435,14 @@
   #fx .rterm { grid-template-rows: minmax(240px, 1fr) minmax(0, 350px); }
   @media (max-width: 1024px) { #fx .rterm { grid-template-rows: auto; } #fx .rterm .chp { min-height: 340px; } #fx .rterm .mxp .mxs { max-height: 420px; } }
   #fx .rterm .mxp .mxs { overflow: auto; }
+  #fx .confgrid { align-items: start; }
+  #fx .conf .cdet[hidden] { display: none; }
+  #fx .conf .cmore { width: 100%; margin-top: 8px; font: inherit; font-size: 12px; color: var(--muted); background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; cursor: pointer; display: flex; justify-content: center; gap: 6px; align-items: center; }
+  #fx .conf .cmore:hover { color: var(--text); border-color: var(--border-strong); }
+  #fx .conf .cmore .car { display: inline-block; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); transition: transform .15s; }
+  #fx .conf .cmore[aria-expanded="true"] .car { transform: rotate(225deg) translate(-1px, -1px); }
+  #fx .conf .clean { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding-top: 4px; }
+  #fx .cardbar { display: flex; justify-content: flex-end; gap: 6px; margin: 0 0 8px; }
   #fx .fxvbar { margin: 0 0 12px; display: flex; justify-content: flex-end; } #fx [hidden] { display: none !important; }
   #fx .picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 12px; } #fx .picker .pl { font-size: 12px; color: var(--muted); margin-right: 4px; }
   #fx .fxc { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-strong); background: transparent; color: var(--muted); cursor: pointer; }
@@ -1110,6 +1118,31 @@ Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, range
     try { sel.size === all.length ? localStorage.removeItem("macro-fx-cols") : localStorage.setItem("macro-fx-cols", JSON.stringify([...sel])); } catch (e) {}
     window.dispatchEvent(new Event("fxsel")); });
   window.addEventListener("fxsel", paint); paint();
+})();
+
+
+/* FX cards: compact by default, expand for signals, drivers and levels */
+(function () {
+  const grid = document.querySelector("#fx .confgrid"); if (!grid) return;
+  const cards = [...grid.querySelectorAll(".conf")];
+  const KEY = "macro-fx-open"; let open = new Set(); try { open = new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch (e) {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...open])); } catch (e) {} };
+  const setC = (c, on) => { c._d.hidden = !on; c._b.setAttribute("aria-expanded", String(on)); c._b.querySelector("span").textContent = on ? "Show less" : "More detail"; on ? open.add(c.dataset.sym) : open.delete(c.dataset.sym); };
+  cards.forEach(c => {
+    const h = c.querySelector("h5"); if (!h) return;
+    const d = document.createElement("div"); d.className = "cdet"; d.id = "cdet-" + c.dataset.sym;
+    while (h.nextSibling) d.appendChild(h.nextSibling); d.insertBefore(h, d.firstChild);
+    const tag = d.querySelector("h5 .tag.lean"), cnt = d.querySelector("h5 .dcount");
+    if (tag) { const l = document.createElement("div"); l.className = "clean"; l.innerHTML = `<span>Macro lean</span><span><span class="tag lean">${tag.textContent}</span> <small>${cnt ? cnt.textContent : ""}</small></span>`; c.appendChild(l); }
+    const b = document.createElement("button"); b.type = "button"; b.className = "cmore"; b.setAttribute("aria-controls", d.id); b.innerHTML = '<span></span><i class="car"></i>';
+    c.appendChild(b); c.appendChild(d); c._d = d; c._b = b;
+    b.addEventListener("click", () => { setC(c, d.hidden); save(); });
+    setC(c, open.has(c.dataset.sym));
+  });
+  const bar = document.createElement("div"); bar.className = "cardbar";
+  bar.innerHTML = '<button type="button" class="fxc" data-e="1">Expand all</button><button type="button" class="fxc" data-e="0">Collapse all</button>';
+  grid.before(bar);
+  bar.addEventListener("click", ev => { const b = ev.target.closest("[data-e]"); if (!b) return; cards.forEach(c => c._d && setC(c, b.dataset.e === "1")); save(); });
 })();
 
 /* US across-time table: yields / spreads switch */
