@@ -1,0 +1,2 @@
+date,spot,net_gex_bn,gamma_flip,call_wall,put_wall,max_pain,atm_iv,pcr_oi,pcr_vol,mapped_price,iv30,rv20
+2026-10-23,521.12,0.04,,525.0,510.0,527.0,12.75,0.632,8.846,52304.0,15.29,10.21
