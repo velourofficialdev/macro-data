@@ -1392,6 +1392,12 @@ OPT_META = {
 
 def load_options(data_dir: Path) -> dict:
     out = {}
+    ip = data_dir / "options" / "VOL_INDICES.csv"
+    if ip.exists():
+        try:
+            out["_vol_idx"] = pd.read_csv(ip, parse_dates=["date"]).set_index("date").sort_index()
+        except Exception:  # noqa: BLE001
+            pass
     vp = data_dir / "options" / "VIX_TERM.csv"
     if vp.exists():
         try:
@@ -1439,6 +1445,25 @@ def opt_payload(data: dict) -> dict:
                     "net_gex_bn": s.get("net_gex_bn"), "max_pain": s.get("max_pain"), "front_move": s.get("front_move"), "king": s.get("king"),
                     "oi_changes": s.get("oi_changes") or [], "vol": s.get("vol") or {}, "history": s.get("history_full") or [],
                     "map": mapping, "surface": s["surface"]}
+    vi = (data.get("options") or {}).get("_vol_idx")
+    if out and vi is not None and len(vi) > 60:
+        idx_map = {"SPX": ("VIXCLS", "VIX"), "NDX": ("VXNCLS", "VXN"), "DJX": ("VXDCLS", "VXD"), "RUT": ("RVXCLS", "RVX"), "GOLD": ("GVZCLS", "GVZ")}
+        pay = {}
+        for k, (col, name) in idx_map.items():
+            if col not in vi:
+                continue
+            ser = vi[col].dropna()
+            if len(ser) < 60:
+                continue
+            yr = ser[ser.index > ser.index[-1] - pd.Timedelta(days=365)]
+            last = float(ser.iloc[-1])
+            chg5 = float(last - ser.iloc[-6]) if len(ser) > 5 else None
+            pct = float((yr < last).mean() * 100)
+            t260 = ser.tail(260)
+            pay[k] = {"name": name, "last": r(last, 2), "date": ser.index[-1].strftime("%Y-%m-%d"), "chg5": r(chg5, 2) if chg5 is not None else None,
+                      "pct1y": r(pct, 0), "lo1y": r(float(yr.min()), 2), "hi1y": r(float(yr.max()), 2), "avg1y": r(float(yr.mean()), 2),
+                      "dates": [d.strftime("%Y-%m-%d") for d in t260.index], "vals": [r(v, 2) for v in t260]}
+        out["_volidx"] = pay
     vt = (data.get("options") or {}).get("_vix_term")
     if out and vt is not None and len(vt) > 20:
         t = vt.tail(260)

@@ -471,6 +471,25 @@ def update_vix_term(outdir: Path) -> tuple[bool, str | None, str | None]:
         return False, None, f"{type(exc).__name__}: {exc}"[:200]
 
 
+VOL_INDEX = {   # Cboe's official 30-day implied vol index for each desk instrument, as republished by FRED
+    "SPX": ("VIXCLS", "VIX"), "NDX": ("VXNCLS", "VXN"), "DJX": ("VXDCLS", "VXD"), "RUT": ("RVXCLS", "RVX"), "GOLD": ("GVZCLS", "GVZ"),
+}
+
+
+def update_vol_indices(outdir: Path) -> tuple[bool, str | None, str | None]:
+    """VIX, VXN, VXD, RVX, GVZ (and VIX3M) from FRED -> data/options/VOL_INDICES.csv, 3 years."""
+    try:
+        frames = [fetch_fred_series(code, 3) for code, _ in VOL_INDEX.values()] + [fetch_fred_series("VXVCLS", 3)]
+        df = frames[0]
+        for f_ in frames[1:]:
+            df = df.merge(f_, on="date", how="outer")
+        df = df.sort_values("date")
+        df.to_csv(outdir / "VOL_INDICES.csv", index=False)
+        return True, str(df["date"].iloc[-1]), None
+    except Exception as exc:  # noqa: BLE001
+        return False, None, f"{type(exc).__name__}: {exc}"[:200]
+
+
 def oi_changes(raw: pd.DataFrame, prev_path: Path, spot: float, window: float) -> tuple[list[dict], pd.DataFrame]:
     cur = raw.groupby(["strike", "type"])["oi"].sum().unstack(fill_value=0.0).rename(columns={"C": "call_oi", "P": "put_oi"})
     for col in ("call_oi", "put_oi"):
@@ -542,6 +561,8 @@ def update(data_dir: Path) -> dict[str, tuple[bool, str | None, str | None, str 
             result[key] = (False, None, f"{type(exc).__name__}: {exc}"[:200], None)
     ok, last, err = update_vix_term(outdir)
     result["VIX_TERM"] = (ok, last, err, "FRED VIXCLS and VXVCLS (VIX3M)" if ok else None)
+    ok, last, err = update_vol_indices(outdir)
+    result["VOL_INDICES"] = (ok, last, err, "FRED VIX, VXN, VXD, RVX, GVZ, VIX3M" if ok else None)
     return result
 
 
