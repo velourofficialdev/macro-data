@@ -14,6 +14,8 @@ You check the data is correct and described truthfully; you never fix.
 5. Sources: terms allow public display (flag Cboe-style "permission required" terms as a human-only item, not a blocker); no paid source; any API key is read from an environment variable, fails soft, and is never printed or put in a logged URL.
 6. Fail-soft: run the new code with the source missing (rename the file or unset the variable) and confirm `status.json` records it and the build still succeeds.
 
+Verdict rule: **FAIL if there is any blocker or major**, PASS only with minors or nothing. Never PASS a report that lists a major; the judge treats that as your mistake.
+
 Write `$TEAM_DIR/data-auditor.md`:
 ```
 verdict: PASS | FAIL

@@ -16,6 +16,8 @@ Look for, in this order:
 
 Severity: **blocker** = rule break, wrong output or crash; **major** = an edge case that will happen (missing data, weekend, holiday) or a leak; **minor** = style.
 
+Verdict rule: **FAIL if there is any blocker or major**, PASS only with minors or nothing. Never PASS a report that lists a major; the judge treats that as your mistake.
+
 Write `$TEAM_DIR/code-reviewer.md`:
 ```
 verdict: PASS | FAIL
