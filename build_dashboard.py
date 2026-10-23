@@ -876,6 +876,7 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
     cards, confs = [], []
     live = 0
     drivers = build_fx_drivers(data)
+    irows: list[dict] = []
     for sym, d in fx.items():
         cf = d.get("confluence")
         tone = "flat" if not cf else ("up" if cf["score"] >= 60 else "down" if cf["score"] <= 40 else "mid")
@@ -910,10 +911,17 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
             confs.append(
                 f'<article class="conf" data-sym="{esc(sym)}"><div class="ctop"><b>{esc(sym)}{f" <small>{esc(INSTR_NAMES[sym])}</small>" if sym in INSTR_NAMES else ""}</b><span>{esc(d.get("display", ""))}</span></div>'
                 f'<div class="chead">{gauge_ring(cf["score"], tone)}<div class="verdict {tone}">{esc(cf["label"].split(" ")[0])} confluence<small>Confluence score</small></div></div>{rng_html}'
-                f'<h5>Signals</h5>{sig_html}{drivers.get(sym, "")}<h5>Support / resistance</h5>{sr_html}</article>')
+                f'<h5>Signals</h5>{sig_html}{(drivers.get(sym) or {}).get("html", "")}<h5>Support / resistance</h5>{sr_html}</article>')
+            rg_ = d.get("range")
+            irows.append({"id": f"FX:{sym}", "label": sym, "ticker": INSTR_DESC.get(sym, ""), "group": instr_group(sym), "latest": d.get("display", ""),
+                          "d1": signed(d.get("changePct"), 2, "%") if d.get("changePct") is not None else "", "score": str(cf["score"]), "tone": tone,
+                          "lean": (drivers.get(sym) or {}).get("label", "").capitalize(), "range": f"±{rg_['pct']:.2f}%" if rg_ else "",
+                          "info": {"title": sym, "html": confs[-1]}})
     if cards:
         note = "" if live else '<p class="emptystate">No FX feed saved yet. It appears after the first successful update.</p>'
         out["fx"] = note + '<div class="tiles fxtiles">' + "".join(cards) + "</div>"
+    out["irows"] = irows
+    out["drivers"] = drivers
     out["picker"] = ('<div class="picker" id="fxpick" role="group" aria-label="Choose which instruments to show">'
                      '<span class="pl">Show</span>' + "".join(f'<button type="button" class="chip" data-sym="{esc(k)}" aria-pressed="true" title="{esc(INSTR_NAMES.get(k, k))}">{esc(k)}</button>' for k in fx)
                      + '<button type="button" class="chip ghost" data-all="1">All</button><button type="button" class="chip ghost" data-none="1">None</button></div>') if fx else ""
@@ -1051,21 +1059,21 @@ def _drivers_for(sym: str, data: dict) -> list[dict]:
     if sym == "XAUUSD":
         dxy = data.get("dxy")
         dch = None if dxy is None or len(dxy) < 25 else float(dxy.iloc[-1] / dxy.iloc[-21] - 1) * 100
-        rows = [rrow, {"name": "Dollar (DXY), 4-week", "value": "n/a" if dch is None else f"{dch:+.1f}%", "state": 0 if dch is None or abs(dch) < 0.5 else (-1 if dch > 0 else 1), "counted": True},
-                _cot_row((d.get("cot") or {}).get("GOLD"), "Positioning (Z)", 1), fed]
+        rows = [rrow, fed, _cot_row((d.get("cot") or {}).get("GOLD"), "Positioning (Z)", 1),
+                {"name": "Dollar (DXY), 4-week", "value": "n/a" if dch is None else f"{dch:+.1f}%", "state": 0 if dch is None or abs(dch) < 0.5 else (-1 if dch > 0 else 1), "counted": True}]
     else:
         rows = [rrow, fed, _cot_row((d.get("cot") or {}).get(sym), "Positioning (Z)", 1),
                 {"name": "Volatility", "value": vix_txt, "state": 0, "counted": False}]
     return rows
 
 
-def build_fx_drivers(data: dict) -> dict[str, str]:
+def build_fx_drivers(data: dict) -> dict[str, dict]:
     """Macro drivers per instrument. Each counted driver says whether it supports the instrument higher (+1), lower (-1) or neither (0);
     a lean needs a net of 2. Context only: a 2001-2026 backtest found the read right about half of weeks (no reliable edge)."""
     d = data.get("drv") or {}
     if not d or (not d.get("yc") and d.get("pol") is None):
         return {}
-    out: dict[str, str] = {}
+    out: dict[str, dict] = {}
     for sym in [*DRV_PAIRS, "XAUUSD", *INDEX_SYMS]:
         rows = _drivers_for(sym, data)
         counted = [r for r in rows if r["counted"]]
@@ -1083,8 +1091,79 @@ def build_fx_drivers(data: dict) -> dict[str, str]:
             title = ("supports it higher" if st > 0 else "supports it lower" if st < 0 else "neutral") + ("" if r["counted"] else " (shown, not counted)")
             return (f'<div class="sig m"><span class="dot {"up" if st > 0 else "down" if st < 0 else "flat"}" title="{title}"></span>'
                     f'<span class="sn">{esc(r["name"])}{"" if r["counted"] else " <i>info</i>"}</span><span class="sv">{esc(r["value"])}</span>{sub}</div>')
-        out[sym] = (f'<h5>Macro drivers <span class="tag lean">{label}</span><small class="dcount">{esc(count)}</small></h5>' + "".join(row(r) for r in rows))
+        out[sym] = {"html": f'<h5>Macro drivers <span class="tag lean">{label}</span><small class="dcount">{esc(count)}</small></h5>' + "".join(row(r) for r in rows),
+                    "rows": rows, "label": label, "count": count}
     return out
+
+
+INSTR_DESC = {"EURUSD": "Euro / US dollar", "GBPUSD": "Pound / US dollar", "USDJPY": "US dollar / yen", "USDCAD": "US dollar / Canadian dollar",
+              "AUDUSD": "Australian dollar / US dollar", "USDCHF": "US dollar / Swiss franc", "NZDUSD": "New Zealand dollar / US dollar",
+              "XAUUSD": "Gold futures", "ES": "S&P 500", "NQ": "Nasdaq 100", "US30": "Dow 30"}
+
+
+def instr_group(sym: str) -> str:
+    return "Gold" if sym == "XAUUSD" else "US indices" if sym in INDEX_SYMS else "FX pairs"
+
+
+def build_instr_watch_html(rows: list[dict]) -> str:
+    cols = ('<th class="cb"><span class="sr-only">Select</span></th><th>Name</th><th class="c-tk">Market</th><th>Price</th><th>1D</th>'
+            '<th class="c-cf">Score</th><th class="c-ln">Macro lean</th><th class="c-rg">Range</th>')
+    out = [f'<table class="watch instr hide-c-tk"><thead><tr>{cols}</tr></thead>']
+    groups: list[str] = []
+    for r_ in rows:
+        if r_["group"] not in groups:
+            groups.append(r_["group"])
+    for g in groups:
+        out.append(f'<tbody data-group="{esc(g)}"><tr class="grp"><td class="cb"><span class="gbox" role="checkbox" aria-checked="false" tabindex="0" aria-label="Plot {esc(g)}"></span></td>'
+                   f'<th colspan="6"><button type="button" class="gt" aria-expanded="true"><span class="car"></span>{esc(g)}</button></th>'
+                   f'<td class="gmove"><button type="button" class="mv up" aria-label="Move {esc(g)} up">&#9650;</button><button type="button" class="mv dn" aria-label="Move {esc(g)} down">&#9660;</button></td></tr>')
+        for r_ in (x for x in rows if x["group"] == g):
+            out.append(
+                f'<tr class="row" tabindex="0" data-id="{esc(r_["id"])}" data-family="fx">'
+                f'<td class="cb"><span class="pick" aria-hidden="true"></span></td>'
+                f'<th scope="row"><span class="plus">+</span>{esc(r_["label"])}</th><td class="c-tk tk">{esc(r_["ticker"])}</td>'
+                f'<td class="yd">{esc(r_["latest"])}</td><td class="{chg_class(r_["d1"])}">{esc(r_["d1"])}</td>'
+                f'<td class="c-cf {r_["tone"]}">{esc(r_["score"])}</td><td class="c-ln tk">{esc(r_["lean"])}</td><td class="c-rg tk">{esc(r_["range"])}</td></tr>')
+        out.append("</tbody>")
+    out.append("</table>")
+    return "".join(out)
+
+
+def build_drivers_matrix(rows: list[dict], drivers: dict) -> str:
+    """One row per instrument; arrows show whether each driver supports it higher, lower or neither."""
+    def cell(r: dict) -> str:
+        st = r["state"]
+        arrow = "&#9650;" if st > 0 else "&#9660;" if st < 0 else "&ndash;"
+        return (f'<td class="dc {"up" if st > 0 else "down" if st < 0 else "flat"}" title="{esc(r["name"])}: {"supports it higher" if st > 0 else "supports it lower" if st < 0 else "neutral"}{"" if r["counted"] else " (shown, not counted)"}">'
+                f'<span class="da">{arrow}</span><small>{esc(r["value"])}</small></td>')
+    body = []
+    for r_ in rows:
+        dv = drivers.get(r_["label"])
+        if not dv:
+            continue
+        body.append(f'<tr data-id="{esc(r_["id"])}"><th scope="row">{esc(r_["label"])}</th>' + "".join(cell(x) for x in dv["rows"][:4]) +
+                    f'<td class="dread"><span class="tag lean">{esc(dv["label"])}</span><small>{esc(dv["count"])}</small></td></tr>')
+    if not body:
+        return '<p class="muted-text pad">Macro drivers appear after the next data update.</p>'
+    return ('<table class="drv"><thead><tr><th>Instrument</th><th>Yields<small>FX gap trend / real yield</small></th><th>Policy<small>central banks</small></th>'
+            '<th>Positioning<small>speculators, Z</small></th><th>Risk / dollar<small>info for FX, indices</small></th><th>Macro lean</th></tr></thead><tbody>'
+            + "".join(body) + '</tbody></table>')
+
+
+def fx_family(data: dict) -> dict:
+    """Price history for the terminal chart: union of dates, one list per instrument (null where a market was closed)."""
+    ser: dict[str, pd.Series] = {}
+    for sym, s_ in {**data.get("fxp", {}), **({"XAUUSD": data["gold_px"]} if data.get("gold_px") is not None else {}), **data.get("idx", {})}.items():
+        ser[sym] = s_.dropna().tail(780)
+    if not ser:
+        return {"dates": [], "series": {}}
+    idx = sorted(set().union(*[set(x.index) for x in ser.values()]))
+    idx = idx[-780:]
+    out = {}
+    for sym, x in ser.items():
+        dec = 3 if sym == "USDJPY" else 2 if sym in INSTR_NAMES else 5
+        out[f"FX:{sym}"] = [None if d not in x.index else round(float(x[d]), dec) for d in idx]
+    return {"dates": [d.strftime("%Y-%m-%d") for d in idx], "series": out}
 
 
 def build_week(data: dict) -> str:
@@ -1615,6 +1694,8 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     zqh, zqp = build_zq(data, today)
     fam.update(efam)
     fx = build_fx(feed, data)
+    fam["fx"] = fx_family(data)
+    irows = fx.get("irows", [])
     cot_t = build_cot_tables(data)
     cot_cards = build_cot_cards(playbook, metrics, split=True)
 
@@ -1628,11 +1709,12 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
     dates = [m["date"] for m in metrics.values() if m.get("date")]
     as_of = max(dates) if dates else "n/a"
     default_sel = [x for x in ("S:10y-2y", "S:10y-3m", "S:30y-5y", "S:30y-10y", "S:5y-2y") if any(r_["id"] == x for r_ in rows)]
-    payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_["family"], "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows + erows},
+    payload = {"families": fam, "rows": {r_["id"]: {"label": r_["label"], "family": r_.get("family", "fx"), "ticker": r_.get("ticker", ""), "info": r_["info"]} for r_ in rows + erows + irows},
+               "fxdefault": [x for x in ("FX:EURUSD", "FX:USDJPY", "FX:XAUUSD", "FX:ES", "FX:NQ") if any(r_["id"] == x for r_ in irows)],
                "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
                "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed, data), "curve": curve_payload(data), "cot": build_cot_charts(data),
-               "dec": {"spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
-               "unit": {"spreads": " pp", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
+               "dec": {"fx": 2, "spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
+               "unit": {"fx": "%", "spreads": " pp", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
 
     page = TEMPLATE
     rep = {
@@ -1640,7 +1722,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__TILES__": fx["tiles"], "__SIGNALS__": sig_html, "__WATCHLIST__": build_watch_html(rows), "__MATRIX__": build_matrix(data, computed),
         "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_GOLD_TABLE__": cot_t["gold"], "__COT_USD_TABLE__": cot_t["usd_index"],
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
-        "__FX_CARDS__": fx["fx"], "__FXPICK__": fx["picker"], "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
+        "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
         "__STATUS__": build_status(data, today),
     }

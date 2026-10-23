@@ -233,7 +233,7 @@
   table.watch .tk { color: var(--muted); font-size: 12px; text-align: left; }
   table.watch small.cu { color: var(--muted); font-size: 10px; margin-left: 2px; }
   table.watch td.yd small { color: var(--muted); font-size: 10px; margin-left: 1px; }
-  table.watch.hide-c-tk .c-tk, table.watch.hide-c-d5 .c-d5, table.watch.hide-c-d20 .c-d20, table.watch.hide-c-d252 .c-d252, table.watch.hide-c-z .c-z, table.watch.hide-c-per .c-per { display: none; }
+  table.watch.hide-c-tk .c-tk, table.watch.hide-c-d5 .c-d5, table.watch.hide-c-d20 .c-d20, table.watch.hide-c-d252 .c-d252, table.watch.hide-c-z .c-z, table.watch.hide-c-per .c-per, table.watch.hide-c-cf .c-cf, table.watch.hide-c-ln .c-ln, table.watch.hide-c-rg .c-rg { display: none; }
   table.watch tr.grp td, table.watch tr.grp th { background: color-mix(in srgb, var(--surface-2) 55%, var(--surface)); height: 32px; border-bottom: 1px solid var(--border); }
   table.watch tr.grp th { padding: 0; position: static; }
   .gt { font: inherit; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text); background: none; border: 0; cursor: pointer; padding: 4px 8px; display: inline-flex; align-items: center; gap: 8px; }
@@ -429,6 +429,15 @@
   .conf .xe { font-size: 11px; color: var(--muted); padding-bottom: 2px; }
   .conf .ctop small { color: var(--muted); font-weight: 400; margin-left: 4px; font-size: 11px; }
   .sig.m .sn i { font-style: normal; font-size: 9px; color: var(--muted); border: 1px solid var(--border-strong); border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+  .reading.fxread .conf { border: 0; padding: 0; }
+  .rterm table.watch.instr td.c-cf.up { color: var(--up); } .rterm table.watch.instr td.c-cf.down { color: var(--down); }
+  .rterm table.drv th, .rterm table.drv td { padding: 6px 8px; white-space: nowrap; } .rterm table.drv tbody tr { cursor: pointer; } .rterm table.drv tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  #fx .rterm { grid-template-rows: minmax(240px, 1fr) minmax(0, 350px); }
+  @media (max-width: 1024px) { #fx .rterm { grid-template-rows: auto; } #fx .rterm .chp { min-height: 340px; } #fx .rterm .mxp .mxs { max-height: 420px; } }
+  #fx .rterm .mxp .mxs { overflow: auto; }
+  #fx table.drv td.dc .da { display: inline; font-size: 11px; margin-right: 6px; } #fx table.drv td.dc small, #fx table.drv td.dread small { display: inline; margin: 0 0 0 6px; }
+  #fx .rterm table.drv th, #fx .rterm table.drv td { padding: 4px 8px; } #fx table.drv thead th small { font-size: 10px; }
+  #fx .rterm table.drv thead th { position: sticky; top: 0; background: var(--surface, var(--tile)); z-index: 1; }
   .tag.lean { background: var(--surface-2); color: var(--muted); }
   .conf { border: 1px solid var(--border-strong); border-radius: 8px; padding: 12px; }
   .conf .ctop { display: flex; justify-content: space-between; }
@@ -611,11 +620,41 @@
   <!-- ============ FX ============ -->
   <section class="sec" id="fx">
     <div class="sechead"><h2>FX, gold and indices</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from the ECB's official euro reference rates (daily 14:15 CET fixing, crossed through the euro; Yahoo then FRED as fallbacks); XAUUSD uses COMEX gold futures. ES, NQ and US30 are the S&amp;P 500, Nasdaq 100 and Dow 30 cash index levels from Yahoo Finance (FRED as fallback). Latest close __FXUPD__.</p></div>
-    __FXPICK__
-    <div class="grid">
+    <div class="grid" style="margin-bottom:12px">
       <div class="card" style="--w:12"><div class="card-h"><h3>This week</h3></div><div class="card-b">__WEEK__</div></div>
-      <div class="card" style="--w:12"><div class="card-h"><h3>Spot</h3></div><div class="card-b">__FX_CARDS__</div></div>
-      <div class="card" style="--w:12"><div class="card-h"><h3>Confluence</h3></div><div class="card-b">__CONFLUENCE__</div></div>
+    </div>
+    <div class="term rterm">
+      <div class="card wlp">
+        <div class="card-h"><h3>FX, Gold and Indices</h3><span class="ctools"><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></span></div>
+        <div class="tbar">
+          <button type="button" data-act="cols" aria-expanded="false"><svg class="ico"><use href="#i-cols"/></svg>Columns</button>
+          <button type="button" data-act="save" title="Remember the selected rows in this browser"><svg class="ico"><use href="#i-save"/></svg>Save as watchlist</button>
+          <button type="button" data-act="group" aria-pressed="true"><svg class="ico"><use href="#i-group"/></svg>Group</button>
+          <button type="button" data-act="flt" aria-expanded="false"><svg class="ico"><use href="#i-flt"/></svg>Filter</button>
+        </div>
+        <div class="colmenu" hidden><label><input type="checkbox" data-col="c-tk"> Market</label><label><input type="checkbox" data-col="c-cf" checked> Score</label><label><input type="checkbox" data-col="c-ln" checked> Macro lean</label><label><input type="checkbox" data-col="c-rg" checked> Range</label></div>
+        <div class="filter" hidden><input type="search" placeholder="Filter: EURUSD, gold, Nasdaq…" aria-label="Filter FX, gold and indices"></div>
+        <div class="wl">__FXWATCH__</div>
+      </div>
+      <div class="card chp">
+        <div class="card-h"><h3>Performance (% change)</h3><button type="button" class="tool" data-act="export"><svg class="ico"><use href="#i-up"/></svg>Export</button></div>
+        <div class="rbar"><div class="ranges rng" role="group" aria-label="Date range"></div></div>
+        <div class="chips" aria-label="Plotted instruments"></div>
+        <div class="cv main" role="img" aria-label="Percent change since the start of the range for the selected instruments"></div>
+      </div>
+      <div class="card mxp">
+        <div class="card-h"><h3>Macro Drivers</h3><span class="note" style="margin:0">&#9650; supports higher &middot; &#9660; supports lower &middot; &ndash; neutral. Click a row to read it.</span></div>
+        <div class="scroll mxs">__FXMATRIX__</div>
+      </div>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <div class="card" style="--w:5"><div class="card-h"><h3>Reading: last row you clicked</h3></div><div class="card-b reading fxread" id="fxreading"></div></div>
+      <div class="card" style="--w:7"><div class="card-h"><h3>How to read this</h3></div><div class="card-b">
+        <p><b>Likely range this week</b> is the 68% range (&plusmn;1 sigma) from the last 20 and 60 days of price swings. In a 2001-2026 test on 7 pairs the weekly move stayed inside it 68.3% of weeks, so it is a size estimate you can rely on.</p>
+        <p><b>Macro lean</b> counts the drivers that support the instrument higher or lower (a net of 2 is a lean). In the same test the read was right only about half of weeks, so treat it as background, not a signal. Crowded positioning (Z of 2 or more) and the risk or volatility rows are shown but not counted.</p>
+        <p><b>Confluence score</b> (0-100) combines momentum, RSI, trend and Z-score; 60 or more reads bullish, 40 or less bearish. It also showed no reliable edge in the backtest.</p>
+        <p class="note">Pairs use ECB reference rates, gold uses COMEX futures, indices are the S&amp;P 500, Nasdaq 100 and Dow 30 cash levels (Yahoo Finance, FRED as fallback). Latest close __FXUPD__. The chart shows % change from the start of the selected range.</p>
+      </div></div>
     </div>
   </section>
 
@@ -671,25 +710,11 @@ const P = __PAYLOAD__;
   paint();
 })();
 
-/* choose which FX, gold and index cards to show (saved in this browser) */
+/* macro drivers matrix: clicking a row picks that instrument in the list */
 (function () {
-  const box = document.getElementById("fxpick"); if (!box) return;
-  const chips = [...box.querySelectorAll(".chip[data-sym]")], all = chips.map(c => c.dataset.sym), KEY = "macro-fx-pick";
-  let sel = new Set(all);
-  try { const sv = JSON.parse(localStorage.getItem(KEY) || "null"); if (Array.isArray(sv)) sel = new Set(sv.filter(x => all.includes(x))); } catch (e) {}
-  const paint = () => {
-    chips.forEach(c => c.setAttribute("aria-pressed", String(sel.has(c.dataset.sym))));
-    document.querySelectorAll(".fxtiles [data-sym], .confgrid [data-sym]").forEach(el => { el.hidden = !sel.has(el.dataset.sym); });
-    let m = document.getElementById("fxnone"); if (!m) { m = document.createElement("p"); m.id = "fxnone"; m.className = "muted-text pad"; m.textContent = "No instruments selected. Choose some above."; box.after(m); }
-    m.hidden = sel.size > 0;
-    try { localStorage.setItem(KEY, JSON.stringify([...sel])); } catch (e) {}
-  };
-  box.addEventListener("click", ev => {
-    const b = ev.target.closest(".chip"); if (!b) return;
-    if (b.dataset.all) sel = new Set(all); else if (b.dataset.none) sel = new Set(); else { const k = b.dataset.sym; sel.has(k) ? sel.delete(k) : sel.add(k); }
-    paint();
-  });
-  paint();
+  document.querySelectorAll("#fx table.drv tbody tr[data-id]").forEach(tr => tr.addEventListener("click", () => {
+    const r = document.querySelector('#fx tr.row[data-id="' + tr.dataset.id + '"]'); if (r) r.click();
+  }));
 })();
 
 /* nav highlight for the section being read */
@@ -897,12 +922,14 @@ function Terminal(root, cfg) {
       let i0 = F.dates.findIndex(d => d >= st); if (i0 < 0) i0 = 0;
       const labels = F.dates.slice(i0);
       const sets = sel.map((id, k) => ({ name: P.rows[id].label, tk: P.rows[id].ticker, data: F.series[id].slice(i0), color: colorOf(k) }));
+      if (cfg.rebase) sets.forEach(s => { const b = s.data.find(v => v !== null && v !== undefined && v !== 0); s.data = s.data.map(v => (v === null || v === undefined || b === undefined) ? null : (v / b - 1) * 100); });
       chart = { labels, sets };
       const dec = P.dec[fam] !== undefined ? P.dec[fam] : 2;
       draw(host, { labels, sets, dec, axDec: Math.min(dec, 3), unit: P.unit[fam] || "", endLabels: true, term: true, title: cfg.title });
     }
     const info = focus && P.rows[focus] && P.rows[focus].info, box = document.getElementById(cfg.reading);
-    if (info && box) {
+    if (info && info.html && box) box.innerHTML = info.html;
+    else if (info && box) {
       const b = info.band || {};
       box.innerHTML = `<h5>${esc(info.title)} ${b.label ? `<span class="badge${/invert|extreme|very/i.test(b.label) ? " warn" : ""}">${esc(b.label)}</span>` : ""}</h5>` +
         (b.meaning ? `<p>${esc(b.meaning)}</p>` : "") + (b.so_what ? `<p class="so"><b>So what:</b> ${esc(b.so_what)}</p>` : "") +
@@ -951,6 +978,7 @@ function Terminal(root, cfg) {
   if (window.ResizeObserver) { let w0 = host.clientWidth, h0 = host.clientHeight; new ResizeObserver(() => { if (host.clientWidth !== w0 || host.clientHeight !== h0) { w0 = host.clientWidth; h0 = host.clientHeight; later(); } }).observe(host); }
 }
 Terminal(document.querySelector("#rates .term"), { defaults: P.default, ranges: ["MTD", "1M", "QTD", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "10Y"], range: "1Y", store: "macro-watchlist", reading: "reading", csv: "yield_spreads", title: "Historical yields" });
+Terminal(document.querySelector("#fx .term"), { defaults: P.fxdefault, ranges: ["1M", "3M", "6M", "YTD", "1Y", "2Y", "3Y"], range: "6M", store: "macro-fx-watchlist", reading: "fxreading", csv: "fx_gold_indices", title: "FX, gold and indices", rebase: true });
 Terminal(document.querySelector("#economy .term"), { defaults: P.edefault, ranges: ["YTD", "1Y", "2Y", "3Y", "5Y", "10Y"], range: "5Y", store: "macro-econ-watchlist", reading: "ereading", csv: "us_economy", title: "US economy", openWhat: true });
 
 /* Yields / spreads matrix by country */
