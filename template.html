@@ -450,8 +450,7 @@
   ul.news small { display: block; color: var(--muted); margin-top: 2px; font-size: 12px; }
   .newsbox { max-height: 480px; overflow: auto; }
 
-  footer { border-top: 1px solid var(--border); margin-top: 32px; padding: 16px 0 24px; color: var(--muted); font-size: 12px; }
-  footer p { margin: 4px 0; max-width: 100ch; }
+  main > section:last-of-type { margin-bottom: 32px; }   /* space below the last section (the footer notes were removed) */
 
   @media (max-width: 520px) { .wrap { padding: 0 12px; } .brand h1 { font-size: 18px; } .cv.main { height: 300px; } .kv { font-size: 20px; } }
 
@@ -620,10 +619,6 @@
     </div>
   </section>
 
-  <footer>
-    <p>__DISCLAIMER__</p>
-    <p>Sources: FRED, Bank of Canada, Bundesbank, Japan MoF, RBA, ChinaBond, FBIL (India) and CNBC (France, Italy benchmark yields) (yields); CFTC (COT); Kalshi (Fed odds); ECB reference rates (FX pairs; DXY computed with ICE's published formula, Yahoo fallback); Yahoo Finance (gold futures); fx-macro-confluence feed (economy tiles, news).</p>
-  </footer>
 </main>
 
 <script>
