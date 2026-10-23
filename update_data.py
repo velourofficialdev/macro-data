@@ -58,6 +58,14 @@ CFTC_SOURCES = {
     "COT_USD_INDEX": ("6dca-aqww", "098662", "noncomm_positions_long_all",
                       "noncomm_positions_short_all", "ICE FUTURES"),
 }
+# CME currency futures, same legacy report (non-commercial = speculators), keyed by the currency they hold
+for _cur, _code in (("EUR", "099741"), ("JPY", "097741"), ("GBP", "096742"), ("CHF", "092741"),
+                    ("CAD", "090741"), ("AUD", "232741"), ("NZD", "112741")):
+    CFTC_SOURCES[f"COT_{_cur}"] = ("6dca-aqww", _code, "noncomm_positions_long_all",
+                                   "noncomm_positions_short_all", "CHICAGO MERCANTILE EXCHANGE")
+
+# BIS central bank policy rates (daily, official): area code -> label used on the dashboard
+POLICY_AREAS = {"US": "US", "XM": "EA", "GB": "GB", "JP": "JP", "CH": "CH", "CA": "CA", "AU": "AU", "NZ": "NZ"}
 
 
 def merge_save(path: Path, new: pd.DataFrame, key: str, keep: int) -> pd.DataFrame:
@@ -152,7 +160,7 @@ def fetch_dxy_stooq() -> pd.DataFrame:
 
 
 # ---- other countries: government yield curves from central-bank / ministry sources (daily, free, no key)
-INTL = {"CA": "Canada", "DE": "Germany", "FR": "France", "IT": "Italy", "JP": "Japan", "AU": "Australia", "CN": "China", "IN": "India"}
+INTL = {"GB": "United Kingdom", "CH": "Switzerland", "NZ": "New Zealand", "CA": "Canada", "DE": "Germany", "FR": "France", "IT": "Italy", "JP": "Japan", "AU": "Australia", "CN": "China", "IN": "India"}
 INTL_KEEP = 2700
 
 
@@ -242,14 +250,46 @@ def _cnbc_curve(cc: str) -> pd.DataFrame:
         r = requests.get("https://ts-api.cnbc.com/harmony/app/charts/1Y.json", params={"symbol": f"{cc}{t}Y-{cc}"},
                          headers=BROWSER, timeout=TIMEOUT)
         r.raise_for_status()
-        bars = r.json()["barData"]["priceBars"]
+        bars = (r.json().get("barData") or {}).get("priceBars") or []
+        if not bars:   # CNBC has no benchmark for this tenor (e.g. Switzerland 5Y/30Y, New Zealand 2Y/30Y)
+            continue
         s = pd.Series([float(b["close"]) for b in bars], index=pd.to_datetime([b["tradeTime"][:8] for b in bars]))
         s = s[~s.index.duplicated(keep="last")]
-        cols[f"{t}Y"] = s[s.index.dayofweek < 5]   # weekday bars close at the European close; weekend bars are late Friday trades
+        cols[f"{t}Y"] = s[s.index.dayofweek < 5]   # weekday bars close at the local close; weekend bars are late Friday trades
+    if not cols:
+        raise ValueError(f"CNBC has no benchmark yields for {cc}")
     df = pd.DataFrame(cols).dropna(how="all")
     if len(df) < 100:
         raise ValueError(f"CNBC returned only {len(df)} rows for {cc}")
+    df = df.reindex(columns=["2Y", "5Y", "10Y", "30Y"])   # tenors CNBC does not publish stay empty
     return df.rename_axis("date").reset_index()
+
+
+def fetch_yc_gb() -> pd.DataFrame:
+    return _cnbc_curve("GB")
+
+
+def fetch_yc_ch() -> pd.DataFrame:
+    return _cnbc_curve("CH")
+
+
+def fetch_yc_nz() -> pd.DataFrame:
+    return _cnbc_curve("NZ")
+
+
+def fetch_policy_rates() -> pd.DataFrame:
+    """BIS central bank policy rates (daily series, official). One column per currency area."""
+    r = requests.get("https://stats.bis.org/api/v2/data/dataflow/BIS/WS_CBPOL/1.0/D." + "+".join(POLICY_AREAS),
+                     params={"startPeriod": "2019-01-01", "format": "csv"}, headers=HEADERS, timeout=TIMEOUT)
+    r.raise_for_status()
+    f = pd.read_csv(io.StringIO(r.text), usecols=["REF_AREA", "TIME_PERIOD", "OBS_VALUE"])
+    f["REF_AREA"] = f["REF_AREA"].map(POLICY_AREAS)
+    f = f.dropna(subset=["REF_AREA"])
+    wide = f.pivot_table(index="TIME_PERIOD", columns="REF_AREA", values="OBS_VALUE", aggfunc="last").sort_index()
+    if wide.shape[1] < len(POLICY_AREAS) or len(wide) < 100:
+        raise ValueError(f"BIS returned {wide.shape[1]} areas / {len(wide)} rows")
+    wide = wide.ffill()   # the series only has a row on the days a rate was set or confirmed
+    return wide.rename_axis("date").reset_index()
 
 
 def fetch_yc_fr() -> pd.DataFrame:
@@ -524,7 +564,7 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         record("GOLD_PRICE", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
-    for cc, fn in (("CA", fetch_yc_ca), ("DE", fetch_yc_de), ("FR", fetch_yc_fr), ("IT", fetch_yc_it), ("JP", fetch_yc_jp),
+    for cc, fn in (("GB", fetch_yc_gb), ("CH", fetch_yc_ch), ("NZ", fetch_yc_nz), ("CA", fetch_yc_ca), ("DE", fetch_yc_de), ("FR", fetch_yc_fr), ("IT", fetch_yc_it), ("JP", fetch_yc_jp),
                    ("AU", fetch_yc_au), ("CN", fetch_yc_cn), ("IN", fetch_yc_in)):
         try:
             df = fn().dropna(subset=["2Y", "5Y", "10Y", "30Y"], how="all")
@@ -532,6 +572,12 @@ def main() -> int:
             record(f"YC_{cc}", True, saved["date"].iloc[-1], note=f"{INTL[cc]} government yields")
         except Exception as exc:  # noqa: BLE001
             record(f"YC_{cc}", False, error=f"{type(exc).__name__}: {exc}"[:200])
+
+    try:
+        saved = merge_save(DATA / "POLICY_RATES.csv", fetch_policy_rates(), "date", 3000)
+        record("POLICY_RATES", True, saved["date"].iloc[-1], note="BIS central bank policy rates")
+    except Exception as exc:  # noqa: BLE001
+        record("POLICY_RATES", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
     (DATA / "fx").mkdir(exist_ok=True)
     for pair in FX_PAIRS:
