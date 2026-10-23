@@ -5,7 +5,7 @@ This repo builds the Macro Dashboard (Brain item **B1**). It is private on purpo
 ## Hard rules
 
 - Use the **velourofficialdev** GitHub account only. Never the deiruuuu account.
-- Work on a branch and open a pull request. **Never push to `main`, and never merge unless the owner explicitly says to.** A push to `main` publishes the public page. When the owner gives permission to merge, merge that PR only, then check the publish run succeeded.
+- Work on a branch and open a pull request. **Never push to `main`.** A push to `main` publishes the public page. A PR is merged only by the `merger` agent, only on a `judge` PASS for that exact head sha, or as a revert of a merge that broke the live page. Standing permission given by the owner in chat to the lead on 2026-10-23: agents do everything except truly human tasks; a PR is auto-merged after judge PASS on its head and auto-reverted if the live page breaks. Nobody else merges.
 - Never edit `.github/workflows/`, secrets, tokens or the public repo. Never print a secret or a token.
 - Do not commit build output. Before committing run `git checkout -- docs data` and delete untracked build files, so a commit holds source changes only.
 - Do not copy data CSVs, `playbook.json` internals or source code into the public repo or any public place.
@@ -22,15 +22,19 @@ This repo builds the Macro Dashboard (Brain item **B1**). It is private on purpo
 | `export_excel.py` | builds `docs/Macro_Dashboard.xlsx` |
 | `data/status.json` | per-source health: `ok`, `checked_utc`, `last_data_date`, `error`, `note` |
 
+## How changes are made: the agent team
+
+Every change request goes through the `/team` skill (`.claude/skills/team/SKILL.md`). The session that receives the request is the lead: `planner` writes the plan, builders (`data-dev`, `dashboard-dev`, `playbook-editor`, `data-source-checker`) work in parallel in separate worktrees, checkers (`qa-tester`, `design-reviewer`, `data-auditor`, `code-reviewer`) review in parallel, `judge` decides PASS / FIX / HUMAN, and `merger` merges, watches the publish run and reverts if the live page breaks. The owner is asked only about things that need a human: money, secrets and workflow lines, licensing, a brand recolour, or a request whose intent is unclear. Requests come through chat only; the old scheduled Dashboard Builder is off.
+
 ## Check before every pull request
 
 ```
 pip install -r requirements.txt
-python build_dashboard.py          # must finish with no errors
-python -c "import json; json.load(open('playbook.json'))"
+python tools/check.py            # rules, playbook, real build, fixture build, browser checks; must print PASS
+python tools/shots.py PAGE OUT    # screenshots + layout suspects for design review
 ```
 
-Then open `docs/index.html` in headless Chromium (preinstalled; use `/opt/pw-browsers/chromium`, never run `playwright install`) through `file://` and confirm there are no console errors and the page is not empty. A pull request also triggers a build-only check that deploys nothing.
+`tools/check.py` builds into a fresh temporary folder (or the `--out` you give it, usually `$TEAM_DIR/<agent>-check`), never into `docs/`; `python tools/check.py --selftest` checks the gate's own secret patterns. Chromium is preinstalled under `/opt/pw-browsers`; never run `playwright install`. The sandbox cannot reach Cboe or Yahoo, so options code is tested with `tools/fixtures.py`. A pull request also triggers a build-only check that deploys nothing.
 
 ## Design and wording
 
@@ -40,10 +44,22 @@ Then open `docs/index.html` in headless Chromium (preinstalled; use `/opt/pw-bro
 
 ## Where requests come from
 
-The owner's queue is the Notion database "Dashboard Requests (B1)" under the brain page `4014ea14-1469-815e-80f3-f84947d9cb1e` (data source `collection://968819b4-ad5f-4967-893b-3b982ab62bb1`). The scheduled Dashboard Builder works from it. Keep the row's Status and notes up to date when you finish a request.
+The owner asks in chat. The Notion database "Dashboard Requests (B1)" (under the brain page `4014ea14-1469-815e-80f3-f84947d9cb1e`, data source `collection://968819b4-ad5f-4967-893b-3b982ab62bb1`) still receives ideas from the weekly Dashboard Reviewer; they are built only when the owner asks for one in chat. If a request came from a row, update its Status and notes when done.
 
-## Specialist agents in `.claude/agents/`
+## Agents in `.claude/agents/`
 
-- `dashboard-dev`: layout, charts and new panels (`template.html`, `build_dashboard.py`).
-- `playbook-editor`: wording and thresholds in `playbook.json`.
-- `data-source-checker`: investigates failing or stale sources and finds free (or free-key) replacements.
+| Agent | Role | Model |
+|---|---|---|
+| `planner` | request -> plan.md: tier, acceptance criteria, parallel packages, checkers, human-only items | sonnet |
+| `data-dev` | feeds and calculations: `update_data.py`, `options_levels.py`, `fed_rate_odds.py`; owns `tools/check.py` and `tools/fixtures.py` | sonnet |
+| `dashboard-dev` | layout, charts, panels, options desk: `template.html`, `build_dashboard.py`, `export_excel.py`; owns `tools/shots.py` | sonnet |
+| `playbook-editor` | wording, bands, cross-signals: `playbook.json` | sonnet |
+| `data-source-checker` | failing or stale sources, replacements | sonnet |
+| `qa-tester` | full gate + every acceptance criterion tested in Chromium | sonnet |
+| `design-reviewer` | screenshots in dark, light and phone; layout, readability, consistency | sonnet |
+| `data-auditor` | recomputes numbers, checks units, dates, honest labels, licensing, key handling | sonnet |
+| `code-reviewer` | diff: rule breaks, bugs, fail-soft, size | sonnet |
+| `judge` | PASS / FIX (routed fix list) / HUMAN, re-verifies key claims | opus |
+| `merger` | catch up with main, CI, merge the judged head only, watch publish, verify live, auto-revert | sonnet |
+
+The lead (the session running `/team`) owns the instruction files: `CLAUDE.md`, `.claude/skills/`, `.claude/agents/` and the process text in `README.md`.

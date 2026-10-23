@@ -2,3 +2,7 @@ __pycache__/
 .venv/
 *.pyc
 .ipynb_checkpoints/
+
+# agent team scratch
+.team/
+tools/out/
