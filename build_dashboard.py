@@ -872,6 +872,7 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
         out["upd"] = dates[-1]
     cards, confs = [], []
     live = 0
+    drivers = build_fx_drivers(data)
     for sym, d in fx.items():
         cf = d.get("confluence")
         tone = "flat" if not cf else ("up" if cf["score"] >= 60 else "down" if cf["score"] <= 40 else "mid")
@@ -899,7 +900,7 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
             confs.append(
                 f'<article class="conf"><div class="ctop"><b>{esc(sym)}</b><span>{esc(d.get("display", ""))}</span></div>'
                 f'<div class="chead">{gauge_ring(cf["score"], tone)}<div class="verdict {tone}">{esc(cf["label"].split(" ")[0])} confluence<small>Confluence score</small></div></div>'
-                f'<h5>Signals</h5>{sig_html}<h5>Support / resistance</h5>{sr_html}</article>')
+                f'<h5>Signals</h5>{sig_html}{drivers.get(sym, "")}<h5>Support / resistance</h5>{sr_html}</article>')
     if cards:
         note = "" if live else '<p class="emptystate">No FX feed saved yet. It appears after the first successful update.</p>'
         out["fx"] = note + '<div class="tiles fxtiles">' + "".join(cards) + "</div>"
@@ -945,13 +946,12 @@ DRV_BANK = {"US": "Fed", "EA": "ECB", "GB": "BoE", "JP": "BoJ", "CH": "SNB", "CA
 DRV_RISK = {"AUD": 1, "NZD": 1, "CAD": 1, "JPY": -1, "CHF": -1}     # +1 gains when risk appetite rises, -1 gains when it falls
 
 
-def build_fx_drivers(data: dict) -> str:
+def build_fx_drivers(data: dict) -> dict[str, str]:
     """Macro drivers per pair: each driver says whether it supports the pair higher (+1), lower (-1) or neither (0).
     Context only, not a forecast: a backtest (Apr 2025 - Oct 2026) found only the yield-gap trend leaned forward, and weakly."""
     d = data.get("drv") or {}
-    empty = '<p class="emptystate">Macro drivers appear after the first update with the new yield, policy-rate and COT feeds.</p>'
     if not d or (not d.get("yc") and d.get("pol") is None):
-        return empty
+        return {}
     pol = d.get("pol")
     us = {"2Y": data.get("yields", {}).get("DGS2"), "5Y": data.get("yields", {}).get("DGS5")}
     vix = data.get("mkt", {}).get("VIXCLS")
@@ -961,7 +961,7 @@ def build_fx_drivers(data: dict) -> str:
         vz = float((vix.iloc[-1] - vix.tail(252).mean()) / vix.tail(252).std())
         risk = -1 if vz > 0.5 else 1 if vz < -0.5 else 0          # +1 = risk appetite high
         vix_txt = f"VIX {vix.iloc[-1]:.1f}"
-    trs = []
+    out: dict[str, str] = {}
     for pair, (cur, cc, ten, pcol, side) in DRV_PAIRS.items():
         rows = []     # (name, tag, value, state)
         fy = (d.get("yc", {}).get(cc) or {}).get(ten)
@@ -971,19 +971,26 @@ def build_fx_drivers(data: dict) -> str:
             g = (j["f"] - j["u"]) * side            # positive = gap favours the pair rising
             now, chg = float(g.iloc[-1]), float(g.iloc[-1] - g.iloc[-21])
             st = 0 if abs(chg) < 0.05 else (1 if chg > 0 else -1)
-            rows.append((f"{ten} yield gap, 4-week trend", "Rates", f"{chg:+.2f} pp (gap {now:+.2f})", st))
+            rows.append((f"{ten} yield gap, 4-week trend", "Rates", f"{chg:+.2f} pp", st))
         else:
             rows.append((f"{ten} yield gap, 4-week trend", "Rates", "n/a", 0))
         if pol is not None and pcol in pol and "US" in pol:
             f, u = float(pol[pcol].iloc[-1]), float(pol["US"].iloc[-1])
             gp = (f - u) * side
-            rows.append(("Policy rate gap", "Bank", f"{u:.2f} vs {f:.2f}", 0 if abs(gp) < 0.25 else (1 if gp > 0 else -1)))
+            def stance(col):     # direction of the last 6 months (policy changes are infrequent)
+                ch = float(pol[col].iloc[-1] - pol[col].iloc[max(len(pol) - 183, 0)])
+                return "hiking" if ch >= 0.25 else "cutting" if ch <= -0.25 else "holding"
+            rows.append(("Policy rate gap", "Bank", f"{u:.2f} vs {f:.2f}", 0 if abs(gp) < 0.25 else (1 if gp > 0 else -1),
+                         f"{DRV_BANK['US']} {stance('US')} · {DRV_BANK[pcol]} {stance(pcol)}"))
         else:
             rows.append(("Policy rate gap", "Bank", "n/a", 0))
         net = (d.get("cot") or {}).get(cur)
         if net is not None and len(net) >= 52:
             z = float((net.iloc[-1] - net.tail(52).mean()) / net.tail(52).std(ddof=1))
-            rows.append((f"{cur} speculator positioning", "COT", f"Z {z:+.1f}", 0 if abs(z) < 0.5 else (1 if z * side > 0 else -1)))
+            crowded = abs(z) >= 2      # extreme positioning is as often a reversal risk as a trend, so it is shown but not counted
+            rows.append((f"{cur} speculator positioning", "COT",
+                         (f"crowded {'long' if z > 0 else 'short'} (Z {z:+.1f})" if crowded else f"Z {z:+.1f}"),
+                         0 if (crowded or abs(z) < 0.5) else (1 if z * side > 0 else -1)))
         else:
             rows.append((f"{cur} speculator positioning", "COT", "n/a", 0))
         sens = DRV_RISK.get(cur, 0)
@@ -996,19 +1003,55 @@ def build_fx_drivers(data: dict) -> str:
             tone, label, count = "down", "LOWER", f"{dns} of 4 agree"
         else:
             tone, label, count = "mid", "MIXED", f"{ups} up, {dns} down"
-        def cell(r):
-            n, t, v, st = r
-            arrow = "&#9650;" if st > 0 else "&#9660;" if st < 0 else "&ndash;"
-            return (f'<td class="dc {"up" if st > 0 else "down" if st < 0 else "flat"}" title="{esc(n)}: {"supports the pair higher" if st > 0 else "supports the pair lower" if st < 0 else "neutral"}">'
-                    f'<span class="da">{arrow}</span><small>{esc(v)}</small></td>')
-        trs.append(f'<tr><th scope="row">{esc(pair)}</th>' + "".join(cell(r) for r in rows) +
-                   f'<td class="dread"><span class="tag {tone}">{label}</span><small>{esc(count)}</small></td></tr>')
-    return ('<div class="drvwrap"><table class="drv"><thead><tr><th>Pair</th><th>2Y yield gap<small>4-week trend</small></th>'
-            '<th>Policy rates<small>gap</small></th><th>Positioning<small>speculators, Z</small></th><th>Risk appetite<small>VIX</small></th>'
-            '<th>Read</th></tr></thead><tbody>' + "".join(trs) + '</tbody></table></div>'
-            '<p class="note">&#9650; green supports the pair rising, &#9660; red supports it falling, &ndash; grey is neutral. Context, not a forecast: '
-            'in a backtest of these 7 pairs (Apr 2025 to Oct 2026) only the yield-gap trend leaned forward, and only weakly; policy rates and positioning mostly describe moves already under way. '
-            'The risk column applies to AUD, NZD, CAD, JPY and CHF only. NZDUSD uses the 5Y gap.</p>')
+        def row(r):
+            n, t, v, st, *extra = r
+            sub = f'<small class="ssub">{esc(extra[0])}</small>' if extra else ""
+            return (f'<div class="sig m"><span class="dot {"up" if st > 0 else "down" if st < 0 else "flat"}" '
+                    f'title="{"supports the pair higher" if st > 0 else "supports the pair lower" if st < 0 else "neutral"}"></span>'
+                    f'<span class="sn">{esc(n)}</span><span class="sv">{esc(v)}</span>{sub}</div>')
+        names = ("2Y yield gap, 4-week", "Policy rates", "Positioning (Z)", "Risk appetite")
+        out[pair] = (f'<h5>Macro drivers <span class="tag {tone}">{label}</span><small class="dcount">{esc(count)}</small></h5>'
+                     + "".join(row((names[k] if ten == "2Y" or k else "5Y yield gap, 4-week", r[1], r[2], r[3], *r[4:])) for k, r in enumerate(rows)))
+    return out
+
+
+def build_week(data: dict) -> str:
+    """Upcoming central bank decisions and key US releases from the hand-maintained calendar.json, plus a one-line regime read."""
+    empty = '<p class="muted-text pad">No calendar saved yet.</p>'
+    p = Path(__file__).parent / "calendar.json"
+    if not p.exists():
+        return empty
+    cal = json.loads(p.read_text())
+    today = datetime.now(timezone.utc).date()
+    ev = [e for e in cal.get("events", []) if 0 <= (date.fromisoformat(e["date"]) - today).days <= 14][:8]
+    bits = []
+    vix = data.get("mkt", {}).get("VIXCLS")
+    if vix is not None and len(vix) > 120:
+        vz = float((vix.iloc[-1] - vix.tail(252).mean()) / vix.tail(252).std())
+        bits.append(f"Risk appetite: {'stressed' if vz > 0.5 else 'calm' if vz < -0.5 else 'normal'} (VIX {vix.iloc[-1]:.1f})")
+    dxy = data.get("dxy")
+    if dxy is not None and len(dxy) > 60:
+        ch = float(dxy.iloc[-1] / dxy.iloc[-21] - 1) * 100
+        bits.append(f"Dollar (DXY): {'firming' if ch > 0.5 else 'softening' if ch < -0.5 else 'flat'} ({ch:+.1f}% in 4 weeks, {'above' if dxy.iloc[-1] >= dxy.tail(50).mean() else 'below'} its 50-day average)")
+    fed = data.get("fed") or {}
+    fedline = ""
+    for m in fed.get("meetings", []):
+        if m.get("date") and 0 <= (date.fromisoformat(m["date"]) - today).days <= 14:
+            raw = m["raw"]
+            hold = float(raw.get("H0") or 0); cut = float((raw.get("C25") or 0) + (raw.get("C26") or 0)); hike = float((raw.get("H25") or 0) + (raw.get("H26") or 0))
+            fedline = f"market odds: hold {hold * 100:.0f}%, cut {cut * 100:.0f}%, hike {hike * 100:.0f}%"
+            fed_date = m["date"]
+            break
+    rows = []
+    for e in ev:
+        d = date.fromisoformat(e["date"]); n = (d - today).days
+        when = "today" if n == 0 else "tomorrow" if n == 1 else f"in {n} days"
+        extra = fedline if (e["name"].startswith("Fed decision") and fedline and e["date"] == fed_date) else ""
+        rows.append(f'<li><span class="wkd">{d.strftime("%a %d %b")}</span><span class="wkn">{esc(e["name"])}</span>'
+                    f'<span class="wkp">{esc(e["pairs"])}</span><span class="wkx">{esc(extra) if extra else when}</span></li>')
+    reg = f'<p class="wkreg">{" &middot; ".join(esc(b) for b in bits)}</p>' if bits else ""
+    body = f'<ul class="wkl">{"".join(rows)}</ul>' if rows else '<p class="muted-text pad">No scheduled central bank decisions or key US releases in the next 14 days.</p>'
+    return reg + body + f'<p class="note">Dates from each central bank\'s own calendar (checked {esc(cal.get("checked", ""))}); the calendar is maintained by hand. RBNZ dates are not yet published.</p>'
 
 
 def build_cot_cards(playbook: dict, metrics: dict, split: bool = False):
@@ -1525,7 +1568,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__TILES__": fx["tiles"], "__SIGNALS__": sig_html, "__WATCHLIST__": build_watch_html(rows), "__MATRIX__": build_matrix(data, computed),
         "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_GOLD_TABLE__": cot_t["gold"], "__COT_USD_TABLE__": cot_t["usd_index"],
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
-        "__FX_CARDS__": fx["fx"], "__DRIVERS__": build_fx_drivers(data), "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
+        "__FX_CARDS__": fx["fx"], "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
         "__STATUS__": build_status(data, today),
     }
