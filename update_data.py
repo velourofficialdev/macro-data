@@ -42,6 +42,7 @@ ECON_CODES = [   # US macro releases from FRED -> data/econ/<CODE>.csv (12 years
     "ICSA", "CCSA", "JTSJOL", "JTSQUR",
 ]
 MARKET_CODES = ["SP500", "DCOILWTICO", "VIXCLS", "GVZCLS", "CBBTCUSD"]   # GVZCLS = Cboe Gold ETF Volatility Index (GVZ)   # tiles in the overview (FRED, daily) -> data/econ/<CODE>.csv
+LONG_MARKET = {"SP500", "VIXCLS"}
 FRED_ALIAS = {"GDIC1": "A261RX1Q020SBEA"}   # FRED has no GDIC1 id; this is Real Gross Domestic Income (chained 2017 $)
 FRED_CODES = ["DGS3MO", "DGS2", "DGS5", "DGS10", "DGS20", "DGS30", "DFII10"]
 KEEP_DAILY = 2700     # rows kept per daily series (about 10 years; the 252-day window needs only 252)
@@ -525,7 +526,8 @@ def main() -> int:
     for code in ECON_CODES + MARKET_CODES:
         try:
             src = FRED_ALIAS.get(code, code)
-            df = fetch_fred(src, 2 if code in MARKET_CODES else 12).rename(columns={src: code})
+            yrs = 10 if code in LONG_MARKET else (2 if code in MARKET_CODES else 12)   # long history feeds the regime fingerprint
+            df = fetch_fred(src, yrs).rename(columns={src: code})
             saved = merge_save(DATA / "econ" / f"{code}.csv", df, "date", 4000)
             record(f"ECON_{code}", True, saved["date"].iloc[-1])
         except Exception as exc:  # noqa: BLE001

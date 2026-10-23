@@ -1238,13 +1238,21 @@ OPT_META = {
 
 def load_options(data_dir: Path) -> dict:
     out = {}
+    vp = data_dir / "options" / "VIX_TERM.csv"
+    if vp.exists():
+        try:
+            out["_vix_term"] = pd.read_csv(vp, parse_dates=["date"]).set_index("date").sort_index().dropna()
+        except Exception:  # noqa: BLE001
+            pass
     for key in OPT_META:
         p = data_dir / "options" / f"{key}.json"
         if p.exists():
             try:
                 snap = json.loads(p.read_text())
                 hp = data_dir / "options" / f"{key}_history.csv"
-                snap["history"] = pd.read_csv(hp).tail(10).iloc[::-1].to_dict("records") if hp.exists() else []
+                hist = pd.read_csv(hp) if hp.exists() else pd.DataFrame()
+                snap["history"] = hist.tail(10).iloc[::-1].to_dict("records") if len(hist) else []
+                snap["history_full"] = json.loads(hist.tail(260).to_json(orient="records")) if len(hist) else []
                 out[key] = snap
             except Exception:  # noqa: BLE001
                 pass
@@ -1273,9 +1281,62 @@ def opt_payload(data: dict) -> dict:
         if mp and spot:
             mapping = {"mode": meta["mode"], "basis": round(mp - spot, 4), "ratio": round(mp / spot, 6), "label": meta["map"].split(" (")[0], "dec": meta["mdec"]}
         out[key] = {"title": meta["title"].replace("&amp;", "&"), "date": s.get("date"), "spot": spot, "flip": s.get("gamma_flip"),
-                    "atm_iv": s.get("atm_iv"), "day_move": s.get("day_move"), "pcr_oi": s.get("pcr_oi"), "dec": meta["dec"],
+                    "atm_iv": s.get("atm_iv"), "day_move": s.get("day_move"), "pcr_oi": s.get("pcr_oi"), "pcr_vol": s.get("pcr_vol"), "dec": meta["dec"],
+                    "net_gex_bn": s.get("net_gex_bn"), "max_pain": s.get("max_pain"), "front_move": s.get("front_move"), "king": s.get("king"),
+                    "oi_changes": s.get("oi_changes") or [], "vol": s.get("vol") or {}, "history": s.get("history_full") or [],
                     "map": mapping, "surface": s["surface"]}
+    vt = (data.get("options") or {}).get("_vix_term")
+    if out and vt is not None and len(vt) > 20:
+        t = vt.tail(260)
+        out["_vix"] = {"dates": [d.strftime("%Y-%m-%d") for d in t.index], "vix": [r(v, 2) for v in t["VIXCLS"]], "vix3m": [r(v, 2) for v in t["VXVCLS"]],
+                       "ratio": [r(v, 3) for v in t["VXVCLS"] / t["VIXCLS"]]}
     return out
+
+
+def build_fingerprint(data: dict) -> str:
+    """Regime fingerprint: today's market profile vs every past day, with what followed the closest matches.
+    Features (z-scored over the whole history): 10y-2y curve, 10y real yield, VIX (log), and 21-day % change in
+    the S&P 500, gold and DXY."""
+    y, mk = data.get("yields", {}), data.get("mkt", {})
+    need = {"curve": (y.get("DGS10") is not None and y.get("DGS2") is not None), "real": y.get("DFII10") is not None,
+            "vix": mk.get("VIXCLS") is not None, "spx": mk.get("SP500") is not None, "gold": data.get("gold_px") is not None, "dxy": data.get("dxy") is not None}
+    if not all(need.values()):
+        return '<p class="quiet">Needs the curve, real yield, VIX, S&amp;P 500, gold and DXY series.</p>'
+    idx = pd.bdate_range(end=max(s.index.max() for s in (mk["SP500"], data["gold_px"], data["dxy"])), periods=2700)
+    al = lambda s: s.reindex(s.index.union(idx)).sort_index().ffill(limit=5).reindex(idx)
+    spx, gold, dxy, vix = al(mk["SP500"]), al(data["gold_px"]), al(data["dxy"]), al(mk["VIXCLS"])
+    F = pd.DataFrame({"10y-2y curve": al(y["DGS10"]) - al(y["DGS2"]), "10y real yield": al(y["DFII10"]), "VIX (log)": np.log(vix),
+                      "S&P 500 21d %": spx.pct_change(21) * 100, "Gold 21d %": gold.pct_change(21) * 100, "DXY 21d %": dxy.pct_change(21) * 100}).dropna()
+    if len(F) < 160:
+        return '<p class="quiet">Not enough overlapping history yet.</p>'
+    Z = (F - F.mean()) / F.std()
+    today = Z.iloc[-1]
+    cand = Z.iloc[:-63]
+    dist = np.sqrt(((cand - today) ** 2).sum(axis=1)).sort_values()
+    picks = []
+    for d in dist.index:
+        if all(abs((d - q).days) > 30 for q in picks):
+            picks.append(d)
+        if len(picks) == 5:
+            break
+    fwd = lambda s, d: (s.loc[s.index > d].iloc[20] / s.loc[d] - 1) * 100 if (s.index > d).sum() > 20 and pd.notna(s.loc[d]) else None
+    n = len(today)
+    rows, outs = [], {"S&P 500": [], "Gold": [], "DXY": []}
+    for d in picks:
+        sim = max(0.0, 1 - dist[d] / (2 * np.sqrt(n))) * 100
+        res = {"S&P 500": fwd(spx, d), "Gold": fwd(gold, d), "DXY": fwd(dxy, d)}
+        for k, v in res.items():
+            if v is not None:
+                outs[k].append(v)
+        cell = lambda v: '<td class="muted-text">n/a</td>' if v is None else f'<td class="{"up" if v > 0 else "down"}">{v:+.2f}%</td>'
+        rows.append(f'<tr><th scope="row">{d.strftime("%Y-%m-%d")}</th><td>{sim:.0f}%</td>' + "".join(cell(res[k]) for k in ("S&P 500", "Gold", "DXY")) + "</tr>")
+    med = lambda a: (f'{np.median(a):+.2f}%' if a else "n/a")
+    prof = "".join(f'<span class="fpz"><b>{esc(k)}</b> {F[k].iloc[-1]:+.2f} <i class="{"up" if v > 0.5 else "down" if v < -0.5 else "muted-text"}">z {v:+.1f}</i></span>' for k, v in today.items())
+    return (f'<div class="fpprof">{prof}</div>'
+            '<table class="opttab"><thead><tr><th>Closest past day</th><th>Similarity</th><th>S&amp;P 500 next 21d</th><th>Gold next 21d</th><th>DXY next 21d</th></tr></thead><tbody>'
+            + "".join(rows) + f'<tr class="optnow"><th scope="row">Median of matches</th><td></td><td>{med(outs["S&P 500"])}</td><td>{med(outs["Gold"])}</td><td>{med(outs["DXY"])}</td></tr></tbody></table>'
+            f'<p class="note">History used: {F.index[0].strftime("%b %Y")} to {F.index[-1].strftime("%d %b %Y")}, excluding the last 3 months. Five matches at least a month apart. '
+            'What followed past look-alikes is context, not a forecast; five cases is a small sample.</p>')
 
 def build_options(data: dict, today: date) -> str:
     opts = data.get("options") or {}
@@ -1696,7 +1757,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
         "__FX_CARDS__": fx["fx"], "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
-        "__STATUS__": build_status(data, today), "__OPTIONS__": build_options(data, today),
+        "__STATUS__": build_status(data, today), "__OPTIONS__": build_options(data, today), "__FINGERPRINT__": build_fingerprint(data),
     }
     for k, v in rep.items():
         page = page.replace(k, v)

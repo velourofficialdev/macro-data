@@ -39,6 +39,10 @@ RATE = 0.04          # flat risk-free rate for the gamma re-pricing; GEX is not 
 MAX_DTE = 60         # expiries further out than this add little gamma near price
 OPT_RE = re.compile(r"^(?P<root>[A-Z]+)(?P<ymd>\d{6})(?P<cp>[CP])(?P<k>\d{8})$")
 
+RV_SOURCE = {   # realised vol of the underlying: (file under data/, column, label)
+    "SPX": ("econ/SP500.csv", "SP500", "S&P 500 index closes (FRED SP500)"),
+    "GOLD": ("GOLD.csv", "Gold", "COMEX gold future closes (GC=F)"),
+}
 INSTRUMENTS = {
     # key: (Cboe symbol, label, mapped instrument label, Yahoo symbol of the mapped instrument, strike window around price)
     "SPX": ("_SPX", "SPX", "ES (E-mini S&P 500 future)", "ES=F", 0.06),
@@ -204,6 +208,8 @@ def analyse(raw: pd.DataFrame, spot: float, asof: pd.Timestamp, window: float) -
         "day_move": round(day_move, 2) if day_move else None,
         "front_move": front_expected_move(raw, spot, asof),
         "pcr_oi": round(oi_p / oi_c, 3) if oi_c else None, "pcr_vol": round(v_p / v_c, 3) if v_c else None,
+        "king": ({"k": float(near["net"].abs().idxmax()), "v": round(float(near.loc[near["net"].abs().idxmax(), "net"]) / 1e6, 2)}
+                 if not near.empty and near["net"].abs().max() > 0 else None),
         "strikes": strikes, "profile": profile,
         "contracts": int(len(df)), "expiries": int(df["expiry"].nunique()),
     }
@@ -308,6 +314,118 @@ def build_surface(raw: pd.DataFrame, spot: float, asof: pd.Timestamp, window: fl
             "smile": smile, "units": GREEK_UNITS}
 
 
+# ---------------------------------------------------------------- scenario reprice (Effective / Shadow), vol term structure, VRP
+LADDER = [-3.0, -2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0, 3.0]   # % moves; the 1-sigma move is added per instrument
+
+
+def _sticky_moneyness_iv(df: pd.DataFrame, spot: float, new_spot: float) -> np.ndarray:
+    """IV each contract would carry if the smile moved with price (same moneyness, same expiry)."""
+    out = df["iv"].values.copy()
+    for e, idx in df.groupby("expiry").indices.items():
+        sub = df.iloc[idx]
+        curve = sub.groupby("strike")["iv"].mean().sort_index()
+        if len(curve) < 3:
+            continue
+        look = sub["strike"].values * spot / new_spot
+        out[idx] = np.interp(look, curve.index.values, curve.values)
+    return out
+
+
+def scenarios(df: pd.DataFrame, spot: float, strikes: list, cols: list, sigma_pct: float | None) -> dict:
+    """Gamma exposure per strike after a price move.
+    effective = repriced at the new price with each contract keeping its IV (sticky strike);
+    shadow    = the extra change when IV instead slides along the smile with price (sticky moneyness)."""
+    sig = round(sigma_pct, 2) if sigma_pct else None
+    moves = sorted(set([m for m in LADDER if not sig or abs(abs(m) - sig) > 0.2] + ([sig, -sig] if sig else [])))
+    kidx = {k: i for i, k in enumerate(strikes)}
+    groups = [("all", df)] + [(i, df[df["expiry"] == e]) for i, e in enumerate(cols[:3])]
+    res = {"moves": moves, "eff": {}, "shadow": {}}
+    for name, sub in groups:
+        if sub.empty:
+            continue
+        eff_rows, sh_rows = [], []
+        for m in moves:
+            s2 = spot * (1 + m / 100)
+            g_ss = bs_gamma(s2, sub["strike"].values, sub["t"].values, sub["iv"].values)
+            iv_sm = _sticky_moneyness_iv(sub, spot, s2)
+            g_sm = bs_gamma(s2, sub["strike"].values, sub["t"].values, iv_sm)
+            w = sub["sign"].values * sub["oi"].values * 100.0 * s2 * s2 * 0.01
+            for rows, vals in ((eff_rows, w * g_ss), (sh_rows, w * (g_sm - g_ss))):
+                arr = [0] * len(strikes)
+                for k, v in pd.Series(vals, index=sub["strike"].values).groupby(level=0).sum().items():
+                    if k in kidx:
+                        arr[kidx[k]] = _sig(float(v))
+                rows.append(arr)
+        res["eff"][str(name)] = eff_rows
+        res["shadow"][str(name)] = sh_rows
+    return res
+
+
+def vol_term(raw: pd.DataFrame, spot: float, asof: pd.Timestamp) -> list[dict]:
+    """Per expiry: ATM IV, 25-delta risk reversal (put IV - call IV) and butterfly (wings avg - ATM)."""
+    out = []
+    d = raw[(raw["iv"] > 0.01) & (raw["iv"] < 5) & (raw["expiry"] > asof.normalize())].copy()
+    for e, sub in sorted(d.groupby("expiry"), key=lambda x: x[0]):
+        dte = (e - asof.normalize()).days
+        if dte > 120:
+            break
+        t = max(dte, 0.5) / 365.0
+        sub = sub.copy()
+        sub["d1"] = (np.log(spot / sub["strike"]) + (RATE + 0.5 * sub["iv"] ** 2) * t) / (sub["iv"] * math.sqrt(t))
+        c, p = sub[sub["type"] == "C"].copy(), sub[sub["type"] == "P"].copy()
+        if len(c) < 3 or len(p) < 3:
+            continue
+        c["delta"] = _ncdf(c["d1"].values)
+        p["delta"] = _ncdf(p["d1"].values) - 1
+        atm = sub.iloc[(sub["strike"] - spot).abs().argsort()[:4]]["iv"].mean()
+        c25 = c.iloc[(c["delta"] - 0.25).abs().argsort()[:1]]["iv"].mean()
+        p25 = p.iloc[(p["delta"] + 0.25).abs().argsort()[:1]]["iv"].mean()
+        out.append({"e": e.strftime("%Y-%m-%d"), "dte": int(dte), "atm": round(float(atm) * 100, 2),
+                    "rr25": round(float(p25 - c25) * 100, 2), "bf25": round(float((p25 + c25) / 2 - atm) * 100, 2)})
+    return out
+
+
+def iv_at(term: list[dict], days: int) -> float | None:
+    pts = [(x["dte"], x["atm"]) for x in term if x["dte"] >= 1]
+    if len(pts) < 2:
+        return pts[0][1] if pts else None
+    xs, ys = zip(*pts)
+    return round(float(np.interp(days, xs, ys)), 2)
+
+
+def realised_vol(path: Path, col_hint: str | None = None) -> dict:
+    """Annualised close-to-close realised vol over 10 / 20 / 60 trading days from a saved price CSV."""
+    if not path.exists():
+        return {}
+    df = pd.read_csv(path)
+    col = col_hint if col_hint in df.columns else df.columns[1]
+    px = pd.to_numeric(df[col], errors="coerce").dropna()
+    r = np.log(px).diff().dropna()
+    return {f"rv{n}": round(float(r.tail(n).std() * math.sqrt(252) * 100), 2) for n in (10, 20, 60) if len(r) >= n}
+
+
+def fetch_fred_series(code: str, years: int = 10) -> pd.DataFrame:
+    start = (pd.Timestamp.today().normalize() - pd.Timedelta(days=years * 365)).strftime("%Y-%m-%d")
+    r = requests.get("https://fred.stlouisfed.org/graph/fredgraph.csv", params={"id": code, "cosd": start}, timeout=30)
+    r.raise_for_status()
+    from io import StringIO
+    df = pd.read_csv(StringIO(r.text))
+    df.columns = ["date", code]
+    df[code] = pd.to_numeric(df[code], errors="coerce")
+    return df.dropna()
+
+
+def update_vix_term(outdir: Path) -> tuple[bool, str | None, str | None]:
+    """VIX (30-day) and VIX3M (3-month) from FRED -> data/options/VIX_TERM.csv."""
+    try:
+        a, b = fetch_fred_series("VIXCLS"), fetch_fred_series("VXVCLS")
+        df = a.merge(b, on="date", how="inner")
+        df.to_csv(outdir / "VIX_TERM.csv", index=False)
+        return True, str(df["date"].iloc[-1]), None
+    except Exception as exc:  # noqa: BLE001
+        return False, None, f"{type(exc).__name__}: {exc}"[:200]
+
+
 def oi_changes(raw: pd.DataFrame, prev_path: Path, spot: float, window: float) -> tuple[list[dict], pd.DataFrame]:
     cur = raw.groupby(["strike", "type"])["oi"].sum().unstack(fill_value=0.0).rename(columns={"C": "call_oi", "P": "put_oi"})
     for col in ("call_oi", "put_oi"):
@@ -347,20 +465,37 @@ def update(data_dir: Path) -> dict[str, tuple[bool, str | None, str | None, str 
                     "oi_changes": changes, **a}
             try:   # the interactive Greek views; the level table above still works if this part fails
                 snap["surface"] = build_surface(raw, spot, asof, window)
+                df_w = prepare(raw, asof)
+                df_w = df_w[(df_w["strike"] >= spot * (1 - window)) & (df_w["strike"] <= spot * (1 + window))]
+                cols = [pd.Timestamp(e["e"]) for e in snap["surface"]["expiries"]]
+                sig = (a["day_move"] / spot * 100) if a.get("day_move") else None
+                snap["surface"]["scen"] = scenarios(df_w, spot, snap["surface"]["strikes"], cols, sig)
             except Exception as exc:  # noqa: BLE001
                 snap["surface"] = {}
                 snap["surface_error"] = f"{type(exc).__name__}: {exc}"[:200]
+            try:   # volatility: term structure, skew, implied vs realised
+                term = vol_term(raw, spot, asof)
+                rv = realised_vol(data_dir / RV_SOURCE[key][0], RV_SOURCE[key][1])
+                iv30 = iv_at(term, 30)
+                snap["vol"] = {"term": term, "iv30": iv30, **rv,
+                               "vrp": round(iv30 - rv["rv20"], 2) if iv30 is not None and "rv20" in rv else None,
+                               "rv_source": RV_SOURCE[key][2]}
+            except Exception as exc:  # noqa: BLE001
+                snap["vol"] = {"error": f"{type(exc).__name__}: {exc}"[:200]}
             (outdir / f"{key}.json").write_text(json.dumps(snap, separators=(",", ":")))
             oi_now.to_csv(outdir / f"{key}_oi.csv", index=False)
             hp = outdir / f"{key}_history.csv"
-            row = pd.DataFrame([{k: snap[k] for k in ("date", "spot", "net_gex_bn", "gamma_flip", "call_wall", "put_wall",
-                                                      "max_pain", "atm_iv", "pcr_oi", "pcr_vol", "mapped_price")}])
+            row = pd.DataFrame([{**{k: snap[k] for k in ("date", "spot", "net_gex_bn", "gamma_flip", "call_wall", "put_wall",
+                                                        "max_pain", "atm_iv", "pcr_oi", "pcr_vol", "mapped_price")},
+                                 "iv30": (snap.get("vol") or {}).get("iv30"), "rv20": (snap.get("vol") or {}).get("rv20")}])
             hist = pd.concat([pd.read_csv(hp), row], ignore_index=True) if hp.exists() else row
             hist.drop_duplicates("date", keep="last").sort_values("date").tail(400).to_csv(hp, index=False)
             note = f"Cboe delayed chain {sym}, {a['contracts']} contracts in {a['expiries']} expiries" + ("" if mapped else f"; {ysym} price unavailable, levels shown in {label} units only")
             result[key] = (True, day, None, note)
         except Exception as exc:  # noqa: BLE001 - keep the previous files, report in status
             result[key] = (False, None, f"{type(exc).__name__}: {exc}"[:200], None)
+    ok, last, err = update_vix_term(outdir)
+    result["VIX_TERM"] = (ok, last, err, "FRED VIXCLS and VXVCLS (VIX3M)" if ok else None)
     return result
 
 
