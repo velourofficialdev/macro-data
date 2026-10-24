@@ -9,9 +9,10 @@ It runs, in order, and writes DIR/check.json plus DIR/check.md (default DIR: a f
   3. build     - build_dashboard.py with the real data/ (into DIR, never into docs/)
   4. fixtures  - tools/fixtures.py into a copy of data/, then a second build, so the options desk is
                  exercised even when the sandbox cannot reach Cboe / Yahoo / FRED
-  5. browser   - headless Chromium on both builds: main page and #options, dark + light + phone,
+  4b. single-expiry fixtures - same, but GLD has a chain with ONE expiry (third build, browsed in full)
+  5. browser   - headless Chromium on every build: main page and #options, dark + light + phone,
                  console errors, empty page, horizontal scroll on phone, page switching, every
-                 instrument x mode x Greek on the desk
+                 instrument x mode x Greek, expiry picker and window resize on the desk
 --root DIR checks that repo instead of the one holding this file (for a copy of this script saved elsewhere).
 --selftest checks the secret patterns only (also run as part of step 1).
 --quick skips step 4 and the click-through (for a fast loop while building).
@@ -40,6 +41,7 @@ SECRETS = [   # (a) assignment / JSON / header, (b) bearer token, (c) URL query
     re.compile(r"[?&](?:api[_-]?key|apikey|key|token|access_token)=[A-Za-z0-9._+/\-]{12,}", re.I),
 ]
 MARK_FILE = ".macro-check"
+SINGLE_EXPIRY_INST = "GLD"   # fixtures chain key; its options file is GOLD.json
 
 
 def is_secret(line: str) -> bool:
@@ -223,7 +225,13 @@ def browser(html: Path, full: bool) -> list[str]:
                                 for m in ("eff", "shadow", "trad"):
                                     if pg.locator(f"#od-mode button[data-v='{m}']:not([disabled])").count():
                                         pg.click(f"#od-mode button[data-v='{m}']")
-                                pg.select_option("#od-ex", index=min(2, pg.locator("#od-ex option").count() - 1))
+                                n_ex = pg.locator("#od-ex option").count()
+                                for i in sorted({0, min(2, n_ex - 1), n_ex - 1} - {-1}):
+                                    pg.select_option("#od-ex", index=i)
+                                for vw in (390, 1440):   # resize redraws every chart: a one-expiry surface must survive it
+                                    pg.set_viewport_size({"width": vw, "height": 900})
+                                    pg.wait_for_timeout(150)
+                            pg.wait_for_timeout(300)
                             if pg.locator("nav.sections a[href='#fx']").count():
                                 pg.click("nav.sections a[href='#fx']")
                                 pg.wait_for_timeout(400)
@@ -290,6 +298,25 @@ def main() -> int:
             errs.append("fixture build failed:\n" + tail2)
         else:
             htmls.append(out / "fixture" / "index.html")
+        # single-expiry variant: one instrument whose chain (and so surface) has one expiry; the desk must not throw
+        sx_data = out / "fixture-single-data"
+        shutil.copytree(ROOT / "data", sx_data)
+        shutil.rmtree(sx_data / "options", ignore_errors=True)
+        r = sh([sys.executable, "tools/fixtures.py", str(sx_data), "--single-expiry", SINGLE_EXPIRY_INST])
+        if r.returncode != 0:
+            errs.append("single-expiry fixtures failed:\n" + (r.stdout + r.stderr)[-800:])
+        else:
+            try:
+                surf = json.loads((sx_data / "options" / "GOLD.json").read_text()).get("surface")
+                if "expiry" in json.dumps(surf)[:0] or surf is None:
+                    errs.append("single-expiry fixture has no surface")
+            except Exception as exc:  # noqa: BLE001
+                errs.append(f"single-expiry fixture unreadable: {exc}")
+        ok3, tail3 = build(sx_data, out / "fixture-single" / "index.html")
+        if not ok3:
+            errs.append("single-expiry fixture build failed:\n" + tail3)
+        else:
+            htmls.append(out / "fixture-single" / "index.html")
         res["fixtures"] = {"errors": errs}
 
     berrs = []
