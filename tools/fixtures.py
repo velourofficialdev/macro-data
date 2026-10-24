@@ -7,6 +7,7 @@ and index closes in Yahoo's shape and VIX-family series in FRED's CSV shape, the
 open-interest-change table and history are exercised too).
 
     python tools/fixtures.py OUT_DIR          # writes OUT_DIR/options/*  (copy the real data/ in first if you want a full page)
+    python tools/fixtures.py OUT_DIR --single-expiry GLD   # same, but GLD has a single expiry (one surface row)
 
 Numbers here are made up. Never publish them and never describe them as market data.
 """
@@ -93,8 +94,17 @@ def install(chains: dict) -> None:
     ol.requests.get = fake_get
 
 
-def run(out: Path) -> dict:
+def keep_one_expiry(chain: dict) -> None:
+    """Cut a fake chain down to its earliest expiry, so the instrument's surface has a single expiry row."""
+    opts = chain["data"]["options"]
+    first = min(o["option"][-15:-9] for o in opts)   # YYMMDD sits before the C/P letter and the 8-digit strike
+    chain["data"]["options"] = [o for o in opts if o["option"][-15:-9] == first]
+
+
+def run(out: Path, single_expiry: str | None = None) -> dict:
     chains = {k: fake_chain(*v) for k, v in CHAINS.items()}
+    if single_expiry:
+        keep_one_expiry(chains[single_expiry])
     install(chains)
     out.mkdir(parents=True, exist_ok=True)
     ol.update(out)
@@ -118,8 +128,11 @@ def guard_out(path: Path) -> Path:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Write fake Cboe-shaped option feeds into OUT_DIR/options (offline test data, never market data).")
     ap.add_argument("out_dir", help="directory to write options/ into (copy the real data/ in first for a full page)")
-    out = guard_out(Path(ap.parse_args().out_dir))
-    res = run(out)
+    ap.add_argument("--single-expiry", metavar="INSTRUMENT", choices=list(CHAINS),
+                    help="give this instrument (e.g. GLD) a chain with ONE expiry, so its surface has one expiry row (edge case that once crashed the desk)")
+    a = ap.parse_args()
+    out = guard_out(Path(a.out_dir))
+    res = run(out, a.single_expiry)
     bad = {k: v for k, v in res.items() if not v[0]}
     for k, v in res.items():
         print(("OK   " if v[0] else "FAIL ") + k + "  " + (v[3] or v[2] or ""))

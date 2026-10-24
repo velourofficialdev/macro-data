@@ -1776,7 +1776,7 @@ def build_fed(data: dict, today: date) -> tuple[dict, dict | None, str | None]:
     days_to = (nx["d"] - today).days
     p = nx["p"]
     stack = ('<div class="stack3" role="img" aria-label="Cut {:.0f}%, hold {:.0f}%, hike {:.0f}%">'.format(p["cut"], p["hold"], p["hike"])
-             + "".join(f'<span class="seg {k}" style="flex-basis:{p[k]:.2f}%" title="{k.capitalize()} {p[k]:.0f}%">{(k.capitalize() + " " + format(p[k], ".0f") + "%") if p[k] >= 9 else ""}</span>' for k in ("cut", "hold", "hike"))
+             + "".join(f'<span class="seg {k}" style="flex-basis:{p[k]:.2f}%" title="{k.capitalize()} {p[k]:.0f}%">{(k.capitalize() + " " + format(p[k], ".0f") + "%") if p[k] >= 30 else (format(p[k], ".0f") + "%") if p[k] >= 8 else ""}</span>' for k in ("cut", "hold", "hike"))
              + '</div><div class="stacklegend">' + "".join(f'<span><i class="seg {k}"></i>{k.capitalize()} {p[k]:.0f}%</span>' for k in ("cut", "hold", "hike")) + "</div>")
     out["next"] = (f'<div class="fnext"><div class="fmeet"><div class="kl">Next FOMC decision</div><div class="kv">{esc(nx["long"])}</div>'
                    f'<div class="kc">{"today" if days_to == 0 else f"in {days_to} days" if days_to > 0 else ""} · market leans <b>{lean.capitalize()} {nx["p"][lean]:.0f}%</b></div></div>{stack}'
@@ -1836,7 +1836,7 @@ def build_zq(data: dict, today: date) -> tuple[dict, dict | None]:
     p = {"cut": float(nx["cut_probability"]), "hold": float(nx["hold_probability"]), "hike": float(nx["hike_probability"])}
     lean = max(p, key=p.get)
     stack = ('<div class="stack3" role="img" aria-label="Cut {:.0f}%, hold {:.0f}%, hike {:.0f}%">'.format(p["cut"], p["hold"], p["hike"])
-             + "".join(f'<span class="seg {k}" style="flex-basis:{p[k]:.2f}%" title="{k.capitalize()} {p[k]:.0f}%">{(k.capitalize() + " " + format(p[k], ".0f") + "%") if p[k] >= 9 else ""}</span>' for k in ("cut", "hold", "hike"))
+             + "".join(f'<span class="seg {k}" style="flex-basis:{p[k]:.2f}%" title="{k.capitalize()} {p[k]:.0f}%">{(k.capitalize() + " " + format(p[k], ".0f") + "%") if p[k] >= 30 else (format(p[k], ".0f") + "%") if p[k] >= 8 else ""}</span>' for k in ("cut", "hold", "hike"))
              + '</div><div class="stacklegend">' + "".join(f'<span><i class="seg {k}"></i>{k.capitalize()} {p[k]:.0f}%</span>' for k in ("cut", "hold", "hike")) + "</div>")
     rows = [("Contract used", esc(nx["zq_contract"])), ("ZQ price", f'{float(nx["zq_price"]):.3f}'), ("Current EFFR", f'{float(nx["current_effr"]):.2f}%'),
             ("Implied average rate", f'{float(nx["implied_average_rate"]):.3f}%'), ("Implied post-meeting rate", f'{float(nx["implied_post_meeting_rate"]):.3f}%'),
