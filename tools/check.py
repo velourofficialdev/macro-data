@@ -308,8 +308,11 @@ def main() -> int:
         else:
             try:
                 surf = json.loads((sx_data / "options" / "GOLD.json").read_text()).get("surface")
-                if "expiry" in json.dumps(surf)[:0] or surf is None:
+                n_exp = None if not isinstance(surf, dict) else len(surf.get("expiries") or [])
+                if surf is None:
                     errs.append("single-expiry fixture has no surface")
+                elif n_exp != 1:
+                    errs.append(f"single-expiry fixture surface has {n_exp} expiry rows, expected exactly 1")
             except Exception as exc:  # noqa: BLE001
                 errs.append(f"single-expiry fixture unreadable: {exc}")
         ok3, tail3 = build(sx_data, out / "fixture-single" / "index.html")
