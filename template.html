@@ -361,6 +361,7 @@
   .rterm .chip { border-radius: 3px; }
   .rterm .cv.main { flex: 1; height: auto; min-height: 130px; margin: 2px 4px 4px 8px; }
   .rterm .chp { min-height: 0; }
+  @media (max-width: 520px) { .rterm .cv.main { flex: none; height: 230px; min-height: 230px; } }
   .rterm .chp > :not(.cv) { flex-shrink: 0; }
   @media (max-height: 800px) {   /* very short screens: slimmer toolbars too */
     .rterm .card-h { padding-top: 5px; padding-bottom: 5px; }
@@ -915,7 +916,8 @@ function niceTicks(min, max, n) {
 function draw(host, spec) {
   host.innerHTML = "";
   const W = host.clientWidth || 320, H = host.clientHeight || 240;
-  const m = spec.term ? { l: 8, r: 150, t: 10, b: 24 } : { l: 46, r: spec.endLabels ? 62 : 12, t: 10, b: 24 };
+  const ph = spec.term && W < 520;   /* phone: y labels in a left gutter, value-only end boxes, so the plot keeps its width */
+  const m = ph ? { l: 48, r: 66, t: 10, b: 24 } : spec.term ? { l: 8, r: 150, t: 10, b: 24 } : { l: 46, r: spec.endLabels ? 62 : 12, t: 10, b: 24 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b, n = spec.labels.length;
   const all = spec.sets.flatMap(s => s.data).filter(v => v !== null && v !== undefined);
   if (!all.length || n < 2) { host.textContent = "No data for this range."; host.style.color = "var(--muted)"; return; }
@@ -926,7 +928,7 @@ function draw(host, spec) {
   const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": spec.title || "chart" }, host);
   ticks.forEach(t => {
     el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: "var(--line)" }, svg);
-    if (spec.term) el("text", { x: m.l + 2, y: y(t) - 3, "text-anchor": "start", fill: "var(--muted)", "font-size": 11 }, svg).textContent = (spec.dec === 0 ? Math.round(t).toLocaleString() : f(t, spec.axDec !== undefined ? spec.axDec : 3)) + (spec.unit || "");
+    if (spec.term) el("text", ph ? { x: m.l - 6, y: y(t) + 4, "text-anchor": "end", fill: "var(--muted)", "font-size": 10.5 } : { x: m.l + 2, y: y(t) - 3, "text-anchor": "start", fill: "var(--muted)", "font-size": 11 }, svg).textContent = (spec.dec === 0 ? Math.round(t).toLocaleString() : f(t, spec.axDec !== undefined ? spec.axDec : 3)) + (ph ? "" : (spec.unit || ""));
     else el("text", { x: m.l - 8, y: y(t) + 4, "text-anchor": "end", fill: "var(--muted)", "font-size": 11 }, svg).textContent = f(t, spec.axDec !== undefined ? spec.axDec : 1);
   });
   if (lo < 0 && hi > 0) el("line", { x1: m.l, x2: W - m.r, y1: y(0), y2: y(0), stroke: "var(--muted)", "stroke-dasharray": "4 4" }, svg);
@@ -965,7 +967,7 @@ function draw(host, spec) {
     if (spec.term) {
       ends.forEach(e => {
         el("rect", { x: W - m.r + 2, y: e.y - 8, width: m.r - 4, height: 16, rx: 2, fill: e.s.color }, svg);
-        el("text", { x: W - m.r + 6, y: e.y + 4, "text-anchor": "start", fill: "var(--onser)", "font-size": 10.5, "font-weight": 600 }, svg).textContent = e.s.tk || "";
+        if (!ph) el("text", { x: W - m.r + 6, y: e.y + 4, "text-anchor": "start", fill: "var(--onser)", "font-size": 10.5, "font-weight": 600 }, svg).textContent = e.s.tk || "";
         el("text", { x: W - 6, y: e.y + 4, "text-anchor": "end", fill: "var(--onser)", "font-size": 10.5, "font-weight": 700 }, svg).textContent = (spec.dec === 0 ? Math.round(e.v).toLocaleString() : f(e.v, spec.dec)) + (spec.unit || "");
       });
     } else ends.forEach(e => {
