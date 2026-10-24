@@ -1626,7 +1626,8 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       if (ne >= 3) rowsS = rowsS.map((r, j) => { const a = rowsS[Math.max(0, j - 1)], b = rowsS[Math.min(ne - 1, j + 1)]; return r.map((v, i) => (a[i] + 2 * v + b[i]) / 4); });
       const RS = ne > 1 ? 3 : 1, NR = ne > 1 ? (ne - 1) * RS + 1 : 1, raw = [];
       for (let jr = 0; jr < NR; jr++) { if (ne < 2) { raw.push(rowsS[0].slice()); continue; }
-        const j = Math.min(ne - 2, Math.floor(jr / RS)), f = jr / RS - j; raw.push(rowsS[j].map((v, a) => v + (rowsS[j + 1][a] - v) * f)); }
+        const j = Math.min(ne - 2, Math.floor(jr / RS)), f = jr / RS - j, r0 = rowsS[Math.max(0, j - 1)], r1 = rowsS[j], r2 = rowsS[j + 1], r3 = rowsS[Math.min(ne - 1, j + 2)];   // Catmull-Rom between expiry rows: no zig-zag where a ramp or the zero line shifts from row to row
+        raw.push(r1.map((v, a) => 0.5 * (2 * v + (r2[a] - r0[a]) * f + (2 * r0[a] - 5 * v + 4 * r2[a] - r3[a]) * f * f + (3 * v - r0[a] - 3 * r2[a] + r3[a]) * f * f * f))); }
       const all = []; raw.forEach(r => r.forEach(v => all.push(Math.abs(v)))); all.sort((a, b) => a - b);
       const m = all[Math.floor(0.98 * (all.length - 1))] || all[all.length - 1] || 1;
       const hh = raw.map(r => r.map(v => Math.max(-1.15, Math.min(1.15, Math.sign(v) * Math.sqrt(Math.abs(v) / m)))));
@@ -1635,7 +1636,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const { hh, ne, NC, NR, zl, m: mx } = terrain.c, span = w.hi - w.lo || 1;
     cvs.width = W * dpr; cvs.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
     const up = rgb(css("--up")), dn = rgb(css("--down")), bg = rgb(css("--surface")), line = css("--border-strong"), txt = css("--muted"), pri = css("--text");
-    const dark = bg[0] + bg[1] + bg[2] < 384, base = mix(rgb(css("--surface-2")), rgb(css("--muted")), dark ? 0.25 : 0.45);
+    const dark = bg[0] + bg[1] + bg[2] < 384, base = mix(rgb(css("--surface-2")), rgb(css("--muted")), dark ? 0.25 : 0.6);
     let hmax = 0, hmin = 0; hh.forEach(r => r.forEach(v => { hmax = Math.max(hmax, v); hmin = Math.min(hmin, v); }));
     const XS = 2.0, ZS = phone ? 0.95 : 0.85, HS = 1.0, FLOOR = hmin - 0.08, CEIL = hmax + 0.12;
     const wld = (u, wz, h) => [u * XS, h * HS, wz * ZS];
@@ -1660,17 +1661,26 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       if (dark) { ctx.globalAlpha = 0.5; ctx.strokeStyle = line; ctx.lineWidth = 0.6; ctx.stroke(); } ctx.globalAlpha = 1;
     }
     // surface: opaque quads in strict grid order, far row to near row and far column to near column (no sorting), plus skirts down to the floor
-    const heat = [base, rgb(css("--primary")), rgb(css("--secondary")), rgb(css("--warn"))];
+    const heat = [dark ? base : mix(base, rgb(css("--muted")), 0.35), rgb(css("--primary")), rgb(css("--secondary")), rgb(css("--warn"))];
     const heatAt = t => { t = Math.min(1, Math.max(0, t)) * 3; const k = Math.min(2, Math.floor(t)); return mix(heat[k], heat[k + 1], t - k); };
     const Lg = [-0.42, 0.72, 0.55], Ln = Math.hypot(...Lg), dxs = XS * 2 / (NC - 1), dzs = ZS * 2 / Math.max(1, NR - 1);
     const cap3 = [0, 1, 2].map(i => Math.max(up[i], dn[i], base[i]) * 1.1);
+    const tFloor = dark ? 0.25 : 0.6;   // colour strength once past the dead band; light theme needs more so a call lobe is not pale
     const colOf = (hv, lam, sk) => {
-      const ah_ = Math.abs(hv), t = ah_ < 0.04 ? 0 : Math.max(0.25, Math.pow(Math.min(1, (ah_ - 0.04) / 0.5), 0.8));
+      const ah_ = Math.abs(hv), r = Math.min(1, Math.max(0, (ah_ - 0.04) / 0.08)), f = r * r * (3 - 2 * r);   // feathered dead band 0.04-0.12: no hard step between grey and coloured
+      const t = f * Math.max(tFloor, Math.pow(Math.min(1, Math.max(0, ah_ - 0.04) / 0.5), 0.8));
       let col = st.pal === "heat" ? heatAt(t) : mix(base, hv >= 0 ? up : dn, t);
-      const k = (dark ? 0.55 + 0.75 * lam : 0.70 + 0.45 * lam) * (sk ? 0.6 : 1); return col.map((v, i) => Math.min(255, Math.round(Math.min(v * k, cap3[i]))));
+      const k = (dark ? 0.62 + 0.55 * lam : 0.78 + 0.32 * lam) * (sk ? 0.6 : 1); return col.map((v, i) => Math.min(255, Math.round(Math.min(v * k, cap3[i]))));
     };
     const fillPoly = (c, col) => { ctx.fillStyle = `rgb(${col})`; ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = 1; ctx.lineJoin = "round"; ctx.beginPath(); c.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fill(); ctx.stroke(); };
+    const vn = (i, jj) => {   // surface slope at a grid point by central differences, capped so steep faces keep a narrow brightness range
+      const i0 = Math.max(0, i - 1), i1 = Math.min(NC - 1, i + 1), j0 = Math.max(0, jj - 1), j1 = Math.min(NR - 1, jj + 1);
+      const cp = v => Math.max(-2.5, Math.min(2.5, v));
+      return [cp(-(hh[jj][i1] - hh[jj][i0]) * HS / (dxs * (i1 - i0))), NR < 2 ? 0 : cp(-(hh[j1][i] - hh[j0][i]) * HS / (dzs * (j1 - j0)))];
+    };
     const nr = Math.max(1, NR - 1), nc = NC - 1;
+    let hc = hh;   // colour height: blurred over neighbours (columns twice, rows three times) so a shifting zero line cannot paint teeth
+    for (let pass = 0; pass < 5; pass++) { const byRow = pass >= 2; hc = hc.map((r, j) => r.map((v, i) => byRow ? (NR < 2 ? v : (hc[Math.max(0, j - 1)][i] + 2 * v + hc[Math.min(NR - 1, j + 1)][i]) / 4) : (r[Math.max(0, i - 1)] + 2 * v + r[Math.min(NC - 1, i + 1)]) / 4)); }
     const colFwd = P3(U(NC - 1), Wz(0), FLOOR)[2] > P3(U(0), Wz(0), FLOOR)[2];   // true: increasing column index comes nearer
     const rowFwd = NR < 2 ? true : P3(U(0), Wz(NR - 1), FLOOR)[2] > P3(U(0), Wz(0), FLOOR)[2];
     const skirt = (side, edge, a) => {   // one wall segment along an outer edge: side "r" = a row edge (a = column), "c" = a column edge (a = row)
@@ -1680,18 +1690,23 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       fillPoly([top[0], top[1], bot[1], bot[0]], colOf(hv, 0.35, true));
     };
     const rEdgeNear = rowFwd ? NR - 1 : 0, rEdgeFar = rowFwd ? 0 : NR - 1, cEdgeNear = colFwd ? NC - 1 : 0, cEdgeFar = colFwd ? 0 : NC - 1;
-    if (NR > 1) { for (let a = 0; a < nc; a++) skirt("r", rEdgeFar, a); } if (NR > 1) for (let jr = 0; jr < nr; jr++) skirt("c", cEdgeFar, jr);
+    if (NR > 1) { for (let a = 0; a < nc; a++) skirt("r", rEdgeFar, a); for (let jr = 0; jr < nr; jr++) skirt("c", cEdgeFar, jr); }
     for (let ri = 0; ri < nr; ri++) {
       const jr = rowFwd ? ri : nr - 1 - ri;
       for (let ci = 0; ci < nc; ci++) {
         const a = colFwd ? ci : nc - 1 - ci, j1 = NR < 2 ? jr : jr + 1, idx = [[a, jr], [a + 1, jr], [a + 1, j1], [a, j1]];
-        const hv = idx.reduce((t, [i, jj]) => t + hh[jj][i], 0) / 4;
-        const nx = -(hh[jr][a + 1] - hh[jr][a]) * HS / dxs, nz = NR < 2 ? 0 : -(hh[j1][a] - hh[jr][a]) * HS / dzs, nn = view(nx, 1, nz, yawN, st.pitch);
-        const lam = Math.max(0, (nn[0] * Lg[0] + nn[1] * Lg[1] + nn[2] * Lg[2]) / (Math.hypot(...nn) * Ln));
-        fillPoly(idx.map(([i, jj]) => P3(U(i), Wz(jj), hh[jj][i])), colOf(hv, lam, false));
+        const hv = idx.reduce((t, [i, jj]) => t + hc[jj][i], 0) / 4;
+        let nx = 0, nz = 0; idx.forEach(([i, jj]) => { const g = vn(i, jj); nx += g[0] / 4; nz += g[1] / 4; });   // smoothed: normals averaged over the four corners
+        const nn = view(nx, 1, nz, yawN, st.pitch), lam = Math.max(0, (nn[0] * Lg[0] + nn[1] * Lg[1] + nn[2] * Lg[2]) / (Math.hypot(...nn) * Ln));
+        const pp = idx.map(([i, jj]) => P3(U(i), Wz(jj), hh[jj][i])), cv = idx.map(([i, jj]) => hc[jj][i]);
+        if (Math.max(...cv) - Math.min(...cv) < 0.04) { fillPoly(pp, colOf(hv, lam, false)); continue; }
+        const SUB = 4, bl = (q, s_, t_) => (1 - s_) * (1 - t_) * q[0] + s_ * (1 - t_) * q[1] + s_ * t_ * q[2] + (1 - s_) * t_ * q[3];   // steep colour change across one cell: split it so the grey-to-colour edge is smooth, not a stair
+        const at = (s_, t_) => [bl(pp.map(p => p[0]), s_, t_), bl(pp.map(p => p[1]), s_, t_)];
+        for (let u_ = 0; u_ < SUB; u_++) for (let v_ = 0; v_ < SUB; v_++) { const s0 = u_ / SUB, s1 = (u_ + 1) / SUB, t0 = v_ / SUB, t1 = (v_ + 1) / SUB;
+          fillPoly([at(s0, t0), at(s1, t0), at(s1, t1), at(s0, t1)], colOf(bl(cv, (s0 + s1) / 2, (t0 + t1) / 2), lam, false)); }
       }
     }
-    if (NR > 1) { for (let a = 0; a < nc; a++) skirt("r", rEdgeNear, a); } if (NR > 1) for (let jr = 0; jr < nr; jr++) skirt("c", cEdgeNear, jr);
+    if (NR > 1) { for (let a = 0; a < nc; a++) skirt("r", rEdgeNear, a); for (let jr = 0; jr < nr; jr++) skirt("c", cEdgeNear, jr); }
     // level markers: dashed line on the floor, pole up from the end that sits higher on screen, labels in rows along the top
     const uOf = k => ((k - w.lo) / span) * 2 - 1;
     const L = levels(cfg, series(cfg).vals), labs = [], nmT = phone ? { "call wall": "call", "put wall": "put" } : {};
@@ -1714,7 +1729,12 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const near = P3(0, 1, FLOOR)[1] > P3(0, -1, FLOOR)[1] ? 1 : -1, nTick = phone ? 3 : 5;
     for (let a = 0; a < nTick; a++) { const k = w.lo + span * a / (nTick - 1), p = P3(uOf(k), near * 1.14, FLOOR), t = fk(k), tw = ctx.measureText(t).width; lab(t, Math.max(2, Math.min(W - tw - 2, p[0] - tw / 2)), Math.min(H - 6, p[1] + 10)); }
     if (ne > 1) { const side = P3(1, 0, FLOOR)[0] > P3(-1, 0, FLOOR)[0] ? 1 : -1, nl = zl.length;
-      zl.forEach((t, j) => { if (st.mode !== "trad" && nl > 2 && j !== 0 && j !== nl - 1 && (j % 2 || j === nl - 2)) return; const jr = nl < 2 ? 0 : Math.round(j * (NR - 1) / (nl - 1)), p = P3(side * 1.45, Wz(jr), FLOOR), tw = ctx.measureText(t).width; lab(t, Math.max(2, Math.min(W - tw - 2, side > 0 ? p[0] : p[0] - tw)), p[1] + 3); }); }
+      let cand = zl.map((t, j) => { const jr = nl < 2 ? 0 : Math.round(j * (NR - 1) / (nl - 1)), p = P3(side * 1.5, Wz(jr), FLOOR); if (phone) t = t.replace(/ \(1σ\)$/, ""); return { t, x: p[0] + side * 5, y: p[1] + 3, j }; });
+      if (st.mode !== "trad" && nl > 2) cand = cand.filter(c => c.j === 0 || c.j === nl - 1 || (c.j % 2 === 0 && c.j !== nl - 2));
+      cand.sort((a, b) => a.y - b.y); const keepL = [];   // depth labels at least 12 px apart: first and last stay, the ones between thin out
+      cand.forEach((c, n) => { if (n === 0) return keepL.push(c); if (n === cand.length - 1) { while (keepL.length > 1 && c.y - keepL[keepL.length - 1].y < 12) keepL.pop(); return keepL.push(c); }
+        if (c.y - keepL[keepL.length - 1].y >= 12 && cand[cand.length - 1].y - c.y >= 12) keepL.push(c); });
+      keepL.forEach(c => { const tw = ctx.measureText(c.t).width; lab(c.t, Math.max(2, Math.min(W - tw - 2, side > 0 ? c.x : c.x - tw)), c.y); }); }
     $("od-leg").innerHTML = (st.pal === "heat" ? `<span>0</span><i style="background:linear-gradient(90deg, ${heat.map(c => `rgb(${c})`).join(",")})"></i><span>${money(mx)} size</span>`
       : `<span>${money(-mx)} puts</span><i style="background:linear-gradient(90deg, rgb(${dn}), rgb(${base}), rgb(${up}))"></i><span>+${money(mx)} calls</span>`) + `<span style="margin-left:auto">height: signed, square-root scale · depth: ${st.mode === "trad" ? "expiries added up, nearest at front" : "price move"}</span>`;
   }
@@ -1724,7 +1744,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   // slow auto-rotate while the terrain is on screen, until the reader grabs it (off for reduced motion)
   if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) st.spin = false;
   if (window.IntersectionObserver) new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(cvs);
-  let lastT = 0; (function tick(ts) { if (st.spin && visible && !drag && ts - lastT > 50) { st.sway = 0.32 * Math.sin(ts / 3200); lastT = ts; terrain(); } requestAnimationFrame(tick); })(0);
+  let lastT = 0; (function tick(ts) { if (st.spin && visible && !drag && ts - lastT > 50) { st.sway = 0.32 * Math.sin(ts / 3200); lastT = ts; try { terrain(); } catch (e) { st.spin = false; console.warn("terrain failed", e); } } requestAnimationFrame(tick); })(0);
   cvs.addEventListener("pointerdown", e => { if (st.spin) { st.yaw += st.sway; st.sway = 0; } st.spin = false; drag = [e.clientX, e.clientY, st.yaw, st.pitch]; cvs.setPointerCapture(e.pointerId); });
   cvs.addEventListener("pointermove", e => { if (!drag) return; st.yaw = drag[2] + (e.clientX - drag[0]) * 0.008; st.pitch = Math.max(0.30, Math.min(1.20, drag[3] + (e.clientY - drag[1]) * 0.006)); requestAnimationFrame(terrain); });
   cvs.addEventListener("pointerup", () => drag = null);
@@ -1936,7 +1956,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     controls(); stats(); spine($("od-spine"), Object.assign(cfgNow(), { sv: st.sv })); try { terrain(); } catch (e) { console.warn("terrain failed", e); } grid(); smile(); guide(); vol(); replay(); volidx(); promptUI();
   }
   paint(); panes.forEach(pane); vix();
-  let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { spine($("od-spine"), Object.assign(cfgNow(), { sv: st.sv })); terrain(); smile(); vol(); vix(); replay(); volidx(); panes.forEach(pane); }, 120); });
+  let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { spine($("od-spine"), Object.assign(cfgNow(), { sv: st.sv })); try { terrain(); } catch (e) { console.warn("terrain failed", e); } smile(); vol(); vix(); replay(); volidx(); panes.forEach(pane); }, 120); });
   new MutationObserver(() => terrain()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   if (window.matchMedia) window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => terrain());
 })();
