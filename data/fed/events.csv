@@ -974,32 +974,32 @@ date,event,detail
 2025-01-10,Jobs report (NFP),
 2025-01-15,CPI,
 2025-01-29,FOMC decision,
-2025-01-31,Fed speech (Bowman),Governor Michelle W. Bowman
 2025-01-31,PCE,
+2025-01-31,Fed speech (Bowman),Governor Michelle W. Bowman
 2025-02-04,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2025-02-05,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2025-02-05,Fed speech (Bowman),Governor Michelle W. Bowman
-2025-02-07,Fed speech (Bowman),Governor Michelle W. Bowman
 2025-02-07,Jobs report (NFP),
 2025-02-07,Fed speech (Kugler),Governor Adriana D. Kugler
+2025-02-07,Fed speech (Bowman),Governor Michelle W. Bowman
 2025-02-11,Fed speech (Bowman),Governor Michelle W. Bowman
-2025-02-12,Fed speech (Waller),Governor Christopher J. Waller
 2025-02-12,CPI,
+2025-02-12,Fed speech (Waller),Governor Christopher J. Waller
 2025-02-17,Fed speech (Waller),Governor Christopher J. Waller
 2025-02-17,Fed speech (Bowman),Governor Michelle W. Bowman
 2025-02-18,Fed speech (Barr),Vice Chair for Supervision Michael S. Barr
 2025-02-19,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
-2025-02-20,Fed speech (Barr),Vice Chair for Supervision Michael S. Barr
 2025-02-20,Fed speech (Kugler),Governor Adriana D. Kugler
+2025-02-20,Fed speech (Barr),Vice Chair for Supervision Michael S. Barr
 2025-02-21,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2025-02-25,Fed speech (Barr),Vice Chair for Supervision Michael S. Barr
-2025-02-27,Fed speech (Bowman),Governor Michelle W. Bowman
 2025-02-27,Fed speech (Barr),Vice Chair for Supervision Michael S. Barr
+2025-02-27,Fed speech (Bowman),Governor Michelle W. Bowman
 2025-02-28,PCE,
-2025-03-07,Fed speech (Powell),Chair Jerome H. Powell
 2025-03-07,Fed speech (Bowman),Governor Michelle W. Bowman
-2025-03-07,Fed speech (Kugler),Governor Adriana D. Kugler
+2025-03-07,Fed speech (Powell),Chair Jerome H. Powell
 2025-03-07,Jobs report (NFP),
+2025-03-07,Fed speech (Kugler),Governor Adriana D. Kugler
 2025-03-12,CPI,
 2025-03-19,FOMC decision,
 2025-03-21,Fed speech (Waller),Governor Christopher J. Waller
@@ -1009,9 +1009,9 @@ date,event,detail
 2025-04-02,Fed speech (Kugler),Governor Adriana D. Kugler
 2025-04-03,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2025-04-03,Fed speech (Cook),Governor Lisa D. Cook
-2025-04-04,Jobs report (NFP),
 2025-04-04,Fed speech (Barr),Governor Michael S. Barr
 2025-04-04,Fed speech (Powell),Chair Jerome H. Powell
+2025-04-04,Jobs report (NFP),
 2025-04-07,Fed speech (Kugler),Governor Adriana D. Kugler
 2025-04-10,CPI,
 2025-04-14,Fed speech (Waller),Governor Christopher J. Waller
@@ -1025,14 +1025,14 @@ date,event,detail
 2025-05-02,Jobs report (NFP),
 2025-05-03,Fed speech (Cook),Governor Lisa D. Cook
 2025-05-07,FOMC decision,
-2025-05-09,Fed speech (Kugler),Governor Adriana D. Kugler
 2025-05-09,Fed speech (Waller),Governor Christopher J. Waller
 2025-05-09,Fed speech (Cook),Governor Lisa D. Cook
 2025-05-09,Fed speech (Barr),Governor Michael S. Barr
+2025-05-09,Fed speech (Kugler),Governor Adriana D. Kugler
 2025-05-12,Fed speech (Kugler),Governor Adriana D. Kugler
 2025-05-13,CPI,
-2025-05-14,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2025-05-14,Fed speech (Waller),Governor Christopher J. Waller
+2025-05-14,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2025-05-15,Fed speech (Powell),Chair Jerome H. Powell
 2025-05-15,Fed speech (Barr),Governor Michael S. Barr
 2025-05-19,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
@@ -1046,20 +1046,20 @@ date,event,detail
 2025-06-03,Fed speech (Cook),Governor Lisa D. Cook
 2025-06-04,Fed speech (Cook),Governor Lisa D. Cook
 2025-06-05,Fed speech (Kugler),Governor Adriana D. Kugler
-2025-06-06,Jobs report (NFP),
 2025-06-06,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
+2025-06-06,Jobs report (NFP),
 2025-06-11,CPI,
 2025-06-18,FOMC decision,
 2025-06-23,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
-2025-06-23,Fed speech (Waller),Governor Christopher J. Waller
 2025-06-23,Fed speech (Kugler),Governor Adriana D. Kugler
+2025-06-23,Fed speech (Waller),Governor Christopher J. Waller
 2025-06-24,Fed speech (Barr),Governor Michael S. Barr
 2025-06-26,Fed speech (Barr),Governor Michael S. Barr
 2025-06-27,PCE,
 2025-07-03,Jobs report (NFP),
 2025-07-10,Fed speech (Waller),Governor Christopher J. Waller
-2025-07-15,CPI,
 2025-07-15,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
+2025-07-15,CPI,
 2025-07-15,Fed speech (Barr),Governor Michael S. Barr
 2025-07-16,Fed speech (Barr),Governor Michael S. Barr
 2025-07-17,Fed speech (Kugler),Governor Adriana D. Kugler
@@ -1082,8 +1082,8 @@ date,event,detail
 2025-09-11,CPI,
 2025-09-17,FOMC decision,
 2025-09-22,Fed speech (Miran),Governor Stephen I. Miran
-2025-09-23,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2025-09-23,Fed speech (Powell),Chair Jerome H. Powell
+2025-09-23,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2025-09-25,Fed speech (Barr),Governor Michael S. Barr
 2025-09-26,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2025-09-26,PCE,
@@ -1110,8 +1110,8 @@ date,event,detail
 2025-11-07,Fed speech (Miran),Governor Stephen I. Miran
 2025-11-07,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2025-11-11,Fed speech (Barr),Governor Michael S. Barr
-2025-11-17,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2025-11-17,Fed speech (Waller),Governor Christopher J. Waller
+2025-11-17,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2025-11-18,Fed speech (Barr),Governor Michael S. Barr
 2025-11-19,Fed speech (Miran),Governor Stephen I. Miran
 2025-11-20,Jobs report (NFP),
@@ -1130,8 +1130,8 @@ date,event,detail
 2026-01-11,Fed speech (Powell),Chair Jerome H. Powell
 2026-01-13,CPI,
 2026-01-14,Fed speech (Miran),Governor Stephen I. Miran
-2026-01-16,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2026-01-16,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
+2026-01-16,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2026-01-22,PCE,
 2026-01-28,FOMC decision,
 2026-01-30,Fed speech (Waller),Governor Christopher J. Waller
@@ -1157,8 +1157,8 @@ date,event,detail
 2026-03-24,Fed speech (Barr),Governor Michael S. Barr
 2026-03-26,Fed speech (Miran),Governor Stephen I. Miran
 2026-03-26,Fed speech (Cook),Governor Lisa D. Cook
-2026-03-26,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2026-03-26,Fed speech (Barr),Governor Michael S. Barr
+2026-03-26,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2026-03-31,Fed speech (Barr),Governor Michael S. Barr
 2026-03-31,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-04-03,Jobs report (NFP),
@@ -1173,16 +1173,16 @@ date,event,detail
 2026-05-01,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-05-05,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-05-08,Fed speech (Waller),Governor Christopher J. Waller
-2026-05-08,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
-2026-05-08,Jobs report (NFP),
 2026-05-08,Fed speech (Cook),Governor Lisa D. Cook
+2026-05-08,Jobs report (NFP),
+2026-05-08,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-05-12,CPI,
-2026-05-14,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-05-14,Fed speech (Barr),Governor Michael S. Barr
+2026-05-14,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-05-20,Fed speech (Barr),Governor Michael S. Barr
 2026-05-22,Fed speech (Waller),Governor Christopher J. Waller
-2026-05-27,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2026-05-27,Fed speech (Cook),Governor Lisa D. Cook
+2026-05-27,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2026-05-28,PCE,
 2026-05-29,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-05-31,Fed speech (Powell),Governor Jerome H. Powell
@@ -1198,9 +1198,9 @@ date,event,detail
 2026-07-07,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-07-13,Fed speech (Waller),Governor Christopher J. Waller
 2026-07-13,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
-2026-07-14,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
-2026-07-14,Fed speech (Barr),Governor Michael S. Barr
 2026-07-14,CPI,
+2026-07-14,Fed speech (Barr),Governor Michael S. Barr
+2026-07-14,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-07-15,Fed speech (Cook),Governor Lisa D. Cook
 2026-07-16,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2026-07-29,FOMC decision,
@@ -1219,19 +1219,19 @@ date,event,detail
 2026-09-22,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2026-09-23,Fed speech (Barr),Governor Michael S. Barr
 2026-09-28,Fed speech (Cook),Governor Lisa D. Cook
-2026-09-29,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
-2026-09-29,Fed speech (Waller),Governor Christopher J. Waller
 2026-09-29,Fed speech (Barr),Governor Michael S. Barr
-2026-09-30,PCE,
+2026-09-29,Fed speech (Waller),Governor Christopher J. Waller
+2026-09-29,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-09-30,Fed speech (Cook),Governor Lisa D. Cook
+2026-09-30,PCE,
 2026-10-01,Fed speech (Waller),Governor Christopher J. Waller
 2026-10-01,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-10-01,Fed speech (Jefferson),Vice Chair Philip N. Jefferson
 2026-10-02,Jobs report (NFP),
 2026-10-06,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
 2026-10-08,Fed speech (Waller),Governor Christopher J. Waller
-2026-10-14,CPI,
 2026-10-14,Fed speech (Bowman),Vice Chair for Supervision Michelle W. Bowman
+2026-10-14,CPI,
 2026-10-28,FOMC decision,
 2026-10-29,PCE,
 2026-11-06,Jobs report (NFP),
