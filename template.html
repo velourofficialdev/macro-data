@@ -913,7 +913,7 @@ const P = __PAYLOAD__;
     if (scriptState === 3) scriptState = 0;
     ensureScript(my);
     el = document.createElement("tv-advanced-chart");
-    el.setAttribute("symbol", sym); el.setAttribute("interval", "D"); el.setAttribute("timezone", "Etc/UTC"); el.setAttribute("locale", "en");
+    el.setAttribute("symbol", sym); el.setAttribute("interval", "D"); el.setAttribute("timezone", "Etc/UTC"); el.setAttribute("show-drawing-toolbar", ""); el.setAttribute("show-date-ranges", "");
     apply(); box.appendChild(el);
     const wm = document.createElement("div"); wm.className = "tvwm"; wm.setAttribute("aria-hidden", "true"); wm.textContent = "VELOUR"; box.appendChild(wm);
     if (window.customElements && customElements.whenDefined) customElements.whenDefined("tv-advanced-chart").then(() => { scriptState = 2; if (my === token) { clearTimeout(timer); ld.remove(); } });
