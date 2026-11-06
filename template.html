@@ -678,7 +678,7 @@
           <div id="tv-box" class="tvbox" aria-live="polite"></div>
           <p class="note" id="tv-fail" hidden>The TradingView chart could not load (blocked or offline). The rest of the dashboard is unaffected. <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Open tradingview.com</a></p>
           <p class="note">Charting tool, not advice. Prices come from TradingView, may be delayed, and are separate from the dashboard data above.<br>
-            Opening this card loads a TradingView script on this page and it also uses a hidden TradingView frame, so TradingView sees your IP address, cookies and this page's address; nothing else from the page is sent. Remembers symbol and timeframe on this device. Drawings and indicators reset on reload.<br>
+            Opening this card loads a TradingView script on this page and it also uses a hidden TradingView frame, so TradingView sees your IP address, cookies and this page's address; nothing else from the page is sent.<br>Remembers symbol, candle interval and date range on this device. Drawings and indicators reset on reload.<br>
             Index and dollar-index charts are broker CFD quotes (they track the index but are not the official level; the S&amp;P entry is a CFD quote that tracks the S&amp;P 500 Index). The 10Y yield is the Federal Reserve end-of-day series, drawn as a line.</p>
         </div>
       </details>
@@ -872,10 +872,14 @@ const P = __PAYLOAD__;
 (function () {
   const card = document.getElementById("tvcard"); if (!card) return;
   const SYMS = [["Gold (spot)", "OANDA:XAUUSD"], ["S&P 500 (CFD)", "FOREXCOM:SPXUSD"], ["Dollar index (CFD)", "CAPITALCOM:DXY"], ["EUR/USD", "FX:EURUSD"], ["US 10Y yield (daily)", "FRED:DGS10"]];
-  const SRC = "https://widgets.tradingview-widget.com/w/en/tv-advanced-chart.js", KEY = "macro-tvstate";
+  const SRC = "https://widgets.tradingview-widget.com/w/en/tv-advanced-chart.js", KEY = "macro-tvstate", DAILY = "FRED:DGS10";
+  try { localStorage.removeItem("macro-tvcolors"); } catch (e) {}
+  function flush() { clearTimeout(saveT); saveT = 0; if (pend) pend(); }
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
   const box = document.getElementById("tv-box"), fail = document.getElementById("tv-fail"), picker = document.getElementById("tv-sym");
   const OK = { interval: /^(\d{1,3}|\d{1,2}[SDWM]|[DWM])$/, "time-frame": /^(\d{1,2}[DMYW]|YTD|ALL)$/ };
-  let mem = {} /* this-visit copy when localStorage is blocked */, sym = SYMS[0][1], started = false, token = 0, timer = 0, el = null, scriptState = 0, saveT = 0;   // 0 none, 1 loading, 2 ok, 3 failed
+  let mem = {} /* this-visit copy when localStorage is blocked */, sym = SYMS[0][1], started = false, token = 0, timer = 0, el = null, scriptState = 0, saveT = 0, pend = null;   // 0 none, 1 loading, 2 ok, 3 failed
   const theme = () => {
     const t = document.documentElement.getAttribute("data-theme");
     if (t === "light" || t === "dark") return t;
@@ -901,14 +905,20 @@ const P = __PAYLOAD__;
     document.head.appendChild(sc);
   }
   function render() {
-    const my = ++token; clearTimeout(timer); box.hidden = false; fail.hidden = true; box.textContent = ""; el = null;
+    flush(); const my = ++token; clearTimeout(timer); box.hidden = false; fail.hidden = true; box.textContent = ""; el = null;
     const ld = document.createElement("p"); ld.className = "note tvload"; ld.textContent = "Loading chart..."; box.appendChild(ld);
     if (scriptState === 3) scriptState = 0;
     ensureScript(my);
     el = document.createElement("tv-advanced-chart");
-    const sv = load(); el.setAttribute("symbol", sym); el.setAttribute("interval", sv.interval || "D"); if (sv["time-frame"]) el.setAttribute("time-frame", sv["time-frame"]);
-    const me = el; new MutationObserver(() => { clearTimeout(saveT); saveT = setTimeout(() => { if (me !== el) return; const o = {}; ["interval", "time-frame"].forEach(k => { const v = me.getAttribute(k); if (valid(k, v)) o[k] = v; }); put(o); }, 300); }).observe(me, { attributes: true, attributeFilter: ["interval", "time-frame"] });
-     el.setAttribute("timezone", "Etc/UTC"); if (!narrow()) { el.setAttribute("show-drawing-toolbar", ""); el.setAttribute("show-date-ranges", ""); }
+    const sv = load();
+    el.setAttribute("symbol", sym);
+    el.setAttribute("interval", sym === DAILY ? "D" : (sv.interval || "D"));
+    if (sv["time-frame"]) el.setAttribute("time-frame", sv["time-frame"]);
+    const me = el;
+    pend = () => { if (me !== el) return; const o = {}; ["interval", "time-frame"].forEach(k => { if (k === "interval" && sym === DAILY) return; const v = me.getAttribute(k); if (valid(k, v)) o[k] = v; }); put(o); };
+    new MutationObserver(() => { clearTimeout(saveT); saveT = setTimeout(flush, 300); }).observe(me, { attributes: true, attributeFilter: ["interval", "time-frame"] });
+    el.setAttribute("timezone", "Etc/UTC");
+    if (!narrow()) { el.setAttribute("show-drawing-toolbar", ""); el.setAttribute("show-date-ranges", ""); }
     apply(); box.appendChild(el);
     const wm = document.createElement("div"); wm.className = "tvwm"; wm.setAttribute("aria-hidden", "true"); wm.textContent = "VELOUR"; box.appendChild(wm); apply();
     if (window.customElements && customElements.whenDefined) customElements.whenDefined("tv-advanced-chart").then(() => { scriptState = 2; if (my === token) { clearTimeout(timer); ld.remove(); fail.hidden = true; box.hidden = false; } });
