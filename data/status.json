@@ -1,567 +1,567 @@
 {
   "DGS3MO": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": null
   },
   "DGS2": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": null
   },
   "DGS5": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": null
   },
   "DGS10": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": null
   },
   "DGS20": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": null
   },
   "DGS30": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": null
   },
   "DFII10": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": null
   },
   "ECON_CPIAUCSL": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_CPILFESL": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_PCEPI": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_PCEPILFE": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_GDPDEF": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-07-01",
     "error": null,
     "note": null
   },
   "ECON_GDP": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-07-01",
     "error": null,
     "note": null
   },
   "ECON_GDPC1": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-07-01",
     "error": null,
     "note": null
   },
   "ECON_GDIC1": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-04-01",
     "error": null,
     "note": null
   },
   "ECON_INDPRO": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_RRSFS": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_PCE": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_UNRATE": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_CIVPART": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_EMRATIO": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_CLF16OV": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_CE16OV": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_UNEMPLOY": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_PAYEMS": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_CES0500000003": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_ICSA": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-31",
     "error": null,
     "note": null
   },
   "ECON_CCSA": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-24",
     "error": null,
     "note": null
   },
   "ECON_JTSJOL": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_JTSQUR": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-09-01",
     "error": null,
     "note": null
   },
   "ECON_SP500": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": null
   },
   "ECON_DCOILWTICO": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-03",
     "error": null,
     "note": null
   },
   "ECON_VIXCLS": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": null
   },
   "ECON_GVZCLS": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": null
   },
   "ECON_CBBTCUSD": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": null
   },
   "COT_GOLD_LEGACY": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "COT_USD_INDEX": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "COT_EUR": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "COT_JPY": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "COT_GBP": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "COT_CHF": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "COT_CAD": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "COT_AUD": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "COT_NZD": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "COT_ES": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "COT_NQ": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "COT_US30": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-10-27",
     "error": null,
     "note": null
   },
   "DXY": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "source: ECB (ICE formula)"
   },
   "GOLD_PRICE": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-06",
     "error": null,
     "note": "source: Yahoo GC=F"
   },
   "YC_GB": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "United Kingdom government yields"
   },
   "YC_CH": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "Switzerland government yields"
   },
   "YC_NZ": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "New Zealand government yields"
   },
   "YC_CA": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": "Canada government yields"
   },
   "YC_DE": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "Germany government yields"
   },
   "YC_FR": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "France government yields"
   },
   "YC_IT": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "Italy government yields"
   },
   "YC_JP": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "Japan government yields"
   },
   "YC_AU": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": "Australia government yields"
   },
   "YC_CN": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "China government yields"
   },
   "YC_IN": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "India government yields"
   },
   "POLICY_RATES": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-03",
     "error": null,
     "note": "BIS central bank policy rates"
   },
   "FX_EURUSD": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "ECB reference rate"
   },
   "FX_GBPUSD": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "ECB reference rate"
   },
   "FX_USDJPY": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "ECB reference rate"
   },
   "FX_USDCAD": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "ECB reference rate"
   },
   "FX_AUDUSD": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "ECB reference rate"
   },
   "FX_USDCHF": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "ECB reference rate"
   },
   "FX_NZDUSD": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "ECB reference rate"
   },
   "IDX_ES": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "Yahoo ^GSPC"
   },
   "IDX_NQ": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "Yahoo ^NDX"
   },
   "IDX_US30": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-05",
     "error": null,
     "note": "Yahoo ^DJI"
   },
   "FED_ZQ": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-06",
     "error": null,
     "note": "ZQ via Yahoo Finance (manual prices in data/fed/zq_manual.csv override)"
   },
   "FED_ODDS": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-06",
     "error": null,
     "note": "Kalshi, 10 meetings"
   },
   "FX_MACRO": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-06",
     "error": null,
     "note": "source: fx-macro-confluence data.json"
   },
   "OPT_SPX": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-06",
     "error": null,
     "note": "Cboe delayed chain _SPX, 10746 contracts in 28 expiries"
   },
   "OPT_NDX": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-06",
     "error": null,
     "note": "Cboe delayed chain _NDX, 4346 contracts in 26 expiries"
   },
   "OPT_DJX": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-06",
     "error": null,
     "note": "Cboe delayed chain _DJX, 199 contracts in 7 expiries"
   },
   "OPT_RUT": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-06",
     "error": null,
     "note": "Cboe delayed chain _RUT, 3771 contracts in 17 expiries"
   },
   "OPT_GOLD": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-06",
     "error": null,
     "note": "Cboe delayed chain GLD, 2401 contracts in 15 expiries"
   },
   "OPT_VIX_TERM": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": "FRED VIXCLS and VXVCLS (VIX3M)"
   },
   "OPT_VOL_INDICES": {
     "ok": true,
-    "checked_utc": "2026-11-06 06:16 UTC",
+    "checked_utc": "2026-11-06 06:44 UTC",
     "last_data_date": "2026-11-04",
     "error": null,
     "note": "FRED VIX, VXN, VXD, RVX, GVZ, VIX3M"
