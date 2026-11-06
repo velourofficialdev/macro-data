@@ -137,10 +137,13 @@
   .tvbox .tvload { margin: 12px; }
   .tvbox { position: relative; }
   .tvbox tv-advanced-chart { display: block; height: 100%; width: 100%; }
-  .tvwm { position: absolute; left: 0; right: 0; top: 46%; transform: translateY(-50%); text-align: center; font-size: clamp(40px, 12vw, 120px); font-weight: 700; letter-spacing: .25em; color: var(--text); opacity: .1; pointer-events: none; user-select: none; z-index: 3; }
+  .tvwm { position: absolute; left: 0; right: 0; top: 46%; transform: translateY(-50%); text-align: center; font-size: clamp(40px, 12vw, 120px); font-weight: 700; letter-spacing: .25em; color: var(--text); opacity: .08; pointer-events: none; user-select: none; z-index: 3; }
+  @media (max-width: 480px) { .tvwm { display: none; } }
   .tvcol { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; font-size: 12px; color: var(--muted); }
   .tvcol label { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+  .tvcol .btn { margin-left: 0; }
   .tvcol input[type=color] { width: 32px; height: 24px; padding: 0; border: 1px solid var(--border-strong); border-radius: 4px; background: none; cursor: pointer; }
+  @media (max-width: 480px) { .tvcol { gap: 14px; } .tvcol input[type=color] { width: 44px; height: 36px; } .tvcol .btn { min-height: 36px; } }
   details.card > summary .ttl { display: flex; align-items: center; gap: 10px; }
   details.card > summary:hover h3 { color: var(--text); }
 
@@ -680,10 +683,12 @@
           <div class="tvcol" id="tv-col"><span>Candle colours (saved for this theme):</span>
             <label>Up <input type="color" id="tv-up" aria-label="Up candle colour"></label>
             <label>Down <input type="color" id="tv-down" aria-label="Down candle colour"></label>
-            <button type="button" class="btn" id="tv-reset">Reset</button></div>
+            <button type="button" class="btn ghost" id="tv-reset">Reset colours</button></div>
           <div id="tv-box" class="tvbox" aria-live="polite"></div>
           <p class="note" id="tv-fail" hidden>The TradingView chart could not load (blocked or offline). The rest of the dashboard is unaffected. <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Open tradingview.com</a></p>
-          <p class="note">Charting tool, not advice. Opening this card loads a TradingView script that runs on this page itself (not in a separate frame), and TradingView's servers see your IP address and cookies. Nothing from this page is sent to them on purpose. Drawings made with the left toolbar are not saved when you reload. Prices come from TradingView, may be delayed, and are separate from the dashboard data above. Index and dollar-index charts are broker CFD quotes (they track the index but are not the official index level); the 10Y yield is the Federal Reserve end-of-day series, drawn as a line.</p>
+          <p class="note">Charting tool, not advice. Prices come from TradingView, may be delayed, and are separate from the dashboard data above.<br>
+            Opening this card loads a TradingView script on this page and it also uses a hidden TradingView frame, so TradingView sees your IP address, cookies and this page's address; nothing else from the page is sent. Drawings made with the left toolbar are not saved after reload.<br>
+            Index and dollar-index charts are broker CFD quotes (they track the index but are not the official level; the S&amp;P entry is shown by TradingView as SPX500 CFD). The 10Y yield is the Federal Reserve end-of-day series, drawn as a line.</p>
         </div>
       </details>
     </div>
@@ -892,12 +897,16 @@ const P = __PAYLOAD__;
   function cols() { const o = Object.assign({}, mem, load())[theme()] || {}; return { up: hex(o.up) ? o.up : DEF.up, down: hex(o.down) ? o.down : DEF.down }; }
   function apply() {
     const c = cols(); upI.value = c.up; dnI.value = c.down;
+    const wmk = box.querySelector(".tvwm"); if (wmk) wmk.style.opacity = theme() === "light" ? ".06" : ".08";
     if (el) { el.setAttribute("theme", theme()); el.style.setProperty("--tv-widget-positive-color", c.up); el.style.setProperty("--tv-widget-negative-color", c.down); }
   }
   function store(k, v) { const o = Object.assign({}, mem, load()), t = theme(); o[t] = Object.assign({}, o[t]); o[t][k] = v; mem = o; save(o); apply(); }
   upI.addEventListener("input", () => store("up", upI.value));
   dnI.addEventListener("input", () => store("down", dnI.value));
   rst.addEventListener("click", () => { const o = Object.assign({}, mem, load()); delete o[theme()]; mem = o; save(o); apply(); });
+  const narrow = () => window.matchMedia && window.matchMedia("(max-width: 480px)").matches;
+  let wasNarrow = narrow();
+  window.addEventListener("resize", () => { const n = narrow(); if (n !== wasNarrow) { wasNarrow = n; if (started && card.open) render(); } });
   function paint() { picker.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.s === sym))); }
   function showFail() { clearTimeout(timer); box.hidden = true; fail.hidden = false; }
   function ensureScript(my) {
@@ -913,10 +922,10 @@ const P = __PAYLOAD__;
     if (scriptState === 3) scriptState = 0;
     ensureScript(my);
     el = document.createElement("tv-advanced-chart");
-    el.setAttribute("symbol", sym); el.setAttribute("interval", "D"); el.setAttribute("timezone", "Etc/UTC"); el.setAttribute("show-drawing-toolbar", ""); el.setAttribute("show-date-ranges", "");
+    el.setAttribute("symbol", sym); el.setAttribute("interval", "D"); el.setAttribute("timezone", "Etc/UTC"); if (!narrow()) { el.setAttribute("show-drawing-toolbar", ""); el.setAttribute("show-date-ranges", ""); }
     apply(); box.appendChild(el);
-    const wm = document.createElement("div"); wm.className = "tvwm"; wm.setAttribute("aria-hidden", "true"); wm.textContent = "VELOUR"; box.appendChild(wm);
-    if (window.customElements && customElements.whenDefined) customElements.whenDefined("tv-advanced-chart").then(() => { scriptState = 2; if (my === token) { clearTimeout(timer); ld.remove(); } });
+    const wm = document.createElement("div"); wm.className = "tvwm"; wm.setAttribute("aria-hidden", "true"); wm.textContent = "VELOUR"; box.appendChild(wm); apply();
+    if (window.customElements && customElements.whenDefined) customElements.whenDefined("tv-advanced-chart").then(() => { scriptState = 2; if (my === token) { clearTimeout(timer); ld.remove(); fail.hidden = true; box.hidden = false; } });
     timer = setTimeout(() => { if (my === token && scriptState !== 2) showFail(); }, 10000);
   }
   SYMS.forEach(([n, s]) => { const b = document.createElement("button"); b.type = "button"; b.textContent = n; b.dataset.s = s; b.addEventListener("click", () => { sym = s; paint(); if (started) render(); }); picker.appendChild(b); });
