@@ -144,7 +144,7 @@
   .tvbar .tvx:disabled { opacity: .45; cursor: default; }
   .tvbar .tvx[hidden] { display: none; }
   /* expanded: the same card body is lifted over the viewport with CSS only, so the chart element is never rebuilt */
-  .card-b.tvfull { position: fixed; inset: 0; z-index: 100; background: var(--surface); padding: 10px 12px; display: flex; flex-direction: column; overflow: auto; }
+  .card-b.tvfull { position: fixed; inset: var(--tvtop, 0px) 0 0 0; z-index: 25; background: var(--surface); padding: 10px 12px; display: flex; flex-direction: column; overflow: auto; }
   .card-b.tvfull .tvbox { flex: 1 1 auto; height: auto; min-height: 240px; }
   .card-b.tvfull .tvnote2 { display: none; }
   .card-b.tvfull .note { margin: 8px 0 0; }
@@ -606,6 +606,8 @@
     .wl, .scroll, .scroll.tall, .newsbox { max-height: none !important; overflow: visible !important; }
     details.card:not([open]) > :not(summary) { display: block; }
     .tvbox, #tv-fail, .tvx { display: none !important; }
+    .card-b.tvfull { position: static !important; inset: auto !important; overflow: visible !important; display: block !important; }
+    body.tvlock { overflow: visible !important; }
     body { font-size: 11px; }
   }
 </style>
@@ -906,12 +908,31 @@ const P = __PAYLOAD__;
   }
   const narrow = () => window.matchMedia && window.matchMedia("(max-width: 480px)").matches;
   let wasNarrow = narrow();
-  window.addEventListener("resize", () => { const n = narrow(); if (n !== wasNarrow) { wasNarrow = n; if (started && card.open) render(); } });
+  window.addEventListener("resize", () => { const n = narrow(); if (n !== wasNarrow) { wasNarrow = n; if (started && card.open) { if (body.classList.contains("tvfull")) rerender = true; else render(); } } });
   function paint() { picker.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.s === sym))); }
   function showFail() { clearTimeout(timer); collapse(); box.hidden = true; fail.hidden = false; xb.disabled = true; xb.hidden = true; }
   const xb = document.getElementById("tv-x"), body = card.querySelector(".card-b");
-  function collapse() { if (!body.classList.contains("tvfull")) return; body.classList.remove("tvfull"); document.body.classList.remove("tvlock"); xb.textContent = "Expand"; xb.setAttribute("aria-expanded", "false"); xb.focus(); }
-  function expand() { body.classList.add("tvfull"); document.body.classList.add("tvlock"); xb.textContent = "Close"; xb.setAttribute("aria-expanded", "true"); xb.focus(); }
+  let rerender = false;   // a width change while expanded is applied once, after Close
+  const head = document.querySelector(".stickyhead");
+  const setTop = () => body.style.setProperty("--tvtop", (head ? Math.max(0, Math.round(head.getBoundingClientRect().bottom)) : 0) + "px");   // leaves the page header (theme switch) reachable
+  function collapse() {
+    if (!body.classList.contains("tvfull")) return;
+    body.classList.remove("tvfull"); document.body.classList.remove("tvlock"); body.removeAttribute("role"); body.removeAttribute("aria-modal"); body.removeAttribute("aria-label");
+    xb.textContent = "Expand"; xb.setAttribute("aria-expanded", "false"); xb.focus({ preventScroll: true });
+    if (rerender) { rerender = false; if (started && card.open) render(); }
+  }
+  function expand() {
+    setTop(); body.classList.add("tvfull"); document.body.classList.add("tvlock"); body.setAttribute("role", "dialog"); body.setAttribute("aria-modal", "true"); body.setAttribute("aria-label", "Chart");
+    xb.textContent = "Close"; xb.setAttribute("aria-expanded", "true"); xb.focus();
+  }
+  window.addEventListener("hashchange", collapse);
+  window.addEventListener("resize", () => { if (body.classList.contains("tvfull")) setTop(); });
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Tab" || !body.classList.contains("tvfull")) return;
+    const f = [...body.querySelectorAll("button:not(:disabled):not([hidden]), a[href]")].filter(x => x.offsetParent !== null); if (!f.length) return;
+    const i = f.indexOf(document.activeElement);
+    if (i < 0 || (e.shiftKey && i === 0) || (!e.shiftKey && i === f.length - 1)) { e.preventDefault(); (e.shiftKey ? f[f.length - 1] : f[0]).focus(); }
+  });
   xb.addEventListener("click", () => { if (body.classList.contains("tvfull")) collapse(); else expand(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && body.classList.contains("tvfull")) { e.preventDefault(); collapse(); } });
   card.addEventListener("toggle", () => { if (!card.open) collapse(); });
@@ -923,7 +944,7 @@ const P = __PAYLOAD__;
     document.head.appendChild(sc);
   }
   function render() {
-    flush(); const my = ++token; clearTimeout(timer); box.hidden = false; fail.hidden = true; box.textContent = ""; el = null; xb.disabled = true; xb.hidden = true;
+    flush(); const my = ++token; clearTimeout(timer); box.hidden = false; fail.hidden = true; box.textContent = ""; el = null; if (!body.classList.contains("tvfull")) { xb.disabled = true; xb.hidden = true; }
     const ld = document.createElement("p"); ld.className = "note tvload"; ld.textContent = "Loading chart..."; box.appendChild(ld);
     if (scriptState === 3) scriptState = 0;
     ensureScript(my);
