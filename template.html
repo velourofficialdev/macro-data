@@ -129,6 +129,12 @@
   details.card > summary::-webkit-details-marker { display: none; }
   details.card > summary .chev { width: 8px; height: 8px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; margin-right: 4px; flex: none; }
   details.card[open] > summary .chev { transform: rotate(45deg); }
+  .tvbox { height: 480px; margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .tvbox iframe { width: 100%; height: 100%; border: 0; display: block; }
+  @media (max-width: 640px) { .tvbox { height: 380px; } }
+  #tvcard { scroll-margin-top: calc(var(--hh, 104px) - 10px); }
+  #tvcard[open] .tvhint { display: none; }
+  .tvbox .tvload { margin: 12px; }
   details.card > summary .ttl { display: flex; align-items: center; gap: 10px; }
   details.card > summary:hover h3 { color: var(--text); }
 
@@ -583,6 +589,7 @@
     .card, .kpi { break-inside: avoid; }
     .wl, .scroll, .scroll.tall, .newsbox { max-height: none !important; overflow: visible !important; }
     details.card:not([open]) > :not(summary) { display: block; }
+    .tvbox, #tv-fail { display: none !important; }
     body { font-size: 11px; }
   }
 </style>
@@ -659,6 +666,15 @@
       <details class="card collapse" style="--w:7" open data-mobile-closed>
         <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>US yields and spreads across time</h3></span></summary>
         __MATRIX__
+      </details>
+      <details class="card collapse" style="--w:12" id="tvcard">
+        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Chart</h3></span><span class="note tvhint">Open to load a TradingView chart</span></summary>
+        <div class="card-b">
+          <div class="ranges" id="tv-sym" role="group" aria-label="Chart symbol"></div>
+          <div id="tv-box" class="tvbox" aria-live="polite"></div>
+          <p class="note" id="tv-fail" hidden>The TradingView chart could not load (blocked or offline). The rest of the dashboard is unaffected. <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Open tradingview.com</a></p>
+          <p class="note">Charting tool, not advice. Opening this card loads a script from TradingView, so their servers see your IP address and cookies; nothing from this page is sent to them. Prices come from TradingView, may be delayed, and are separate from the dashboard data above.</p>
+        </div>
       </details>
     </div>
   </section>
@@ -844,6 +860,44 @@ const P = __PAYLOAD__;
     paint();
   }));
   paint();
+})();
+
+/* TradingView chart: the free embed script loads only when the card is opened */
+(function () {
+  const card = document.getElementById("tvcard"); if (!card) return;
+  const SYMS = [["Gold", "OANDA:XAUUSD"], ["S&P 500", "SP:SPX"], ["Dollar index", "TVC:DXY"], ["EUR/USD", "FX:EURUSD"], ["US 10Y yield", "TVC:US10Y"]];
+  const box = document.getElementById("tv-box"), fail = document.getElementById("tv-fail"), picker = document.getElementById("tv-sym");
+  let sym = SYMS[0][1], started = false, token = 0, timer = 0, shown = null;
+  const theme = () => {
+    const t = document.documentElement.getAttribute("data-theme");
+    if (t === "light" || t === "dark") return t;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  };
+  function paint() { picker.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.s === sym))); }
+  function showFail() { clearTimeout(timer); box.hidden = true; fail.hidden = false; }
+  function render() {
+    const my = ++token; clearTimeout(timer); shown = theme(); box.hidden = false; fail.hidden = true; box.textContent = "";
+    const ld = document.createElement("p"); ld.className = "note tvload"; ld.textContent = "Loading chart..."; box.appendChild(ld);
+    const w = document.createElement("div"); w.className = "tradingview-widget-container"; w.style.cssText = "height:100%;width:100%";
+    const inner = document.createElement("div"); inner.className = "tradingview-widget-container__widget"; inner.style.cssText = "height:100%;width:100%";
+    const sc = document.createElement("script");
+    sc.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js"; sc.async = true;
+    sc.text = JSON.stringify({ autosize: true, symbol: sym, interval: "D", timezone: "Etc/UTC", theme: theme(), style: "1", locale: "en", allow_symbol_change: false, hide_side_toolbar: true, withdateranges: true, support_host: "https://www.tradingview.com" });
+    sc.onerror = () => { if (my === token) showFail(); };
+    const cp = document.createElement("div"); cp.className = "tradingview-widget-copyright";
+    const ca = document.createElement("a"); ca.href = "https://www.tradingview.com/"; ca.target = "_blank"; ca.rel = "noopener nofollow";
+    const cs = document.createElement("span"); cs.className = "blue-text"; cs.textContent = "Track all markets on TradingView"; ca.appendChild(cs); cp.appendChild(ca);
+    w.appendChild(inner); w.appendChild(sc); w.appendChild(cp); box.appendChild(w);
+    const mo = new MutationObserver(() => { if (my !== token) { mo.disconnect(); return; } if (box.querySelector("iframe")) { clearTimeout(timer); ld.remove(); mo.disconnect(); } });
+    mo.observe(box, { childList: true, subtree: true });
+    timer = setTimeout(() => { if (my === token && !box.querySelector("iframe")) showFail(); }, 10000);
+  }
+  SYMS.forEach(([n, s]) => { const b = document.createElement("button"); b.type = "button"; b.textContent = n; b.dataset.s = s; b.addEventListener("click", () => { sym = s; paint(); if (started) render(); }); picker.appendChild(b); });
+  paint();
+  const sync = () => { if (card.open && (!started || shown !== theme())) { started = true; render(); } };
+  card.addEventListener("toggle", sync);
+  new MutationObserver(sync).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { sync(); });
 })();
 
 /* macro drivers matrix: clicking a row picks that instrument in the list */
