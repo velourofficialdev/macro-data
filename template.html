@@ -137,6 +137,18 @@
   .tvbox .tvload { margin: 12px; }
   .tvbox { position: relative; }
   .tvbox tv-advanced-chart { display: block; height: 100%; width: 100%; }
+  .tvbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .tvbar .ranges { flex: 1 1 auto; min-width: 0; }
+  .tvbar .tvx { flex: none; font: inherit; font-size: 12px; font-weight: 600; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); padding: 4px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+  .tvbar .tvx:hover:not(:disabled) { background: var(--tint-primary); color: var(--primary-ink); }
+  .tvbar .tvx:disabled { opacity: .45; cursor: default; }
+  .tvbar .tvx[hidden] { display: none; }
+  /* expanded: the same card body is lifted over the viewport with CSS only, so the chart element is never rebuilt */
+  .card-b.tvfull { position: fixed; inset: 0; z-index: 100; background: var(--surface); padding: 10px 12px; display: flex; flex-direction: column; overflow: auto; }
+  .card-b.tvfull .tvbox { flex: 1 1 auto; height: auto; min-height: 240px; }
+  .card-b.tvfull .tvnote2 { display: none; }
+  .card-b.tvfull .note { margin: 8px 0 0; }
+  body.tvlock { overflow: hidden; }
   .tvwm { position: absolute; left: 0; right: 0; top: 46%; transform: translateY(-50%); text-align: center; font-size: clamp(40px, 12vw, 120px); font-weight: 700; letter-spacing: .25em; color: var(--text); opacity: .08; pointer-events: none; user-select: none; z-index: 3; }
   @media (max-width: 480px) { .tvwm { display: none; } }
   details.card > summary .ttl { display: flex; align-items: center; gap: 10px; }
@@ -593,7 +605,7 @@
     .card, .kpi { break-inside: avoid; }
     .wl, .scroll, .scroll.tall, .newsbox { max-height: none !important; overflow: visible !important; }
     details.card:not([open]) > :not(summary) { display: block; }
-    .tvbox, #tv-fail { display: none !important; }
+    .tvbox, #tv-fail, .tvx { display: none !important; }
     body { font-size: 11px; }
   }
 </style>
@@ -674,11 +686,11 @@
       <details class="card collapse" style="--w:12" id="tvcard">
         <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Chart</h3></span><span class="note tvhint">Open to load a TradingView chart</span></summary>
         <div class="card-b">
-          <div class="ranges" id="tv-sym" role="group" aria-label="Chart symbol"></div>
+          <div class="tvbar"><div class="ranges" id="tv-sym" role="group" aria-label="Chart symbol"></div><button type="button" class="tvx" id="tv-x" aria-expanded="false" aria-controls="tv-box" disabled hidden>Expand</button></div>
           <div id="tv-box" class="tvbox" aria-live="polite"></div>
           <p class="note" id="tv-fail" hidden>The TradingView chart could not load (blocked or offline). The rest of the dashboard is unaffected. <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Open tradingview.com</a></p>
-          <p class="note">Charting tool, not advice. Prices come from TradingView, may be delayed, and are separate from the dashboard data above.<br>
-            Opening this card loads a TradingView script on this page and it also uses a hidden TradingView frame, so TradingView sees your IP address, cookies and this page's address; nothing else from the page is sent.<br>Remembers symbol, candle interval and date range on this device. Drawings and indicators reset on reload.<br>
+          <p class="note">Charting tool, not advice. Prices come from TradingView, may be delayed, and are separate from the dashboard data above.</p>
+          <p class="note tvnote2">Opening this card loads a TradingView script on this page and it also uses a hidden TradingView frame, so TradingView sees your IP address, cookies and this page's address; nothing else from the page is sent.<br>Remembers symbol, candle interval and date range on this device. Drawings and indicators reset on reload.<br>
             Index and dollar-index charts are broker CFD quotes (they track the index but are not the official level; the S&amp;P entry is a CFD quote that tracks the S&amp;P 500 Index). The 10Y yield is the Federal Reserve end-of-day series, drawn as a line.</p>
         </div>
       </details>
@@ -896,7 +908,13 @@ const P = __PAYLOAD__;
   let wasNarrow = narrow();
   window.addEventListener("resize", () => { const n = narrow(); if (n !== wasNarrow) { wasNarrow = n; if (started && card.open) render(); } });
   function paint() { picker.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.s === sym))); }
-  function showFail() { clearTimeout(timer); box.hidden = true; fail.hidden = false; }
+  function showFail() { clearTimeout(timer); collapse(); box.hidden = true; fail.hidden = false; xb.disabled = true; xb.hidden = true; }
+  const xb = document.getElementById("tv-x"), body = card.querySelector(".card-b");
+  function collapse() { if (!body.classList.contains("tvfull")) return; body.classList.remove("tvfull"); document.body.classList.remove("tvlock"); xb.textContent = "Expand"; xb.setAttribute("aria-expanded", "false"); xb.focus(); }
+  function expand() { body.classList.add("tvfull"); document.body.classList.add("tvlock"); xb.textContent = "Close"; xb.setAttribute("aria-expanded", "true"); xb.focus(); }
+  xb.addEventListener("click", () => { if (body.classList.contains("tvfull")) collapse(); else expand(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && body.classList.contains("tvfull")) { e.preventDefault(); collapse(); } });
+  card.addEventListener("toggle", () => { if (!card.open) collapse(); });
   function ensureScript(my) {
     if (scriptState === 1 || scriptState === 2) return;
     scriptState = 1;
@@ -905,7 +923,7 @@ const P = __PAYLOAD__;
     document.head.appendChild(sc);
   }
   function render() {
-    flush(); const my = ++token; clearTimeout(timer); box.hidden = false; fail.hidden = true; box.textContent = ""; el = null;
+    flush(); const my = ++token; clearTimeout(timer); box.hidden = false; fail.hidden = true; box.textContent = ""; el = null; xb.disabled = true; xb.hidden = true;
     const ld = document.createElement("p"); ld.className = "note tvload"; ld.textContent = "Loading chart..."; box.appendChild(ld);
     if (scriptState === 3) scriptState = 0;
     ensureScript(my);
@@ -921,7 +939,7 @@ const P = __PAYLOAD__;
     if (!narrow()) { el.setAttribute("show-drawing-toolbar", ""); el.setAttribute("show-date-ranges", ""); }
     apply(); box.appendChild(el);
     const wm = document.createElement("div"); wm.className = "tvwm"; wm.setAttribute("aria-hidden", "true"); wm.textContent = "VELOUR"; box.appendChild(wm); apply();
-    if (window.customElements && customElements.whenDefined) customElements.whenDefined("tv-advanced-chart").then(() => { scriptState = 2; if (my === token) { clearTimeout(timer); ld.remove(); fail.hidden = true; box.hidden = false; } });
+    if (window.customElements && customElements.whenDefined) customElements.whenDefined("tv-advanced-chart").then(() => { scriptState = 2; if (my === token) { clearTimeout(timer); ld.remove(); fail.hidden = true; box.hidden = false; xb.hidden = false; xb.disabled = false; } });
     timer = setTimeout(() => { if (my === token && scriptState !== 2) showFail(); }, 10000);
   }
   SYMS.forEach(([n, s]) => { const b = document.createElement("button"); b.type = "button"; b.textContent = n; b.dataset.s = s; b.addEventListener("click", () => { sym = s; put({ symbol: s }); paint(); if (started) render(); }); picker.appendChild(b); });
