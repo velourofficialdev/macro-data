@@ -673,7 +673,7 @@
           <div class="ranges" id="tv-sym" role="group" aria-label="Chart symbol"></div>
           <div id="tv-box" class="tvbox" aria-live="polite"></div>
           <p class="note" id="tv-fail" hidden>The TradingView chart could not load (blocked or offline). The rest of the dashboard is unaffected. <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Open tradingview.com</a></p>
-          <p class="note">Charting tool, not advice. Opening this card loads a script from TradingView, so their servers see your IP address and cookies; nothing from this page is sent to them. Prices come from TradingView, may be delayed, and are separate from the dashboard data above.</p>
+          <p class="note">Charting tool, not advice. Opening this card loads a script from TradingView, so their servers see your IP address and cookies; nothing from this page is sent to them. Prices come from TradingView, may be delayed, and are separate from the dashboard data above. Index and dollar-index charts are broker CFD quotes (they track the index but are not the official index level); the 10Y yield is the Federal Reserve end-of-day series, drawn as a line.</p>
         </div>
       </details>
     </div>
@@ -865,7 +865,7 @@ const P = __PAYLOAD__;
 /* TradingView chart: the free embed script loads only when the card is opened */
 (function () {
   const card = document.getElementById("tvcard"); if (!card) return;
-  const SYMS = [["Gold", "OANDA:XAUUSD"], ["S&P 500", "SP:SPX"], ["Dollar index", "TVC:DXY"], ["EUR/USD", "FX:EURUSD"], ["US 10Y yield", "TVC:US10Y"]];
+  const SYMS = [["Gold (spot)", "OANDA:XAUUSD"], ["S&P 500 (CFD)", "FOREXCOM:SPXUSD"], ["Dollar index (CFD)", "CAPITALCOM:DXY"], ["EUR/USD", "FX:EURUSD"], ["US 10Y yield (daily)", "FRED:DGS10"]];
   const box = document.getElementById("tv-box"), fail = document.getElementById("tv-fail"), picker = document.getElementById("tv-sym");
   let sym = SYMS[0][1], started = false, token = 0, timer = 0, shown = null;
   const theme = () => {
