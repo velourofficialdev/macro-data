@@ -914,8 +914,8 @@ const P = __PAYLOAD__;
     el.setAttribute("symbol", sym);
     el.setAttribute("interval", sym === DAILY ? "D" : (sv.interval || "D"));
     if (sv["time-frame"]) el.setAttribute("time-frame", sv["time-frame"]);
-    const me = el;
-    pend = () => { if (me !== el) return; const o = {}; ["interval", "time-frame"].forEach(k => { if (k === "interval" && sym === DAILY) return; const v = me.getAttribute(k); if (valid(k, v)) o[k] = v; }); put(o); };
+    const me = el, mysym = sym;
+    pend = () => { if (me !== el) return; const o = {}; ["interval", "time-frame"].forEach(k => { if (k === "interval" && mysym === DAILY) return; const v = me.getAttribute(k); if (valid(k, v)) o[k] = v; }); put(o); };
     new MutationObserver(() => { clearTimeout(saveT); saveT = setTimeout(flush, 300); }).observe(me, { attributes: true, attributeFilter: ["interval", "time-frame"] });
     el.setAttribute("timezone", "Etc/UTC");
     if (!narrow()) { el.setAttribute("show-drawing-toolbar", ""); el.setAttribute("show-date-ranges", ""); }
