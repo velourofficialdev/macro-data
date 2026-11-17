@@ -947,7 +947,8 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
 
     news = feed.get("news") or []
     if not news and feed:
-        out["news"] = '<p class="muted-text">No headlines right now. Checked ' + esc(out["upd"]) + '.</p>'
+        chk = (str(feed.get("updated", ""))[:16].replace("T", " ") + " UTC") if feed.get("updated") else "n/a"
+        out["news"] = '<p class="muted-text pad">No headlines right now. Checked ' + esc(chk) + '.</p>'
     if news:
         # Newest first, undated items last, same headline shown once (the feed arrives in search-relevance order).
         seen, ordered = set(), []
