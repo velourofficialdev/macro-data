@@ -741,7 +741,7 @@ def gauge_ring(score: float, cls: str) -> str:
 FX_DEC = {"USDJPY": 3, "XAUUSD": 2, "ES": 2, "NQ": 2, "US30": 2}
 
 
-# FX confluence: a line-for-line port of the original engine (deiruuuu/fx-macro-engine, fetch-data.js),
+# FX confluence: a line-for-line port of the original engine (velourofficialdev/fx-macro-engine, formerly deiruuuu, fetch-data.js),
 # so scores match the old fx-macro-confluence page. That engine pulled the latest 400 daily FRED closes per pair.
 FX_OBS = 400
 
