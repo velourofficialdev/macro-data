@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Download the latest market data into data/*.csv.
 
-Sources (currently all free and key-less; keyed APIs are allowed, see CLAUDE.md):
-  - FRED  : US Treasury yields + 10Y real yield   -> data/<CODE>.csv
+Sources (free; keyed APIs are allowed, see CLAUDE.md):
+  - FRED  : official API when FRED_API_KEY is set (else, or if it fails, fredgraph.csv); US Treasury yields + 10Y real yield   -> data/<CODE>.csv
             US macro (inflation, growth, labor)    -> data/econ/<CODE>.csv
   - CFTC  : Gold and USD Index COT, both from the Legacy Futures Only report (Non-Commercial)
             -> data/COT_GOLD_LEGACY.csv, data/COT_USD_INDEX.csv
@@ -25,6 +25,7 @@ from __future__ import annotations
 import html
 import io
 import json
+import os
 import re
 import sys
 import time
@@ -98,9 +99,55 @@ def merge_save(path: Path, new: pd.DataFrame, key: str, keep: int) -> pd.DataFra
     return new
 
 
+FRED_API_URL = "https://api.stlouisfed.org/fred/series/observations"
+FRED_ROUTES = {"keyed": 0, "csv, no key": 0, "csv, keyed failed": 0}   # per-run count of which route each FRED series used
+
+
+def scrub(text, *extra: str) -> str:
+    """Replace the FRED key (and any extra secret values) with *** in text. Use on every exception text that could hold a request URL."""
+    out = str(text)
+    for k in (os.environ.get("FRED_API_KEY"), *extra):
+        if k and len(k) >= 4:
+            out = out.replace(k, "***")
+    out = re.sub(r"(api_key=)[^&\s'\"]+", r"\1***", out)   # also masks a key we do not know
+    return out
+
+
+def fred_route_note() -> str:
+    """Route summary for status.json; counts only, never the key."""
+    used = {k: v for k, v in FRED_ROUTES.items() if v}
+    return "FRED route: " + (", ".join(f"{k} x{v}" for k, v in used.items()) if used else "none used")
+
+
+def _fred_keyed(code: str, start: str, key: str) -> pd.DataFrame:
+    r = requests.get(FRED_API_URL, params={"series_id": code, "api_key": key, "file_type": "json",
+                                           "observation_start": start}, timeout=30)
+    r.raise_for_status()
+    obs = r.json().get("observations")
+    if not obs:
+        raise ValueError("no observations returned")
+    df = pd.DataFrame(obs)[["date", "value"]]
+    df.columns = ["date", code]
+    df[code] = pd.to_numeric(df[code], errors="coerce")   # FRED uses "." for holidays
+    df = df.dropna()
+    if df.empty:
+        raise ValueError("no rows returned")
+    return df
+
+
 def fetch_fred(code: str, years: int = HISTORY_YEARS) -> pd.DataFrame:
     # FRED drops connections that send a browser-style User-Agent, so use the library default here.
     start = (pd.Timestamp.today().normalize() - pd.Timedelta(days=years * 365)).strftime("%Y-%m-%d")
+    key = os.environ.get("FRED_API_KEY")
+    route = "csv, no key"
+    if key:
+        try:
+            df = _fred_keyed(code, start, key)
+            FRED_ROUTES["keyed"] += 1
+            return df
+        except Exception as exc:  # noqa: BLE001  (its text may hold the URL with the key: only the type is kept)
+            route = "csv, keyed failed"
+            print(f"FRED keyed call failed for {code}: {type(exc).__name__}; using CSV", file=sys.stderr)
     r = requests.get("https://fred.stlouisfed.org/graph/fredgraph.csv",
                      params={"id": code, "cosd": start}, timeout=30)
     r.raise_for_status()
@@ -112,6 +159,7 @@ def fetch_fred(code: str, years: int = HISTORY_YEARS) -> pd.DataFrame:
     df = df.dropna()
     if df.empty:
         raise ValueError("no rows returned")
+    FRED_ROUTES[route] += 1
     return df
 
 
@@ -686,9 +734,13 @@ def fx_pick(prev: dict | None, new: dict) -> tuple[dict, bool]:
 
 def main() -> int:
     status: dict[str, dict] = {}
+    for _k in FRED_ROUTES:
+        FRED_ROUTES[_k] = 0
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     def record(name: str, ok: bool, last: str | None = None, error: str | None = None, note: str | None = None):
+        error = scrub(error) if error else error
+        note = scrub(note) if note else note
         status[name] = {"ok": ok, "checked_utc": now, "last_data_date": last, "error": error, "note": note}
         print(("OK   " if ok else "FAIL ") + name + (f"  last={last}" if last else "") + (f"  {error}" if error else ""))
 
@@ -823,7 +875,7 @@ def main() -> int:
     try:
         feed, probs = build_fx_macro(prev_feed)
         fxp.write_text(json.dumps(feed))
-        record("FX_MACRO", True, str(feed["updated"])[:10], note=("source: own FRED build (FRED csv + Google News RSS); " + probs)[:300])
+        record("FX_MACRO", True, str(feed["updated"])[:10], note=("source: own FRED build (FRED + Google News RSS); " + fred_route_note() + "; " + probs)[:300])
     except Exception as exc:  # noqa: BLE001
         own_err = f"{type(exc).__name__}: {exc}"[:120]
         try:   # fallback only: the old published feed
@@ -836,9 +888,9 @@ def main() -> int:
             if not kept:
                 fxp.write_text(json.dumps(feed))
             what = "kept previous data/fx_macro.json (newer than the old feed)" if kept else "fallback: fx-macro-confluence data.json"
-            record("FX_MACRO", True, str(feed.get("updated", ""))[:10], note=f"{what} (own build failed: {own_err})"[:300])
+            record("FX_MACRO", True, str(feed.get("updated", ""))[:10], note=f"{what} (own build failed: {own_err}); {fred_route_note()}"[:300])
         except Exception as exc2:  # noqa: BLE001
-            record("FX_MACRO", False, error=f"own build: {own_err}; fallback: {type(exc2).__name__}: {exc2}"[:300])
+            record("FX_MACRO", False, error=f"own build: {own_err}; fallback: {type(exc2).__name__}: {exc2}; {fred_route_note()}"[:300])
 
     try:   # options positioning levels (SPX -> ES, GLD -> gold) from Cboe's free delayed chains; see options_levels.py
         import options_levels

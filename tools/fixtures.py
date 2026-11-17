@@ -156,6 +156,102 @@ def fx_macro_checks() -> dict:
     return bad
 
 
+def fred_key_checks() -> dict:
+    """Offline tests of the keyed FRED route: parse, no-key path, rejected key fallback, key redaction."""
+    import contextlib
+    import io
+    import requests
+    bad = {}
+    KEY = "fakekey0123456789abcdef"  # check: not-a-secret
+    saved_env, saved_get = os.environ.get("FRED_API_KEY"), requests.get
+    CSV = "observation_date,DGS10\n2026-11-12,4.10\n2026-11-13,.\n2026-11-16,4.20\n"
+    mode = {"m": "ok"}
+
+    class R:
+        def __init__(s, url, status=200, js=None, text=""):
+            s.url, s.status_code, s._js, s.text = url, status, js, text
+
+        def raise_for_status(s):
+            if s.status_code >= 400:
+                raise requests.HTTPError(f"{s.status_code} Client Error: Bad Request for url: {s.url}")
+
+        def json(s):
+            return s._js
+
+    calls = []
+
+    def fake_get(url, params=None, **kw):
+        calls.append(url)
+        if "api.stlouisfed.org" in url:
+            full = url + "?" + "&".join(f"{k}={v}" for k, v in params.items())
+            if mode["m"] == "reject":
+                return R(full, 400)
+            if mode["m"] == "raise":
+                raise requests.ConnectionError(f"HTTPSConnectionPool: Max retries exceeded with url: {full}")
+            return R(full, 200, {"observations": [{"date": "2026-11-12", "value": "4.10"}, {"date": "2026-11-13", "value": "."}, {"date": "2026-11-16", "value": "4.20"}]})
+        return R(url, 200, text=CSV)
+
+    requests.get = fake_get
+    try:
+        def routes():
+            return {k: v for k, v in ud.FRED_ROUTES.items() if v}
+
+        def reset():
+            for k in ud.FRED_ROUTES:
+                ud.FRED_ROUTES[k] = 0
+            calls.clear()
+
+        def shape(df):
+            return list(df.columns) == ["date", "DGS10"] and list(zip(df["date"], df["DGS10"])) == [("2026-11-12", 4.10), ("2026-11-16", 4.20)]
+
+        os.environ.pop("FRED_API_KEY", None); reset()
+        df = ud.fetch_fred("DGS10")
+        if not shape(df) or any("api.stlouisfed" in c for c in calls) or routes() != {"csv, no key": 1}:
+            bad["no key"] = f"{routes()} {calls}"
+        os.environ["FRED_API_KEY"] = KEY; reset()
+        df = ud.fetch_fred("DGS10")
+        if not shape(df) or routes() != {"keyed": 1} or any("fredgraph" in c for c in calls):
+            bad["keyed parse"] = f"{df.to_dict('list')} {routes()}"
+        for m in ("reject", "raise"):
+            mode["m"] = m; reset()
+            buf = io.StringIO()
+            with contextlib.redirect_stderr(buf), contextlib.redirect_stdout(buf):
+                df = ud.fetch_fred("DGS10")
+            if not shape(df) or routes() != {"csv, keyed failed": 1}:
+                bad["fallback " + m] = str(routes())
+            if KEY in buf.getvalue():
+                bad["leak " + m] = "key printed"
+        mode["m"] = "ok"
+        # redaction: known key, unknown key in api_key=, and a real HTTPError text
+        for t in (f"400 Client Error for url: https://api.stlouisfed.org/x?series_id=A&api_key={KEY}&file_type=json", f"k={KEY}", "api_key=someotherkey&x=1"):
+            o = ud.scrub(t)
+            if KEY in o or "someotherkey" in o or "***" not in o:
+                bad["scrub"] = o
+        try:
+            R(f"{ud.FRED_API_URL}?api_key={KEY}", 400).raise_for_status()
+            bad["scrub exc"] = "fake did not raise"
+        except Exception as e:  # noqa: BLE001
+            if KEY not in str(e):
+                bad["scrub exc"] = "fixture error should contain the key before scrubbing"
+            if KEY in ud.scrub(e):
+                bad["scrub exc"] = "key survived scrub of exception text"
+        ud.FRED_ROUTES["csv, keyed failed"] = 3
+        note = ud.fred_route_note()
+        if KEY in note or "csv, keyed failed x3" not in note:
+            bad["route note"] = note
+        src = (ROOT / "update_data.py").read_text()
+        if "error = scrub(error)" not in src or "note = scrub(note)" not in src:
+            bad["record scrub"] = "record() must scrub error and note"
+        reset()
+    finally:
+        requests.get = saved_get
+        if saved_env is None:
+            os.environ.pop("FRED_API_KEY", None)
+        else:
+            os.environ["FRED_API_KEY"] = saved_env
+    return bad
+
+
 def guard_out(path: Path) -> Path:
     """Only write under /tmp, the scratchpad or $TEAM_DIR (never $TEAM_DIR itself or the repo)."""
     p = path.resolve()
@@ -183,6 +279,11 @@ def main() -> int:
     for k, v in fx_macro_checks().items():
         bad["fx_macro " + k] = v
         print("FAIL fx_macro " + k + ": " + v)
+    for k, v in fred_key_checks().items():
+        bad["fred_key " + k] = v
+        print("FAIL fred_key " + k + ": " + v)
+    if not any(k.startswith("fred_key") for k in bad):
+        print("OK   fred_key routes + redaction")
     if not any(k.startswith("fx_macro") for k in bad):
         print("OK   fx_macro build + RSS parser")
     return 1 if bad else 0
