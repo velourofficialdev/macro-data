@@ -946,6 +946,8 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
         out["econ"] = '<div class="econgrid">' + "".join(items) + "</div>"
 
     news = feed.get("news") or []
+    if not news and feed:
+        out["news"] = '<p class="muted-text">No headlines right now. Checked ' + esc(out["upd"]) + '.</p>'
     if news:
         # Newest first, undated items last, same headline shown once (the feed arrives in search-relevance order).
         seen, ordered = set(), []
