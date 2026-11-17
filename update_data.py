@@ -12,7 +12,7 @@ Sources (currently all free and key-less; keyed APIs are allowed, see CLAUDE.md)
             and the US Dollar Index computed with ICE's published DXY formula -> data/DXY.csv
             (fallbacks: Yahoo, then FRED H.10 for pairs / Stooq for DXY). XAUUSD uses the gold futures series
   - Kalshi  : Fed decision market odds (next meetings) + daily history -> data/fed/
-  - FX dashboard feed (deiruuuu/fx-macro-confluence data.json) -> data/fx_macro.json
+  - FX dashboard feed (velourofficialdev/fx-macro-confluence data.json) -> data/fx_macro.json
   - Yahoo : Gold futures price (GC=F)            -> data/GOLD.csv   (used for the weekly price change next to Gold COT)
 
 A failed source never wipes existing data: the old file is kept and the error
@@ -50,7 +50,7 @@ HISTORY_YEARS = 10
 CFTC_LIMIT = 180      # weekly reports fetched (52 window + history)
 HEADERS = {"User-Agent": "Mozilla/5.0 (macro-dashboard; personal research)"}
 TIMEOUT = 60
-FX_FEED_URL = "https://deiruuuu.github.io/fx-macro-confluence/data.json"
+FX_FEED_URL = "https://velourofficialdev.github.io/fx-macro-confluence/data.json"
 
 CFTC_SOURCES = {
     # name: (dataset id, contract code, long field, short field, exchange keyword)
