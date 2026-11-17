@@ -156,6 +156,23 @@ def fx_macro_checks() -> dict:
     return bad
 
 
+def fred_notice_checks() -> dict:
+    """Footer notice: only for the keyed route note; csv-only, keyed-failed-only and missing status must not show it or crash."""
+    import build_dashboard as bd
+    bad = {}
+    cases = {"keyed": ("FRED route: keyed x61", True), "keyed+csv": ("FRED route: keyed x50, csv, keyed failed x11", True),
+             "csv": ("FRED route: csv, no key x61", False), "csv+failed": ("FRED route: csv, keyed failed x11", False)}
+    for k, (note, want) in cases.items():
+        got = bd.FRED_NOTICE in bd.build_footer({"status": {"FX_MACRO": {"note": note}}})
+        if got != want: bad[k] = f"notice shown={got}, want {want}"
+    for k, d in {"no status": {"status": {}}, "no key": {}, "null note": {"status": {"FX_MACRO": {"note": None}}}}.items():
+        try:
+            if bd.build_footer(d) != "": bad[k] = "must be empty"
+        except Exception as e:  # noqa: BLE001
+            bad[k] = f"crashed: {e}"
+    return bad
+
+
 def fred_key_checks() -> dict:
     """Offline tests of the keyed FRED route: parse, no-key path, rejected key fallback, key redaction."""
     import contextlib
@@ -279,6 +296,9 @@ def main() -> int:
     for k, v in fx_macro_checks().items():
         bad["fx_macro " + k] = v
         print("FAIL fx_macro " + k + ": " + v)
+    for k, v in fred_notice_checks().items():
+        bad["fred_notice " + k] = v
+        print("FAIL fred_notice " + k + ": " + v)
     for k, v in fred_key_checks().items():
         bad["fred_key " + k] = v
         print("FAIL fred_key " + k + ": " + v)

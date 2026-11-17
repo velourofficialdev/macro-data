@@ -13,6 +13,7 @@ import argparse
 import html
 import json
 import math
+import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -1370,6 +1371,21 @@ def curve_payload(data: dict) -> dict | None:
     return {"labels": [t for t, _ in tenors], "sets": sets}
 
 
+FRED_NOTICE = "This product uses the FRED\u00ae API but is not endorsed or certified by the Federal Reserve Bank of St. Louis."
+_FRED_KEYED = re.compile(r"(?:route: |, )keyed x\d+")
+
+
+def build_footer(data: dict) -> str:
+    """FRED's required notice, shown only when the official keyed API route was used (status note); never raises."""
+    try:
+        note = str(((data.get("status") or {}).get("FX_MACRO") or {}).get("note") or "")
+    except Exception:  # noqa: BLE001
+        note = ""
+    if not _FRED_KEYED.search(note):
+        return ""
+    return f'<footer class="site-foot wrap"><p class="muted-text">{esc(FRED_NOTICE)}</p></footer>'
+
+
 def build_status(data: dict, today: date) -> str:
     rows = []
     st = data["status"]
@@ -1956,7 +1972,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
         "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__FXPICK__": fx.get("picker", ""), "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
-        "__STATUS__": build_status(data, today), "__OPTIONS__": build_options(data, today), "__FINGERPRINT__": build_fingerprint(data),
+        "__STATUS__": build_status(data, today), "__FOOTER__": build_footer(data), "__OPTIONS__": build_options(data, today), "__FINGERPRINT__": build_fingerprint(data),
     }
     for k, v in rep.items():
         page = page.replace(k, v)
