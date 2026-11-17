@@ -167,6 +167,10 @@ def fred_notice_checks() -> dict:
         if got != want: bad[k] = f"notice shown={got}, want {want}"
         if want and ("FRED API Terms of Use" not in bd.build_footer({"status": {"FX_MACRO": {"note": note}}})):
             bad[k + " link"] = "terms link missing"
+        if want and "agree to be bound by" not in bd.build_footer({"status": {"FX_MACRO": {"note": note}}}):
+            bad[k + " agree"] = "agreement sentence missing"
+        if not want and "agree to be bound by" in bd.build_footer({"status": {"FX_MACRO": {"note": note}}}):
+            bad[k + " agree"] = "agreement sentence shown without keyed route"
     for k, (note, err, want) in {"keyed in error": ("", "FRED route: keyed x5, csv, keyed failed x2", True), "csv in error": ("", "FRED route: csv, no key x5", False)}.items():
         f = bd.build_footer({"status": {"FX_MACRO": {"note": note, "error": err}}})
         if (bd.FRED_NOTICE in f) != want or (want and "FRED API Terms of Use" not in f): bad[k] = "error route text mishandled"

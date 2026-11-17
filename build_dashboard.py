@@ -1388,7 +1388,8 @@ def build_footer(data: dict) -> str:
     if not _FRED_KEYED.search(text):
         return ""
     return (f'<footer class="site-foot wrap"><p class="muted-text">{esc(FRED_NOTICE)} '
-            f'<a class="muted-text" href="{FRED_TERMS_URL}" target="_blank" rel="noopener noreferrer">FRED API Terms of Use</a></p></footer>')
+            f'By using this page you agree to be bound by the '
+            f'<a class="muted-text" href="{FRED_TERMS_URL}" target="_blank" rel="noopener noreferrer">FRED API Terms of Use</a>.</p></footer>')
 
 
 def build_status(data: dict, today: date) -> str:
