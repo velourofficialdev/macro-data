@@ -12,7 +12,8 @@ Sources (currently all free and key-less; keyed APIs are allowed, see CLAUDE.md)
             and the US Dollar Index computed with ICE's published DXY formula -> data/DXY.csv
             (fallbacks: Yahoo, then FRED H.10 for pairs / Stooq for DXY). XAUUSD uses the gold futures series
   - Kalshi  : Fed decision market odds (next meetings) + daily history -> data/fed/
-  - FX dashboard feed (velourofficialdev/fx-macro-confluence data.json) -> data/fx_macro.json
+  - FX dashboard feed -> data/fx_macro.json: built here from FRED fredgraph.csv (markets, 7 H.10 pairs, econ, 2y/10y) plus
+    Google News RSS headlines; the old velourofficialdev/fx-macro-confluence data.json is only a fallback if that build fails
   - Yahoo : Gold futures price (GC=F)            -> data/GOLD.csv   (used for the weekly price change next to Gold COT)
 
 A failed source never wipes existing data: the old file is kept and the error
@@ -21,13 +22,20 @@ Exit code is 1 only if every source failed.
 """
 from __future__ import annotations
 
+import html
 import io
 import json
+import re
 import sys
+import time
+import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
+from urllib.parse import quote_plus
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -526,6 +534,156 @@ def fetch_index(sym: str) -> tuple[pd.DataFrame, str]:
     return df, f"FRED {fred}"
 
 
+# ---- FX dashboard feed built here (replaces the separate fx-macro-engine) --------------------------------------------
+# (id, label, FRED series, decimals, thousands separator, unit, suffix)
+FXM_MARKETS = [("dxy", "USD BROAD", "DTWEXBGS", 2, False, "", ""), ("sp500", "S&P 500", "SP500", 0, True, "", ""),
+               ("gold", "GOLD IDX", "NASDAQQGLDI", 2, True, "", ""), ("wti", "WTI OIL", "DCOILWTICO", 2, False, "", ""),
+               ("vix", "VIX", "VIXCLS", 2, False, "", ""), ("btc", "BTC", "CBBTCUSD", 0, True, "", "")]
+FXM_PAIRS = [("EURUSD", "DEXUSEU", 5), ("GBPUSD", "DEXUSUK", 5), ("USDJPY", "DEXJPUS", 3), ("USDCAD", "DEXCAUS", 5),
+             ("AUDUSD", "DEXUSAL", 5), ("USDCHF", "DEXSZUS", 5), ("NZDUSD", "DEXUSNZ", 5)]
+FXM_ECON = [("fed_rate", "FED RATE", "FEDFUNDS", 2, False, "", "%"), ("cpi", "CPI", "CPIAUCSL", 1, False, "", ""),
+            ("unemploy", "UNEMPLOY", "UNRATE", 1, False, "", "%"), ("gdp", "GDP", "GDP", 0, True, "B", ""),
+            ("pce", "PCE INDEX", "PCEPI", 1, False, "", ""), ("m2", "M2 MONEY", "M2SL", 0, True, "B", ""),
+            ("ppi", "PPI", "PPIACO", 1, False, "", ""), ("retail", "RETAIL SALES", "RSAFS", 0, True, "M", ""),
+            ("ecb_rate", "ECB RATE", "ECBDFR", 2, False, "", "%"), ("boj_rate", "BOJ CALL RATE", "IRSTCI01JPM156N", 2, False, "", "%"),
+            ("boe_rate", "UK 3M RATE", "IR3TIB01GBM156N", 2, False, "", "%"), ("vix_fred", "VIX (FRED)", "VIXCLS", 2, False, "", "")]
+FXM_CURVE = [("y2", "2-Yr", "DGS2"), ("y10", "10-Yr", "DGS10")]
+NEWS_QUERY = "site:reuters.com when:3d (markets OR economy OR forex OR dollar OR Fed OR ECB OR inflation OR rates)"
+NEWS_URL = "https://news.google.com/rss/search?q=" + quote_plus(NEWS_QUERY) + "&hl=en-US&gl=US&ceid=US:en"
+NEWS_UA = "Mozilla/5.0 (compatible; FXMacroDashboard/1.0)"
+
+
+def _r(x: float, dp: int) -> float:
+    return float(np.floor(x * 10 ** dp + 0.5) / 10 ** dp)   # half-up like JS toFixed on typical values, never half-even
+
+
+def fxm_stats(s: pd.Series, dp: int, comma: bool) -> dict:
+    """value/display/change/changePct/date/spark from a date-indexed series (newest 400 observations)."""
+    s = s.dropna().tail(400)
+    if len(s) < 2:
+        raise ValueError("fewer than 2 observations")
+    cur, prev = float(s.iloc[-1]), float(s.iloc[-2])
+    return {"value": cur, "display": f"{cur:,.{dp}f}" if comma else f"{cur:.{dp}f}", "change": _r(cur - prev, 6),
+            "changePct": _r((cur - prev) / prev * 100, 3) if prev else None, "date": str(s.index[-1])[:10],
+            "spark": [float(v) for v in s.tail(30)]}
+
+
+def parse_news(xml_text: str, limit: int = 8) -> list[dict]:
+    """Google News RSS text -> up to `limit` {title, url, source, publishedAt}; any problem gives an empty list."""
+    try:
+        root = ET.fromstring(xml_text)
+    except Exception:  # noqa: BLE001
+        return []
+    out = []
+    for it in root.iter("item"):
+        title = html.unescape(re.sub(r"<[^>]+>", "", (it.findtext("title") or ""))).replace("\xa0", " ").strip()
+        title = re.sub(r"\s+-\s+Reuters$", "", title).strip()
+        if not title:
+            continue
+        url = (it.findtext("link") or "").strip()
+        if url.startswith("http://"):
+            url = "https://" + url[7:]
+        pub = None
+        try:
+            pub = parsedate_to_datetime((it.findtext("pubDate") or "").strip()).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        except Exception:  # noqa: BLE001
+            pass
+        out.append({"title": title, "url": url, "source": "Reuters", "publishedAt": pub})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def fetch_news() -> list[dict]:
+    r = requests.get(NEWS_URL, headers={"User-Agent": NEWS_UA}, timeout=20)
+    r.raise_for_status()
+    return parse_news(r.text)
+
+
+def build_fx_macro(prev: dict | None, fred=fetch_fred, news=fetch_news, budget: float = 120.0, clock=time.monotonic) -> tuple[dict, str]:
+    """Own build of the dashboard FX feed. Returns (feed, problems). Raises if fewer than half the FRED series load."""
+    prev = prev or {}
+    cache: dict[str, pd.Series | Exception] = {}
+    problems: list[str] = []
+    t0 = clock()
+
+    def series(code: str) -> pd.Series:
+        if code not in cache:
+            try:
+                if clock() - t0 > budget:   # overall FRED wait is capped: the rest counts as failed
+                    raise TimeoutError(f"FRED time budget {budget:.0f}s used up")
+                df = fred(code)
+                cache[code] = pd.Series(df[code].values, index=df["date"].astype(str).values)
+            except Exception as exc:  # noqa: BLE001
+                cache[code] = exc
+        v = cache[code]
+        if isinstance(v, Exception):
+            raise v
+        return v
+
+    def item(group: str, key: str, label: str, code: str, dp: int, comma: bool, unit: str, suffix: str) -> dict:
+        base = {"label": label, "series": code, "unit": unit, "suffix": suffix}
+        try:
+            return {**base, **fxm_stats(series(code), dp, comma)}
+        except Exception as exc:  # noqa: BLE001
+            problems.append(f"{code}: {type(exc).__name__}")
+            old = (prev.get(group) or {}).get(key)
+            if old and old.get("value") is not None:
+                return old
+            return {**base, "value": None, "display": "-", "change": None, "changePct": None, "date": "", "spark": [],
+                    "error": f"{type(exc).__name__}: {exc}"[:120]}
+
+    feed: dict = {"updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")}
+    feed["markets"] = {k: item("markets", k, *a) for k, *a in FXM_MARKETS}
+    try:   # confluence reuses the existing port in build_dashboard (one copy of the maths)
+        from build_dashboard import fx_confluence
+    except Exception as exc:  # noqa: BLE001
+        fx_confluence = None
+        problems.append(f"confluence import: {type(exc).__name__}")
+    fx = {}
+    for sym, code, dp in FXM_PAIRS:
+        try:
+            s = series(code).dropna().tail(400)
+            if len(s) < 30:
+                raise ValueError("fewer than 30 observations")
+            st = fxm_stats(s, dp, True)
+            cur, prv = st["value"], float(s.iloc[-2])
+            d = {"series": code, "price": cur, "display": f"{cur:.{dp}f}", "change": _r(cur - prv, dp), "changePct": st["changePct"],
+                 "date": st["date"], "spark": st["spark"]}
+            if fx_confluence:
+                d["confluence"] = fx_confluence(sym, s)
+            fx[sym] = d
+        except Exception as exc:  # noqa: BLE001
+            problems.append(f"{code}: {type(exc).__name__}")
+            old = (prev.get("fx") or {}).get(sym)
+            fx[sym] = old if old and old.get("price") is not None else {"series": code, "price": None, "display": "-", "change": None, "changePct": None, "date": "", "spark": [], "error": f"{type(exc).__name__}: {exc}"[:120]}
+    feed["fx"] = fx
+    feed["econ"] = {k: item("econ", k, *a) for k, *a in FXM_ECON}
+    feed["curve"] = {k: item("curve", k, lab, code, 2, False, "", "") for k, lab, code in FXM_CURVE}
+    total = len(FXM_MARKETS) + len(FXM_PAIRS) + len(FXM_ECON) + len(FXM_CURVE)
+    ok = sum(1 for g in (feed["markets"], feed["econ"], feed["curve"]) for v in g.values() if v.get("value") is not None) \
+        + sum(1 for v in fx.values() if v.get("price") is not None)
+    failed_fetch = len([e for e in cache.values() if isinstance(e, Exception)])
+    if failed_fetch * 2 > len(cache):
+        raise RuntimeError(f"FRED unavailable: {failed_fetch} of {len(cache)} series failed")
+    try:
+        feed["news"] = news()
+        if not feed["news"]:
+            problems.append("news: empty")
+    except Exception as exc:  # noqa: BLE001
+        problems.append(f"news: {type(exc).__name__}")
+        feed["news"] = prev.get("news") or []
+    return feed, f"{ok}/{total} series ok" + ("; " + ", ".join(problems) if problems else "")
+
+
+def fx_pick(prev: dict | None, new: dict) -> tuple[dict, bool]:
+    """Keep the fresher of the previous stored feed and a fallback feed by 'updated'. Returns (feed, kept_previous)."""
+    pu, nu = str((prev or {}).get("updated") or ""), str(new.get("updated") or "")
+    if prev and pu and pu >= nu:
+        return prev, True
+    return new, False
+
+
 def main() -> int:
     status: dict[str, dict] = {}
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -657,16 +815,30 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         record("FED_ODDS", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
+    fxp = DATA / "fx_macro.json"
     try:
-        r = requests.get(FX_FEED_URL, timeout=30)
-        r.raise_for_status()
-        feed = r.json()
-        if not isinstance(feed, dict) or "fx" not in feed:
-            raise ValueError("unexpected feed shape")
-        (DATA / "fx_macro.json").write_text(json.dumps(feed))
-        record("FX_MACRO", True, str(feed.get("updated", ""))[:10], note="source: fx-macro-confluence data.json")
+        prev_feed = json.loads(fxp.read_text()) if fxp.exists() else None
+    except Exception:  # noqa: BLE001
+        prev_feed = None
+    try:
+        feed, probs = build_fx_macro(prev_feed)
+        fxp.write_text(json.dumps(feed))
+        record("FX_MACRO", True, str(feed["updated"])[:10], note=("source: own FRED build (FRED csv + Google News RSS); " + probs)[:300])
     except Exception as exc:  # noqa: BLE001
-        record("FX_MACRO", False, error=f"{type(exc).__name__}: {exc}"[:200])
+        own_err = f"{type(exc).__name__}: {exc}"[:120]
+        try:   # fallback only: the old published feed
+            r = requests.get(FX_FEED_URL, timeout=30)
+            r.raise_for_status()
+            feed = r.json()
+            if not isinstance(feed, dict) or "fx" not in feed:
+                raise ValueError("unexpected feed shape")
+            feed, kept = fx_pick(prev_feed, feed)
+            if not kept:
+                fxp.write_text(json.dumps(feed))
+            what = "kept previous data/fx_macro.json (newer than the old feed)" if kept else "fallback: fx-macro-confluence data.json"
+            record("FX_MACRO", True, str(feed.get("updated", ""))[:10], note=f"{what} (own build failed: {own_err})"[:300])
+        except Exception as exc2:  # noqa: BLE001
+            record("FX_MACRO", False, error=f"own build: {own_err}; fallback: {type(exc2).__name__}: {exc2}"[:300])
 
     try:   # options positioning levels (SPX -> ES, GLD -> gold) from Cboe's free delayed chains; see options_levels.py
         import options_levels

@@ -24,6 +24,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import options_levels as ol  # noqa: E402
+import update_data as ud  # noqa: E402
 
 
 def fake_chain(root: str, spot: float, step: float, lo: float, hi: float, call_peak: float, put_peak: float, base_iv: float, seed: int) -> dict:
@@ -104,6 +105,57 @@ def run(out: Path) -> dict:
     return ol.update(out)
 
 
+FAKE_RSS = """<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>x</title>
+<item><title>Fed &amp;amp; ECB weigh &lt;b&gt;rates&lt;/b&gt; &#39;again&#39; - Reuters</title><link>http://news.example/a?oc=5</link><pubDate>Mon, 16 Nov 2026 01:47:00 GMT</pubDate></item>
+<item><title>Dollar &quot;slips&quot; as yields ease - Reuters</title><link>https://news.example/b</link></item>
+<item><title></title><link>https://news.example/empty</link></item>
+""" + "".join(f"<item><title>Filler {i} - Reuters</title><link>https://news.example/f{i}</link><pubDate>Mon, 16 Nov 2026 0{i}:00:00 GMT</pubDate></item>" for i in range(8)) + "</channel></rss>"
+
+
+def fx_macro_checks() -> dict:
+    """Offline tests of the own FX feed build: RSS parser, FRED partial failure, news failure, total FRED failure."""
+    bad = {}
+    n = ud.parse_news(FAKE_RSS)
+    if len(n) != 8: bad["rss count"] = f"{len(n)} items, want 8"
+    elif n[0]["title"] != "Fed & ECB weigh rates 'again'": bad["rss title"] = n[0]["title"]
+    elif n[0]["url"] != "https://news.example/a?oc=5" or n[0]["source"] != "Reuters" or n[0]["publishedAt"] != "2026-11-16T01:47:00.000Z": bad["rss item0"] = str(n[0])
+    elif n[1]["title"] != 'Dollar "slips" as yields ease' or n[1]["publishedAt"] is not None: bad["rss item1"] = str(n[1])
+    if ud.parse_news("<rss><channel></channel></rss>") != [] or ud.parse_news("not xml") != []: bad["rss empty"] = "empty/garbage feed must give []"
+    rng = np.random.default_rng(7)
+    def fred(code):
+        if code == "DGS10": raise RuntimeError("boom")
+        v = 100 + np.cumsum(rng.normal(0, 0.5, 450)) + (code == "GDP") * 0
+        return pd.DataFrame({"date": pd.bdate_range("2025-01-01", periods=450).strftime("%Y-%m-%d"), code: v})
+    feed, probs = ud.build_fx_macro(None, fred=fred, news=lambda: ud.parse_news(FAKE_RSS))
+    if len(feed["markets"]) != 6 or len(feed["fx"]) != 7 or len(feed["econ"]) != 12 or set(feed["curve"]) != {"y2", "y10"}: bad["shape"] = "wrong group sizes"
+    if feed["curve"]["y10"]["value"] is not None or feed["curve"]["y10"]["display"] != "-" or "DGS10" not in probs: bad["partial"] = "failed series must be value None / '-' and noted: " + probs
+    if len(feed["markets"]["dxy"]["spark"]) != 30 or "confluence" not in feed["fx"]["EURUSD"] or len(feed["news"]) != 8: bad["fields"] = "spark/confluence/news missing"
+    old = {"curve": {"y10": {"value": 5.0, "display": "5.00"}}, "news": [{"title": "old"}]}
+    f2, _ = ud.build_fx_macro(old, fred=fred, news=lambda: (_ for _ in ()).throw(OSError("rss down")))
+    if f2["curve"]["y10"]["value"] != 5.0 or f2["news"] != [{"title": "old"}]: bad["keep old"] = "previous values not kept on failure"
+    try:
+        ud.build_fx_macro(None, fred=lambda c: (_ for _ in ()).throw(OSError("down")), news=lambda: [])
+        bad["all fail"] = "must raise so the fallback feed is used"
+    except RuntimeError:
+        pass
+    f3, _ = ud.build_fx_macro(None, fred=fred, news=lambda: [])
+    if f3["curve"]["y10"]["date"] != "" or f3["curve"]["y10"]["date"] is None: bad["empty date"] = "failed series without history must have date ''"
+    if f3["markets"]["dxy"]["label"] != "USD BROAD" or f3["econ"]["boe_rate"]["label"] != "UK 3M RATE" or f3["econ"]["boj_rate"]["label"] != "BOJ CALL RATE" or f3["markets"]["gold"]["label"] != "GOLD IDX": bad["labels"] = "honest labels missing"
+    ticks = iter(range(0, 10000, 50))   # fake clock: each call advances 50 s, budget 120 s
+    calls = []
+    def fred2(code):
+        calls.append(code); return fred(code)
+    try:
+        ud.build_fx_macro(None, fred=fred2, news=lambda: [], budget=120, clock=lambda: next(ticks))
+        bad["budget"] = "must raise once most series are cut by the time budget"
+    except RuntimeError:
+        pass
+    if len(calls) > 4: bad["budget"] = f"{len(calls)} FRED fetches after budget, want <= 4"
+    a, b = {"updated": "2026-11-17T10:00:00.000Z"}, {"updated": "2026-11-16T10:00:00.000Z"}
+    if ud.fx_pick(a, b) != (a, True) or ud.fx_pick(b, a) != (a, False) or ud.fx_pick(None, a) != (a, False): bad["pick newer"] = "fallback must not overwrite a fresher previous feed"
+    return bad
+
+
 def guard_out(path: Path) -> Path:
     """Only write under /tmp, the scratchpad or $TEAM_DIR (never $TEAM_DIR itself or the repo)."""
     p = path.resolve()
@@ -128,6 +180,11 @@ def main() -> int:
         if s.get("surface_error"):
             bad[k + " surface"] = s["surface_error"]
             print("FAIL " + k + " surface: " + s["surface_error"])
+    for k, v in fx_macro_checks().items():
+        bad["fx_macro " + k] = v
+        print("FAIL fx_macro " + k + ": " + v)
+    if not any(k.startswith("fx_macro") for k in bad):
+        print("OK   fx_macro build + RSS parser")
     return 1 if bad else 0
 
 
