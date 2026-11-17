@@ -1375,15 +1375,20 @@ FRED_NOTICE = "This product uses the FRED\u00ae API but is not endorsed or certi
 _FRED_KEYED = re.compile(r"(?:route: |, )keyed x\d+")
 
 
+FRED_TERMS_URL = "https://fred.stlouisfed.org/docs/api/terms_of_use.html"
+
+
 def build_footer(data: dict) -> str:
-    """FRED's required notice, shown only when the official keyed API route was used (status note); never raises."""
+    """FRED's required notice + Terms link, shown only when the keyed API route was used (FX_MACRO note or error); never raises."""
     try:
-        note = str(((data.get("status") or {}).get("FX_MACRO") or {}).get("note") or "")
+        st = (data.get("status") or {}).get("FX_MACRO") or {}
+        text = f'{st.get("note") or ""} {st.get("error") or ""}'
     except Exception:  # noqa: BLE001
-        note = ""
-    if not _FRED_KEYED.search(note):
+        text = ""
+    if not _FRED_KEYED.search(text):
         return ""
-    return f'<footer class="site-foot wrap"><p class="muted-text">{esc(FRED_NOTICE)}</p></footer>'
+    return (f'<footer class="site-foot wrap"><p class="muted-text">{esc(FRED_NOTICE)} '
+            f'<a class="muted-text" href="{FRED_TERMS_URL}" target="_blank" rel="noopener noreferrer">FRED API Terms of Use</a></p></footer>')
 
 
 def build_status(data: dict, today: date) -> str:

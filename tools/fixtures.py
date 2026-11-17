@@ -165,6 +165,11 @@ def fred_notice_checks() -> dict:
     for k, (note, want) in cases.items():
         got = bd.FRED_NOTICE in bd.build_footer({"status": {"FX_MACRO": {"note": note}}})
         if got != want: bad[k] = f"notice shown={got}, want {want}"
+        if want and ("FRED API Terms of Use" not in bd.build_footer({"status": {"FX_MACRO": {"note": note}}})):
+            bad[k + " link"] = "terms link missing"
+    for k, (note, err, want) in {"keyed in error": ("", "FRED route: keyed x5, csv, keyed failed x2", True), "csv in error": ("", "FRED route: csv, no key x5", False)}.items():
+        f = bd.build_footer({"status": {"FX_MACRO": {"note": note, "error": err}}})
+        if (bd.FRED_NOTICE in f) != want or (want and "FRED API Terms of Use" not in f): bad[k] = "error route text mishandled"
     for k, d in {"no status": {"status": {}}, "no key": {}, "null note": {"status": {"FX_MACRO": {"note": None}}}}.items():
         try:
             if bd.build_footer(d) != "": bad[k] = "must be empty"
