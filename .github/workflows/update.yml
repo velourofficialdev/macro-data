@@ -34,6 +34,8 @@ jobs:
 
       - name: Download latest data
         if: github.event_name != 'pull_request'
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python update_data.py
 
       - name: Build dashboard
