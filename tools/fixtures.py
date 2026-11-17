@@ -162,7 +162,7 @@ def fred_key_checks() -> dict:
     import io
     import requests
     bad = {}
-    KEY = "fakekey0123456789abcdef"
+    KEY = "fakekey0123456789abcdef"  # check: not-a-secret
     saved_env, saved_get = os.environ.get("FRED_API_KEY"), requests.get
     CSV = "observation_date,DGS10\n2026-11-12,4.10\n2026-11-13,.\n2026-11-16,4.20\n"
     mode = {"m": "ok"}
