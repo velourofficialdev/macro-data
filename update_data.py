@@ -27,6 +27,7 @@ import io
 import json
 import re
 import sys
+import time
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
@@ -535,8 +536,8 @@ def fetch_index(sym: str) -> tuple[pd.DataFrame, str]:
 
 # ---- FX dashboard feed built here (replaces the separate fx-macro-engine) --------------------------------------------
 # (id, label, FRED series, decimals, thousands separator, unit, suffix)
-FXM_MARKETS = [("dxy", "DXY", "DTWEXBGS", 2, False, "", ""), ("sp500", "S&P 500", "SP500", 0, True, "", ""),
-               ("gold", "GOLD", "NASDAQQGLDI", 2, True, "", ""), ("wti", "WTI OIL", "DCOILWTICO", 2, False, "", ""),
+FXM_MARKETS = [("dxy", "USD BROAD", "DTWEXBGS", 2, False, "", ""), ("sp500", "S&P 500", "SP500", 0, True, "", ""),
+               ("gold", "GOLD IDX", "NASDAQQGLDI", 2, True, "", ""), ("wti", "WTI OIL", "DCOILWTICO", 2, False, "", ""),
                ("vix", "VIX", "VIXCLS", 2, False, "", ""), ("btc", "BTC", "CBBTCUSD", 0, True, "", "")]
 FXM_PAIRS = [("EURUSD", "DEXUSEU", 5), ("GBPUSD", "DEXUSUK", 5), ("USDJPY", "DEXJPUS", 3), ("USDCAD", "DEXCAUS", 5),
              ("AUDUSD", "DEXUSAL", 5), ("USDCHF", "DEXSZUS", 5), ("NZDUSD", "DEXUSNZ", 5)]
@@ -544,8 +545,8 @@ FXM_ECON = [("fed_rate", "FED RATE", "FEDFUNDS", 2, False, "", "%"), ("cpi", "CP
             ("unemploy", "UNEMPLOY", "UNRATE", 1, False, "", "%"), ("gdp", "GDP", "GDP", 0, True, "B", ""),
             ("pce", "PCE INDEX", "PCEPI", 1, False, "", ""), ("m2", "M2 MONEY", "M2SL", 0, True, "B", ""),
             ("ppi", "PPI", "PPIACO", 1, False, "", ""), ("retail", "RETAIL SALES", "RSAFS", 0, True, "M", ""),
-            ("ecb_rate", "ECB RATE", "ECBDFR", 2, False, "", "%"), ("boj_rate", "BOJ RATE", "IRSTCI01JPM156N", 2, False, "", "%"),
-            ("boe_rate", "BOE RATE", "IR3TIB01GBM156N", 2, False, "", "%"), ("vix_fred", "VIX (FRED)", "VIXCLS", 2, False, "", "")]
+            ("ecb_rate", "ECB RATE", "ECBDFR", 2, False, "", "%"), ("boj_rate", "BOJ CALL RATE", "IRSTCI01JPM156N", 2, False, "", "%"),
+            ("boe_rate", "UK 3M RATE", "IR3TIB01GBM156N", 2, False, "", "%"), ("vix_fred", "VIX (FRED)", "VIXCLS", 2, False, "", "")]
 FXM_CURVE = [("y2", "2-Yr", "DGS2"), ("y10", "10-Yr", "DGS10")]
 NEWS_QUERY = "site:reuters.com when:3d (markets OR economy OR forex OR dollar OR Fed OR ECB OR inflation OR rates)"
 NEWS_URL = "https://news.google.com/rss/search?q=" + quote_plus(NEWS_QUERY) + "&hl=en-US&gl=US&ceid=US:en"
@@ -562,7 +563,7 @@ def fxm_stats(s: pd.Series, dp: int, comma: bool) -> dict:
     if len(s) < 2:
         raise ValueError("fewer than 2 observations")
     cur, prev = float(s.iloc[-1]), float(s.iloc[-2])
-    return {"value": cur, "display": f"{cur:,.{dp}f}" if comma else f"{cur:.{dp}f}", "change": cur - prev,
+    return {"value": cur, "display": f"{cur:,.{dp}f}" if comma else f"{cur:.{dp}f}", "change": _r(cur - prev, 6),
             "changePct": _r((cur - prev) / prev * 100, 3) if prev else None, "date": str(s.index[-1])[:10],
             "spark": [float(v) for v in s.tail(30)]}
 
@@ -599,15 +600,18 @@ def fetch_news() -> list[dict]:
     return parse_news(r.text)
 
 
-def build_fx_macro(prev: dict | None, fred=fetch_fred, news=fetch_news) -> tuple[dict, str]:
+def build_fx_macro(prev: dict | None, fred=fetch_fred, news=fetch_news, budget: float = 120.0, clock=time.monotonic) -> tuple[dict, str]:
     """Own build of the dashboard FX feed. Returns (feed, problems). Raises if fewer than half the FRED series load."""
     prev = prev or {}
     cache: dict[str, pd.Series | Exception] = {}
     problems: list[str] = []
+    t0 = clock()
 
     def series(code: str) -> pd.Series:
         if code not in cache:
             try:
+                if clock() - t0 > budget:   # overall FRED wait is capped: the rest counts as failed
+                    raise TimeoutError(f"FRED time budget {budget:.0f}s used up")
                 df = fred(code)
                 cache[code] = pd.Series(df[code].values, index=df["date"].astype(str).values)
             except Exception as exc:  # noqa: BLE001
@@ -626,15 +630,16 @@ def build_fx_macro(prev: dict | None, fred=fetch_fred, news=fetch_news) -> tuple
             old = (prev.get(group) or {}).get(key)
             if old and old.get("value") is not None:
                 return old
-            return {**base, "value": None, "display": "-", "change": None, "changePct": None, "date": None, "spark": [],
+            return {**base, "value": None, "display": "-", "change": None, "changePct": None, "date": "", "spark": [],
                     "error": f"{type(exc).__name__}: {exc}"[:120]}
 
     feed: dict = {"updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")}
     feed["markets"] = {k: item("markets", k, *a) for k, *a in FXM_MARKETS}
     try:   # confluence reuses the existing port in build_dashboard (one copy of the maths)
         from build_dashboard import fx_confluence
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         fx_confluence = None
+        problems.append(f"confluence import: {type(exc).__name__}")
     fx = {}
     for sym, code, dp in FXM_PAIRS:
         try:
@@ -651,7 +656,7 @@ def build_fx_macro(prev: dict | None, fred=fetch_fred, news=fetch_news) -> tuple
         except Exception as exc:  # noqa: BLE001
             problems.append(f"{code}: {type(exc).__name__}")
             old = (prev.get("fx") or {}).get(sym)
-            fx[sym] = old if old and old.get("price") is not None else {"series": code, "price": None, "display": "-", "change": None, "changePct": None, "date": None, "spark": [], "error": f"{type(exc).__name__}: {exc}"[:120]}
+            fx[sym] = old if old and old.get("price") is not None else {"series": code, "price": None, "display": "-", "change": None, "changePct": None, "date": "", "spark": [], "error": f"{type(exc).__name__}: {exc}"[:120]}
     feed["fx"] = fx
     feed["econ"] = {k: item("econ", k, *a) for k, *a in FXM_ECON}
     feed["curve"] = {k: item("curve", k, lab, code, 2, False, "", "") for k, lab, code in FXM_CURVE}
@@ -669,6 +674,14 @@ def build_fx_macro(prev: dict | None, fred=fetch_fred, news=fetch_news) -> tuple
         problems.append(f"news: {type(exc).__name__}")
         feed["news"] = prev.get("news") or []
     return feed, f"{ok}/{total} series ok" + ("; " + ", ".join(problems) if problems else "")
+
+
+def fx_pick(prev: dict | None, new: dict) -> tuple[dict, bool]:
+    """Keep the fresher of the previous stored feed and a fallback feed by 'updated'. Returns (feed, kept_previous)."""
+    pu, nu = str((prev or {}).get("updated") or ""), str(new.get("updated") or "")
+    if prev and pu and pu >= nu:
+        return prev, True
+    return new, False
 
 
 def main() -> int:
@@ -819,8 +832,11 @@ def main() -> int:
             feed = r.json()
             if not isinstance(feed, dict) or "fx" not in feed:
                 raise ValueError("unexpected feed shape")
-            fxp.write_text(json.dumps(feed))
-            record("FX_MACRO", True, str(feed.get("updated", ""))[:10], note=f"fallback: fx-macro-confluence data.json (own build failed: {own_err})"[:300])
+            feed, kept = fx_pick(prev_feed, feed)
+            if not kept:
+                fxp.write_text(json.dumps(feed))
+            what = "kept previous data/fx_macro.json (newer than the old feed)" if kept else "fallback: fx-macro-confluence data.json"
+            record("FX_MACRO", True, str(feed.get("updated", ""))[:10], note=f"{what} (own build failed: {own_err})"[:300])
         except Exception as exc2:  # noqa: BLE001
             record("FX_MACRO", False, error=f"own build: {own_err}; fallback: {type(exc2).__name__}: {exc2}"[:300])
 

@@ -138,6 +138,21 @@ def fx_macro_checks() -> dict:
         bad["all fail"] = "must raise so the fallback feed is used"
     except RuntimeError:
         pass
+    f3, _ = ud.build_fx_macro(None, fred=fred, news=lambda: [])
+    if f3["curve"]["y10"]["date"] != "" or f3["curve"]["y10"]["date"] is None: bad["empty date"] = "failed series without history must have date ''"
+    if f3["markets"]["dxy"]["label"] != "USD BROAD" or f3["econ"]["boe_rate"]["label"] != "UK 3M RATE" or f3["econ"]["boj_rate"]["label"] != "BOJ CALL RATE" or f3["markets"]["gold"]["label"] != "GOLD IDX": bad["labels"] = "honest labels missing"
+    ticks = iter(range(0, 10000, 50))   # fake clock: each call advances 50 s, budget 120 s
+    calls = []
+    def fred2(code):
+        calls.append(code); return fred(code)
+    try:
+        ud.build_fx_macro(None, fred=fred2, news=lambda: [], budget=120, clock=lambda: next(ticks))
+        bad["budget"] = "must raise once most series are cut by the time budget"
+    except RuntimeError:
+        pass
+    if len(calls) > 4: bad["budget"] = f"{len(calls)} FRED fetches after budget, want <= 4"
+    a, b = {"updated": "2026-11-17T10:00:00.000Z"}, {"updated": "2026-11-16T10:00:00.000Z"}
+    if ud.fx_pick(a, b) != (a, True) or ud.fx_pick(b, a) != (a, False) or ud.fx_pick(None, a) != (a, False): bad["pick newer"] = "fallback must not overwrite a fresher previous feed"
     return bad
 
 
