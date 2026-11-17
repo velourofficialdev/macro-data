@@ -947,6 +947,14 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
 
     news = feed.get("news") or []
     if news:
+        # Newest first, undated items last, same headline shown once (the feed arrives in search-relevance order).
+        seen, ordered = set(), []
+        for n in sorted(news, key=lambda x: str(x.get("publishedAt") or ""), reverse=True):
+            key = " ".join(str(n.get("title", "")).lower().split())
+            if key and key not in seen:
+                seen.add(key)
+                ordered.append(n)
+        news = ordered
         nrows = []
         for n in news:
             url = str(n.get("url", ""))
