@@ -777,6 +777,13 @@ def fast_news(prev: dict | None, news=None, now_iso: str | None = None) -> tuple
     return out, f"{len(items)} headlines (Google News RSS); numbers unchanged until the full run"
 
 
+def news_date(feed: dict | None) -> str | None:
+    """Date (YYYY-MM-DD) of the newest headline; when no headline has a date, the day news_updated was set."""
+    feed = feed or {}
+    pubs = sorted(str(n.get("publishedAt"))[:10] for n in feed.get("news") or [] if isinstance(n, dict) and n.get("publishedAt"))
+    return (pubs[-1] if pubs else str(feed.get("news_updated") or "")[:10]) or None
+
+
 def main(fast: bool | None = None) -> int:
     fast = is_fast() if fast is None else fast
     slow = not fast
@@ -930,7 +937,7 @@ def main(fast: bool | None = None) -> int:
             feed, note = fast_news(prev_feed)
             if feed is not None:
                 write_json_atomic(fxp, feed)
-            record("FX_NEWS", True, str((prev_feed or {}).get("updated", ""))[:10] or None, note=note)
+            record("FX_NEWS", True, news_date(feed or prev_feed), note=note)
         except Exception as exc:  # noqa: BLE001
             record("FX_NEWS", False, error=f"{type(exc).__name__}: {exc}"[:200])
     else:
@@ -961,7 +968,7 @@ def main(fast: bool | None = None) -> int:
     except Exception as exc:  # noqa: BLE001
         record("OPT_SPX", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
-    status["RUN_MODE"] = {"ok": True, "checked_utc": now, "last_data_date": None, "error": None,
+    status["RUN_MODE"] = {"ok": True, "checked_utc": now, "last_data_date": None, "error": None, "mode": "fast" if fast else "full",
                           "note": "fast run: news, Fed odds, options and prices only; other sources keep their last full-run entries" if fast
                           else "full run: all sources"}
     write_json_atomic(DATA / "status.json", status, indent=2)

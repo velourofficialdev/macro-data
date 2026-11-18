@@ -513,9 +513,9 @@ def oi_changes(raw: pd.DataFrame, prev_path: Path, spot: float, window: float) -
 def update(data_dir: Path, fast: bool = False) -> dict[str, tuple[bool, str | None, str | None, str | None]]:
     """Returns key -> (ok, last_data_date, error, note) for status.json.
 
-    fast=True (hourly run): skips the daily FRED vol-index files, and keeps the open-interest baseline (<KEY>_oi.csv) and the
-    OI change table from the first run of each UTC day, so the change always means "since the previous day's first run",
-    never "since the last hourly run"."""
+    fast=True (hourly run) skips the daily FRED vol-index files. In every mode, the open-interest baseline (<KEY>_oi.csv) and
+    the OI change table are written only by the first run of each UTC day; later runs that day (fast or full) reuse that table,
+    so the change always means "since the previous UTC day's first run", never "since the last hourly run"."""
     outdir = data_dir / "options"
     outdir.mkdir(parents=True, exist_ok=True)
     asof = pd.Timestamp(datetime.now(timezone.utc).replace(tzinfo=None))
@@ -526,8 +526,8 @@ def update(data_dir: Path, fast: bool = False) -> dict[str, tuple[bool, str | No
             a = analyse(raw, spot, asof, window)
             hp = outdir / f"{key}_history.csv"
             day = asof.strftime("%Y-%m-%d")
-            carry = None   # fast run, not the first of the UTC day: reuse today's OI change table and leave the baseline alone
-            if fast and hp.exists() and (outdir / f"{key}.json").exists():
+            carry = None   # not the first run of the UTC day (fast or full): reuse today's OI change table and leave the baseline alone
+            if hp.exists() and (outdir / f"{key}.json").exists():
                 try:
                     if str(pd.read_csv(hp)["date"].iloc[-1]) == day:
                         carry = json.loads((outdir / f"{key}.json").read_text()).get("oi_changes")

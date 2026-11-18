@@ -99,6 +99,10 @@ def run(out: Path) -> dict:
     install(chains)
     out.mkdir(parents=True, exist_ok=True)
     ol.update(out)
+    for hp in (out / "options").glob("*_history.csv"):   # the first run counts as the previous UTC day's, so day 2 diffs against its baseline
+        h = pd.read_csv(hp)
+        h["date"] = (pd.Timestamp.now("UTC").normalize().tz_localize(None) - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+        h.to_csv(hp, index=False)
     for o in chains["_SPX"]["data"]["options"]:   # day 2: open interest moves at one strike
         if "C05900000" in o["option"]:
             o["open_interest"] += 500
@@ -338,7 +342,7 @@ def fast_mode_checks(work: Path) -> dict:
         if rc != 1: bad["fast all fail exit"] = f"exit {rc}, want 1 when every fast source failed"
         if _tree_hashes(data, (), ("status.json",)) != fast0: bad["fast all fail files"] = "a file changed although every fetch failed"
         if any(s1.get(k) != v for k, v in slow_status.items()): bad["fast status slow"] = "slow status entries changed"
-        if s1.get("RUN_MODE", {}).get("note", "")[:4] != "fast": bad["run mode"] = str(s1.get("RUN_MODE"))
+        if s1.get("RUN_MODE", {}).get("note", "")[:4] != "fast" or s1["RUN_MODE"].get("mode") != "fast": bad["run mode"] = str(s1.get("RUN_MODE"))
         if s1["GOLD_PRICE"]["ok"] or not s1["OPT_SPX"]["error"] or s1["FX_NEWS"]["ok"]: bad["fast status fail"] = "failed fast sources must record ok False + error"
         # B: fixtures -> fast sources update, slow files/status untouched
         chains = {k: fake_chain(*v) for k, v in CHAINS.items()}
@@ -367,6 +371,31 @@ def fast_mode_checks(work: Path) -> dict:
         if json.loads((data / "options" / "SPX.json").read_text())["oi_changes"] != oich0: bad["oi changes"] = "OI change table not carried"
         if "held" not in (s2["OPT_SPX"]["note"] or ""): bad["oi note"] = "status note must say the OI change is held"
         if pd.read_csv(data / "GOLD.csv")["Date"].iloc[-1] != rows["Date"].iloc[-1].strftime("%Y-%m-%d"): bad["gold"] = "gold not updated"
+        if s2["FX_NEWS"]["last_data_date"] != "2026-11-16": bad["news date"] = f"FX_NEWS last_data_date {s2['FX_NEWS']['last_data_date']}, want the newest headline date 2026-11-16"
+        if not oich0: bad["oi seed"] = "fixture OI change table is empty, the carry checks below prove nothing"
+        # B2: fast, fast, full on the same UTC day: OI change table and baseline stay as the day's first run made them
+        with quiet():
+            ud.main(fast=True)
+            ud.main(fast=False)
+        oich1 = json.loads((data / "options" / "SPX.json").read_text())["oi_changes"]
+        if oich1 != oich0 or not oich1: bad["oi full same day"] = f"a later full run the same day changed the OI table: {oich1} vs {oich0}"
+        if (data / "options" / "SPX_oi.csv").read_bytes() != oi0: bad["oi baseline full"] = "OI baseline rewritten by a later full run of the day"
+        if st()["RUN_MODE"].get("mode") != "full": bad["run mode full"] = str(st().get("RUN_MODE"))
+        # B3: next day (history last date moved back): the first run diffs against the held baseline, then replaces it
+        n5900 = 0
+        for o in chains["_SPX"]["data"]["options"]:
+            if "C05900000" in o["option"]:
+                o["open_interest"] += 300
+                n5900 += 1
+        install(chains)
+        hp = data / "options" / "SPX_history.csv"
+        h = pd.read_csv(hp); h["date"] = "2000-01-01"; h.to_csv(hp, index=False)
+        with quiet():
+            ud.main(fast=True)
+        nd = json.loads((data / "options" / "SPX.json").read_text())["oi_changes"]
+        if [x["dc"] for x in nd if x["k"] == 5900.0] != [-200 * n5900]: bad["oi next day"] = f"next-day change should be -200 x {n5900} contracts at 5900 (chain base+300 vs baseline base+500): {nd}"
+        if (data / "options" / "SPX_oi.csv").read_bytes() == oi0: bad["oi next day baseline"] = "next day's first run must replace the baseline"
+        f2 = json.loads((data / "fx_macro.json").read_text())   # B2/B3 ran more fast runs: re-read the saved feed
         # C: empty news keeps the previous headlines and news_updated
         ud.fetch_news = lambda: []
         with quiet():
