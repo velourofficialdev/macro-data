@@ -2,10 +2,11 @@
 
 Source: Cboe's free delayed option chains (no key, no account):
     https://cdn.cboe.com/api/global/delayed_quotes/options/<SYMBOL>.json
-Run from update_data.py after the US close, so open interest is the settled figure from the
-start of that session and prices are the close.
+Delayed Cboe chains are refreshed during the session (hourly in fast mode) from update_data.py;
+open interest is the figure Cboe last published (updated once per day, from the prior session)
+and prices are the last delayed prices, not a close.
 
-What is computed (all from open interest, so it is end-of-day positioning, not a live trade tape):
+What is computed (from open interest and delayed last prices, so a positioning map, not a live trade tape):
 - Net gamma exposure (GEX) by strike, in $ per 1% move of the underlying. Uses the common
   simplifying assumption that dealers are long the calls and short the puts that customers
   hold; real dealer books differ, so treat it as a map of where hedging pressure may sit.
