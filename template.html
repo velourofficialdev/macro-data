@@ -785,7 +785,7 @@
   </section>
 
   <section class="sec" id="fx">
-    <div class="sechead"><h2>FX, gold and indices</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from the ECB's official euro reference rates (daily 14:15 CET fixing, crossed through the euro; Yahoo then FRED as fallbacks); XAUUSD uses COMEX gold futures. ES, NQ and US30 are the S&amp;P 500, Nasdaq 100 and Dow 30 cash index levels from Yahoo Finance (FRED as fallback). Latest close __FXUPD__.</p></div>
+    <div class="sechead"><h2>FX, gold and indices</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from the ECB's official euro reference rates (daily 14:15 CET fixing, crossed through the euro; Yahoo then FRED as fallbacks); XAUUSD uses COMEX gold futures. ES, NQ and US30 are the S&amp;P 500, Nasdaq 100 and Dow 30 cash index levels from Yahoo Finance (FRED as fallback). Latest data __FXUPD__ (pairs: ECB fixing; gold and indices: last price of the latest update).</p></div>
     <div class="grid" style="margin-bottom:12px">
       <div class="card" style="--w:12"><div class="card-h"><h3>This week</h3></div><div class="card-b">__WEEK__</div></div>
     </div>
@@ -827,7 +827,7 @@
         <p><b>Likely range this week</b> is the 68% range (&plusmn;1 sigma) from the last 20 and 60 days of price swings. In a 2001-2026 test on 7 pairs the weekly move stayed inside it 68.3% of weeks, so it is a size estimate you can rely on.</p>
         <p><b>Macro lean</b> counts the drivers that support the instrument higher or lower (a net of 2 is a lean). In the same test the read was right only about half of weeks, so treat it as background, not a signal. Crowded positioning (Z of 2 or more) and the risk or volatility rows are shown but not counted.</p>
         <p><b>Confluence score</b> (0-100) combines momentum, RSI, trend and Z-score; 60 or more reads bullish, 40 or less bearish. It also showed no reliable edge in the backtest.</p>
-        <p class="note">Pairs use ECB reference rates, gold uses COMEX futures, indices are the S&amp;P 500, Nasdaq 100 and Dow 30 cash levels (Yahoo Finance, FRED as fallback). Latest close __FXUPD__. The chart shows % change from the start of the selected range.</p>
+        <p class="note">Pairs use ECB reference rates, gold uses COMEX futures, indices are the S&amp;P 500, Nasdaq 100 and Dow 30 cash levels (Yahoo Finance, FRED as fallback). Latest data __FXUPD__ (pairs: ECB fixing; gold and indices: last price of the latest update). The chart shows % change from the start of the selected range.</p>
       </div></div>
     </div>
     </div>
@@ -862,10 +862,14 @@
     </div>
     <div class="grid" style="margin-top:12px">
       <div class="card" style="--w:5"><div class="card-h"><h3>Reading: last series you clicked</h3></div><div class="card-b reading" id="ereading"></div></div>
-      <div class="card" style="--w:7"><div class="card-h"><h3>Headlines</h3></div><div class="newsbox">__NEWS__</div></div>
+      <div class="card" style="--w:7"><div class="card-h"><h3>Headlines</h3>__NEWSCHK__</div><div class="newsbox">__NEWS__</div></div>
     </div>
   </section>
 
+  <details class="card collapse" style="--w:12; margin-top:12px" id="srccard">
+    <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Data sources and update times</h3></span></summary>
+    <div class="card-b" style="overflow-x:auto">__STATUS__</div>
+  </details>
 </main>
 __FOOTER__
 
@@ -1650,7 +1654,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const reg = $("od-reg"); reg.style.setProperty("--c", R.pos ? "var(--up)" : "var(--down)");
     reg.innerHTML = `<b>● ${R.name}</b><span>${R.pos ? "Positive" : "Negative"} gamma: ${R.why}.</span>`;
     const age = i.date ? Math.round((Date.now() - Date.parse(i.date)) / 864e5) : 0, feed = $("od-feed");
-    feed.className = "odfeed" + (age > 4 ? " stale" : ""); feed.innerHTML = `<i></i>${age > 4 ? "Stale · " : ""}Cboe close data ${i.date}`;
+    feed.className = "odfeed" + (age > 4 ? " stale" : ""); feed.innerHTML = `<i></i>${age > 4 ? "Stale · " : ""}Cboe delayed chain ${i.source_time || i.updated_utc || i.date}`;
     const capTxt = `${lab} · ${ser.ex < 0 ? "all expiries ≤ 60 days" : S().expiries[ser.ex].e} · ${S().units[cfg.greek]}${ser.note ? " · " + ser.note : ""}`;
     const wn = win(st.inst), off = [["call wall", L.cw], ["put wall", L.pw], ["flip", L.flip]].filter(x => x[1] != null && (x[1] < wn.lo || x[1] > wn.hi)).map(x => `${x[0]} ${fk(x[1])}`);
     const rt = winTxt(st.inst, wn) + (off.length ? " · outside range: " + off.join(", ") : "");
@@ -2044,7 +2048,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       return [lev(k), `Regime: ${R.name} (${R.why})`, `Net gamma ${o.net_gex_bn}bn $ per 1% · ATM IV ${o.atm_iv}% · 1σ day ±${o.day_move} · put/call OI ${o.pcr_oi}, volume ${o.pcr_vol}`,
         `Vol: IV30 ${vv.iv30}% vs realised 20d ${vv.rv20}% (premium ${vv.vrp} pts); 25Δ RR front ${vv.term && vv.term[0] ? vv.term[0].rr25 : "n/a"} pts`,
         o.front_move ? `Front expiry ${o.front_move.expiry} straddle range ${o.front_move.low} to ${o.front_move.high}` : "",
-        o.oi_changes && o.oi_changes.length ? "Biggest open-interest changes vs prior day: " + o.oi_changes.map(c => `${c.k} calls ${c.dc >= 0 ? "+" : ""}${c.dc}, puts ${c.dp >= 0 ? "+" : ""}${c.dp}`).join("; ") : ""].filter(Boolean).join("\n"); };
+        o.oi_changes && o.oi_changes.length ? "Biggest open-interest changes since the previous day's first run: " + o.oi_changes.map(c => `${c.k} calls ${c.dc >= 0 ? "+" : ""}${c.dc}, puts ${c.dp >= 0 ? "+" : ""}${c.dp}`).join("; ") : ""].filter(Boolean).join("\n"); };
     const vx = O._vix ? `VIX ${O._vix.vix[O._vix.vix.length - 1]}, VIX3M ${O._vix.vix3m[O._vix.vix3m.length - 1]}, ratio ${O._vix.ratio[O._vix.ratio.length - 1]}` : "";
     if (st.pt === "quick") return "In 5 bullet points or fewer, give the options-positioning read for the next session from this data: regime, the zone price is in, the nearest levels above and below, and what would change the read. Be clear about uncertainty; do not give trade instructions.\n\n" + block(st.inst) + (vx ? "\n" + vx : "");
     return "You are helping me read end-of-day options positioning for US index and gold markets. Data is from Cboe delayed chains after the US close (open interest settled at the start of that session). Gamma exposure assumes dealers are long customer calls and short customer puts, a simplification. Levels are in option strikes, with futures-equivalent prices in brackets.\n\n"
