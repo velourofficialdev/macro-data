@@ -4,7 +4,7 @@ Called from build_dashboard.py after the page is built. Sheets:
   Summary        latest headline readings with their plain-English label
   Yields         daily Treasury yields, spreads, and 252-day z-scores / 5D / 20D changes
   DXY            daily DXY with 252-day z-score and 5D / 20D % changes
-  Gold_Price     daily gold futures close
+  Gold_Price     gold futures, last daily bar (intraday during the US session)
   COT_Gold       weekly Gold COT (Legacy, Non-Commercial): positions, weekly changes, open interest, net % of OI, 52-report stats, Friday price
   COT_USD_Index  same for the USD Index COT (Non-Commercial), with DXY as the price
 """
