@@ -1414,7 +1414,7 @@ def build_status(data: dict, today: date) -> str:
         stale = ""
         if info.get("last_data_date"):
             age = (today - datetime.strptime(info["last_data_date"], "%Y-%m-%d").date()).days
-            limit = 12 if name.startswith("COT") else (10 if name == "FX_MACRO" else 6)
+            limit = 12 if name.startswith("COT") else (10 if name in ("FX_MACRO", "FX_NEWS") else 6)
             if age > limit:
                 stale = ' <span class="badge warn">stale</span>'
         state = "ok" if info.get("ok") else '<span class="badge warn">last update failed</span>'
