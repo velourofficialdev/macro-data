@@ -741,7 +741,7 @@
 
   <!-- ============ FX ============ -->
   <section class="sec" id="options">
-    <div class="sechead"><a href="#overview" class="backlink">← Macro dashboard</a><h2>Options positioning</h2><p>From Cboe's free delayed option chains after the US close: open interest (settled, start of session) and closing prices. Gamma exposure assumes dealers hold the opposite side of customers who are long calls and long puts, a common simplification; it maps where hedging flows may cluster, not where price must go. S&amp;P levels come from SPX options and are shifted to ES by the closing basis; gold levels come from GLD options scaled to the COMEX gold future. Not a live trade tape.</p></div>
+    <div class="sechead"><a href="#overview" class="backlink">← Macro dashboard</a><h2>Options positioning</h2><p>From Cboe's free delayed option chains, taken at each update (after the US close, and hourly in US hours on weekdays once hourly updates are on): open interest is the settled figure from the start of the session; prices are the latest available at the time shown on the desk, not necessarily closes. Gamma exposure assumes dealers hold the opposite side of customers who are long calls and long puts, a common simplification; it maps where hedging flows may cluster, not where price must go. S&amp;P levels come from SPX options and are shifted to ES by the current ES minus SPX gap; gold levels come from GLD options scaled to the COMEX gold future. Not a live trade tape.</p></div>
     <div class="grid" id="odesk">
       <div class="card" style="--w:12"><div class="card-b odbar">
         <div class="ranges" id="od-inst" role="group" aria-label="Instrument"></div>
@@ -1654,7 +1654,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const reg = $("od-reg"); reg.style.setProperty("--c", R.pos ? "var(--up)" : "var(--down)");
     reg.innerHTML = `<b>● ${R.name}</b><span>${R.pos ? "Positive" : "Negative"} gamma: ${R.why}.</span>`;
     const age = i.date ? Math.round((Date.now() - Date.parse(i.date)) / 864e5) : 0, feed = $("od-feed");
-    feed.className = "odfeed" + (age > 4 ? " stale" : ""); feed.innerHTML = `<i></i>${age > 4 ? "Stale · " : ""}Cboe delayed chain ${i.source_time || i.updated_utc || i.date}`;
+    feed.className = "odfeed" + (age > 4 ? " stale" : ""); feed.innerHTML = `<i></i>${age > 4 ? "Stale · " : ""}Cboe delayed chain, fetched ${esc(i.updated_utc || i.date)}`;
     const capTxt = `${lab} · ${ser.ex < 0 ? "all expiries ≤ 60 days" : S().expiries[ser.ex].e} · ${S().units[cfg.greek]}${ser.note ? " · " + ser.note : ""}`;
     const wn = win(st.inst), off = [["call wall", L.cw], ["put wall", L.pw], ["flip", L.flip]].filter(x => x[1] != null && (x[1] < wn.lo || x[1] > wn.hi)).map(x => `${x[0]} ${fk(x[1])}`);
     const rt = winTxt(st.inst, wn) + (off.length ? " · outside range: " + off.join(", ") : "");
@@ -2051,7 +2051,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
         o.oi_changes && o.oi_changes.length ? "Biggest open-interest changes since the previous day's first run: " + o.oi_changes.map(c => `${c.k} calls ${c.dc >= 0 ? "+" : ""}${c.dc}, puts ${c.dp >= 0 ? "+" : ""}${c.dp}`).join("; ") : ""].filter(Boolean).join("\n"); };
     const vx = O._vix ? `VIX ${O._vix.vix[O._vix.vix.length - 1]}, VIX3M ${O._vix.vix3m[O._vix.vix3m.length - 1]}, ratio ${O._vix.ratio[O._vix.ratio.length - 1]}` : "";
     if (st.pt === "quick") return "In 5 bullet points or fewer, give the options-positioning read for the next session from this data: regime, the zone price is in, the nearest levels above and below, and what would change the read. Be clear about uncertainty; do not give trade instructions.\n\n" + block(st.inst) + (vx ? "\n" + vx : "");
-    return "You are helping me read end-of-day options positioning for US index and gold markets. Data is from Cboe delayed chains after the US close (open interest settled at the start of that session). Gamma exposure assumes dealers are long customer calls and short customer puts, a simplification. Levels are in option strikes, with futures-equivalent prices in brackets.\n\n"
+    return "You are helping me read options positioning for US index and gold markets. Data is from Cboe delayed option chains taken at the time of the last update (open interest settled at the start of that session; prices are the latest at that time, not necessarily closes). Gamma exposure assumes dealers are long customer calls and short customer puts, a simplification. Levels are in option strikes, with futures-equivalent prices in brackets.\n\n"
       + keys.map(block).join("\n\n") + (vx ? "\n\nVolatility backdrop: " + vx : "")
       + "\n\nPlease: 1) summarise the regime for each market, 2) map the key zones above and below price and how price has tended to behave around call walls, put walls and the gamma flip, 3) note anything unusual in the vol data (premium, skew, term structure), 4) list what would invalidate this read. Treat it as context, not a forecast.";
   }
