@@ -1622,7 +1622,7 @@ def build_options(data: dict, today: date) -> str:
                           f'<td class="{"up" if c["dp"] > 0 else "down" if c["dp"] < 0 else ""}">{c["dp"]:+,}</td></tr>' for c in ch)
             chg = f'<table class="opttab"><thead><tr><th>Strike</th><th>Call OI chg</th><th>Put OI chg</th></tr></thead><tbody>{chg}</tbody></table>'
         else:
-            chg = '<p class="quiet">Needs a snapshot from an earlier day; shows from the next day's first update.</p>'
+            chg = '<p class="quiet">Needs a snapshot from an earlier day; shows from the next day&#39;s first update.</p>'
         hist = s.get("history") or []
         hrows = "".join(f'<tr><td>{esc(h.get("date"))}</td><td>{f(h.get("spot"), d0)}</td><td>{f(h.get("gamma_flip"), d0)}</td><td>{f(h.get("call_wall"), d0)}</td>'
                         f'<td>{f(h.get("put_wall"), d0)}</td><td>{f(h.get("net_gex_bn"), 2)}</td></tr>' for h in hist)
