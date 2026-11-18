@@ -1392,15 +1392,29 @@ def build_footer(data: dict) -> str:
             f'<a class="muted-text" href="{FRED_TERMS_URL}" target="_blank" rel="noopener noreferrer">FRED API Terms of Use</a>.</p></footer>')
 
 
+def build_news_checked(feed: dict | None) -> str:
+    """Small 'Checked <time> UTC' line for the Headlines card (news_updated, else feed updated); empty when unknown."""
+    try:
+        feed = feed or {}
+        ts = str(feed.get("news_updated") or feed.get("updated") or "")[:16].replace("T", " ")
+    except Exception:  # noqa: BLE001
+        ts = ""
+    return f'<span class="note">Checked {esc(ts)} UTC</span>' if ts else ""
+
+
 def build_status(data: dict, today: date) -> str:
     rows = []
     st = data["status"]
     for name, info in sorted(st.items()):
         last = info.get("last_data_date") or "-"
+        if name == "RUN_MODE":
+            mode = info.get("mode") or ("fast" if str(info.get("note") or "").startswith("fast") else "full")
+            rows.append(f'<tr><td>Last run</td><td>{esc(mode)} run</td><td>-</td><td>{esc(info.get("checked_utc", ""))}</td></tr>')
+            continue
         stale = ""
         if info.get("last_data_date"):
             age = (today - datetime.strptime(info["last_data_date"], "%Y-%m-%d").date()).days
-            limit = 12 if name.startswith("COT") else (10 if name == "FX_MACRO" else 6)
+            limit = 12 if name.startswith("COT") else (10 if name in ("FX_MACRO", "FX_NEWS") else 6)
             if age > limit:
                 stale = ' <span class="badge warn">stale</span>'
         state = "ok" if info.get("ok") else '<span class="badge warn">last update failed</span>'
@@ -1408,7 +1422,7 @@ def build_status(data: dict, today: date) -> str:
         rows.append(f"<tr><td>{esc(name)}</td><td>{state}{stale}{err}</td><td>{esc(last)}</td><td>{esc(info.get('checked_utc', ''))}</td></tr>")
     if not rows:
         return "<p>No update has been recorded yet (data/status.json is missing). The numbers above come from the CSV files committed in the repo.</p>"
-    return ('<table><thead><tr><th>Source</th><th>Status</th><th>Latest data date</th><th>Checked</th></tr></thead><tbody>'
+    return ('<table><thead><tr><th>Source</th><th>Status</th><th>Latest data date</th><th>Checked (UTC)</th></tr></thead><tbody>'
             + "".join(rows) + "</tbody></table>")
 
 
@@ -1473,7 +1487,7 @@ def opt_payload(data: dict) -> dict:
         mapping = None
         if mp and spot:
             mapping = {"mode": meta["mode"], "basis": round(mp - spot, 4), "ratio": round(mp / spot, 6), "label": meta["map"].split(" (")[0], "dec": meta["mdec"]}
-        out[key] = {"title": meta["title"].replace("&amp;", "&"), "date": s.get("date"), "spot": spot, "flip": s.get("gamma_flip"), "cw": s.get("call_wall"), "pw": s.get("put_wall"),
+        out[key] = {"title": meta["title"].replace("&amp;", "&"), "date": s.get("date"), "updated_utc": s.get("updated_utc"), "source_time": s.get("source_time"), "spot": spot, "flip": s.get("gamma_flip"), "cw": s.get("call_wall"), "pw": s.get("put_wall"),
                     "atm_iv": s.get("atm_iv"), "day_move": s.get("day_move"), "pcr_oi": s.get("pcr_oi"), "pcr_vol": s.get("pcr_vol"), "dec": meta["dec"],
                     "net_gex_bn": s.get("net_gex_bn"), "max_pain": s.get("max_pain"), "front_move": s.get("front_move"), "king": s.get("king"),
                     "oi_changes": s.get("oi_changes") or [], "vol": s.get("vol") or {}, "history": s.get("history_full") or [],
@@ -1608,7 +1622,7 @@ def build_options(data: dict, today: date) -> str:
                           f'<td class="{"up" if c["dp"] > 0 else "down" if c["dp"] < 0 else ""}">{c["dp"]:+,}</td></tr>' for c in ch)
             chg = f'<table class="opttab"><thead><tr><th>Strike</th><th>Call OI chg</th><th>Put OI chg</th></tr></thead><tbody>{chg}</tbody></table>'
         else:
-            chg = '<p class="quiet">Needs two daily snapshots; shows from the next update.</p>'
+            chg = '<p class="quiet">Needs a snapshot from an earlier day; shows from the next day&#39;s first update.</p>'
         hist = s.get("history") or []
         hrows = "".join(f'<tr><td>{esc(h.get("date"))}</td><td>{f(h.get("spot"), d0)}</td><td>{f(h.get("gamma_flip"), d0)}</td><td>{f(h.get("call_wall"), d0)}</td>'
                         f'<td>{f(h.get("put_wall"), d0)}</td><td>{f(h.get("net_gex_bn"), 2)}</td></tr>' for h in hist)
@@ -1617,7 +1631,7 @@ def build_options(data: dict, today: date) -> str:
         age = (today - datetime.strptime(s["date"], "%Y-%m-%d").date()).days if s.get("date") else 0
         stale = ' <span class="badge warn">stale</span>' if age > 4 else ""
         mapnote = (f"{meta['map']} levels = {meta['src'].split()[0]} level {'+ basis ' + format(s['mapped_price'] - spot, '+,.2f') if meta['mode'] == 'add' else '× ' + format(s['mapped_price'] / spot, ',.3f')} "
-                   f"(closes: {meta['map']} {f(s['mapped_price'], dm)}, {meta['src'].split()[0]} {f(spot, d0)}). The basis drifts during the day; re-check it against your chart."
+                   f"(last prices: {meta['map']} {f(s['mapped_price'], dm)}, {meta['src'].split()[0]} {f(spot, d0)}). The basis drifts during the day; re-check it against your chart."
                    if conv else "Mapped price unavailable this run, so levels are in option units only.")
         first = not html
         html.append(
@@ -1977,7 +1991,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__COT_CARDS__": build_cot_cards(playbook, metrics), "__COT_GOLD_TABLE__": cot_t["gold"], "__COT_USD_TABLE__": cot_t["usd_index"],
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
         "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__FXPICK__": fx.get("picker", ""), "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
-        "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]),
+        "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]), "__NEWSCHK__": build_news_checked(feed),
         "__STATUS__": build_status(data, today), "__FOOTER__": build_footer(data), "__OPTIONS__": build_options(data, today), "__FINGERPRINT__": build_fingerprint(data),
     }
     for k, v in rep.items():

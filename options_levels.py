@@ -2,10 +2,11 @@
 
 Source: Cboe's free delayed option chains (no key, no account):
     https://cdn.cboe.com/api/global/delayed_quotes/options/<SYMBOL>.json
-Run from update_data.py after the US close, so open interest is the settled figure from the
-start of that session and prices are the close.
+Delayed Cboe chains are refreshed during the session (hourly in fast mode) from update_data.py;
+open interest is the figure Cboe last published (updated once per day, from the prior session)
+and prices are the last delayed prices, not a close.
 
-What is computed (all from open interest, so it is end-of-day positioning, not a live trade tape):
+What is computed (from open interest and delayed last prices, so a positioning map, not a live trade tape):
 - Net gamma exposure (GEX) by strike, in $ per 1% move of the underlying. Uses the common
   simplifying assumption that dealers are long the calls and short the puts that customers
   hold; real dealer books differ, so treat it as a map of where hedging pressure may sit.
@@ -510,8 +511,12 @@ def oi_changes(raw: pd.DataFrame, prev_path: Path, spot: float, window: float) -
 
 
 # ---------------------------------------------------------------- driver
-def update(data_dir: Path) -> dict[str, tuple[bool, str | None, str | None, str | None]]:
-    """Returns key -> (ok, last_data_date, error, note) for status.json."""
+def update(data_dir: Path, fast: bool = False) -> dict[str, tuple[bool, str | None, str | None, str | None]]:
+    """Returns key -> (ok, last_data_date, error, note) for status.json.
+
+    fast=True (hourly run) skips the daily FRED vol-index files. In every mode, the open-interest baseline (<KEY>_oi.csv) and
+    the OI change table are written only by the first run of each UTC day; later runs that day (fast or full) reuse that table,
+    so the change always means "since the previous UTC day's first run", never "since the last hourly run"."""
     outdir = data_dir / "options"
     outdir.mkdir(parents=True, exist_ok=True)
     asof = pd.Timestamp(datetime.now(timezone.utc).replace(tzinfo=None))
@@ -520,9 +525,19 @@ def update(data_dir: Path) -> dict[str, tuple[bool, str | None, str | None, str 
         try:
             raw, spot, stamp = fetch_chain(sym)
             a = analyse(raw, spot, asof, window)
-            changes, oi_now = oi_changes(raw, outdir / f"{key}_oi.csv", spot, window)
-            mapped = fetch_last_close(ysym)
+            hp = outdir / f"{key}_history.csv"
             day = asof.strftime("%Y-%m-%d")
+            carry = None   # not the first run of the UTC day (fast or full): reuse today's OI change table and leave the baseline alone
+            if hp.exists() and (outdir / f"{key}.json").exists():
+                try:
+                    if str(pd.read_csv(hp)["date"].iloc[-1]) == day:
+                        carry = json.loads((outdir / f"{key}.json").read_text()).get("oi_changes")
+                except Exception:  # noqa: BLE001
+                    carry = None
+            changes, oi_now = oi_changes(raw, outdir / f"{key}_oi.csv", spot, window)
+            if carry is not None:
+                changes = carry
+            mapped = fetch_last_close(ysym)
             snap = {"key": key, "label": label, "mapped_label": mapped and mlabel, "mapped_price": mapped,
                     "mapped_ratio": round(mapped / spot, 6) if mapped else None,
                     "date": day, "source_time": stamp, "updated_utc": asof.strftime("%Y-%m-%d %H:%M UTC"),
@@ -548,17 +563,19 @@ def update(data_dir: Path) -> dict[str, tuple[bool, str | None, str | None, str 
             except Exception as exc:  # noqa: BLE001
                 snap["vol"] = {"error": f"{type(exc).__name__}: {exc}"[:200]}
             (outdir / f"{key}.json").write_text(json.dumps(snap, separators=(",", ":")))
-            oi_now.to_csv(outdir / f"{key}_oi.csv", index=False)
-            hp = outdir / f"{key}_history.csv"
+            if carry is None:
+                oi_now.to_csv(outdir / f"{key}_oi.csv", index=False)
             row = pd.DataFrame([{**{k: snap[k] for k in ("date", "spot", "net_gex_bn", "gamma_flip", "call_wall", "put_wall",
                                                         "max_pain", "atm_iv", "pcr_oi", "pcr_vol", "mapped_price")},
                                  "iv30": (snap.get("vol") or {}).get("iv30"), "rv20": (snap.get("vol") or {}).get("rv20")}])
             hist = pd.concat([pd.read_csv(hp), row], ignore_index=True) if hp.exists() else row
             hist.drop_duplicates("date", keep="last").sort_values("date").tail(400).to_csv(hp, index=False)
-            note = f"Cboe delayed chain {sym}, {a['contracts']} contracts in {a['expiries']} expiries" + ("" if mapped else f"; {ysym} price unavailable, levels shown in {label} units only")
+            note = f"Cboe delayed chain {sym}, {a['contracts']} contracts in {a['expiries']} expiries" + ("; OI change held from the first run of the day" if carry is not None else "") + ("" if mapped else f"; {ysym} price unavailable, levels shown in {label} units only")
             result[key] = (True, day, None, note)
         except Exception as exc:  # noqa: BLE001 - keep the previous files, report in status
             result[key] = (False, None, f"{type(exc).__name__}: {exc}"[:200], None)
+    if fast:   # FRED daily series: left to the full run, status entries stay as saved
+        return result
     ok, last, err = update_vix_term(outdir)
     result["VIX_TERM"] = (ok, last, err, "FRED VIXCLS and VXVCLS (VIX3M)" if ok else None)
     ok, last, err = update_vol_indices(outdir)

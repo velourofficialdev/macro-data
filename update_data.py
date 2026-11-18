@@ -19,6 +19,10 @@ Sources (free; keyed APIs are allowed, see CLAUDE.md):
 A failed source never wipes existing data: the old file is kept and the error
 is written to data/status.json, which the dashboard shows in its footer.
 Exit code is 1 only if every source failed.
+
+Fast mode (`--fast`, env FAST_RUN=1 or MODE=fast): hourly refresh of the keyless intraday sources only: Google News headlines
+(fx_macro.json `news` + `news_updated`), Kalshi Fed odds, Yahoo ZQ, Cboe options, gold and index prices (Yahoo only, no fallback).
+Everything else (FRED, CFTC, yield curves, policy rates, ECB FX, DXY) is skipped and keeps its status entry. Exit 1 only if every fast source failed.
 """
 from __future__ import annotations
 
@@ -569,14 +573,18 @@ def fetch_fx_pair(pair: str) -> tuple[pd.DataFrame, str]:
     return df, f"FRED {fred}"
 
 
-def fetch_index(sym: str) -> tuple[pd.DataFrame, str]:
+def fetch_index(sym: str, yahoo_only: bool = False) -> tuple[pd.DataFrame, str]:
     ysym, fred = INDEX_SYMBOLS[sym]
     try:
         df = fetch_yahoo(ysym, "Close").rename(columns={"Date": "date"})
         df = df[df["date"] >= pd.Timestamp.today() - pd.Timedelta(days=3 * 365)]
         if len(df) > 200:
             return df, f"Yahoo {ysym}"
+        if yahoo_only:
+            raise ValueError(f"Yahoo {ysym}: only {len(df)} rows")
     except Exception as exc:  # noqa: BLE001 - fall back to FRED
+        if yahoo_only:   # fast run: no FRED (daily) fallback, the caller keeps the old file
+            raise
         print(f"WARN {sym} via Yahoo failed ({type(exc).__name__}: {exc}); trying FRED")
     df = fetch_fred(fred, 3).rename(columns={fred: "Close"})
     return df, f"FRED {fred}"
@@ -716,6 +724,7 @@ def build_fx_macro(prev: dict | None, fred=fetch_fred, news=fetch_news, budget: 
         raise RuntimeError(f"FRED unavailable: {failed_fetch} of {len(cache)} series failed")
     try:
         feed["news"] = news()
+        feed["news_updated"] = feed["updated"]
         if not feed["news"]:
             problems.append("news: empty")
     except Exception as exc:  # noqa: BLE001
@@ -732,8 +741,54 @@ def fx_pick(prev: dict | None, new: dict) -> tuple[dict, bool]:
     return new, False
 
 
-def main() -> int:
-    status: dict[str, dict] = {}
+def is_fast(argv=None, env=None) -> bool:
+    """Fast run (news, Fed odds, options, prices only) when --fast, FAST_RUN=1 or MODE=fast (case-insensitive); anything else is a full run."""
+    argv = sys.argv[1:] if argv is None else argv
+    env = os.environ if env is None else env
+    return ("--fast" in argv or str(env.get("FAST_RUN", "")).strip() == "1"
+            or str(env.get("MODE", "")).strip().lower() == "fast")
+
+
+def load_status() -> dict:
+    try:
+        d = json.loads((DATA / "status.json").read_text())
+        return d if isinstance(d, dict) else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def write_json_atomic(path: Path, obj, **kw) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(obj, **kw))
+    os.replace(tmp, path)
+
+
+def fast_news(prev: dict | None, news=None, now_iso: str | None = None) -> tuple[dict | None, str]:
+    """Fast path of fx_macro.json: replace only `news` (and `news_updated`); markets/fx/econ/curve and `updated` stay as saved.
+    Returns (feed to write or None when nothing changes, note). Raises when there is no saved feed or the fetch fails."""
+    if not prev or "fx" not in prev:
+        raise RuntimeError("no saved data/fx_macro.json: the numbers are built by the full run")
+    items = (news or fetch_news)()
+    if not items:
+        return None, "news empty: kept previous headlines"
+    out = dict(prev)
+    out["news"] = items
+    out["news_updated"] = now_iso or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    return out, f"{len(items)} headlines (Google News RSS); numbers unchanged until the full run"
+
+
+def news_date(feed: dict | None) -> str | None:
+    """Date (YYYY-MM-DD) of the newest headline; when no headline has a date, the day news_updated was set."""
+    feed = feed or {}
+    pubs = sorted(str(n.get("publishedAt"))[:10] for n in feed.get("news") or [] if isinstance(n, dict) and n.get("publishedAt"))
+    return (pubs[-1] if pubs else str(feed.get("news_updated") or "")[:10]) or None
+
+
+def main(fast: bool | None = None) -> int:
+    fast = is_fast() if fast is None else fast
+    slow = not fast
+    status: dict[str, dict] = load_status() if fast else {}   # a fast run merges into the saved file; a full run rebuilds it
+    ran: dict[str, bool] = {}
     for _k in FRED_ROUTES:
         FRED_ROUTES[_k] = 0
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -741,54 +796,56 @@ def main() -> int:
     def record(name: str, ok: bool, last: str | None = None, error: str | None = None, note: str | None = None):
         error = scrub(error) if error else error
         note = scrub(note) if note else note
+        ran[name] = ok
         status[name] = {"ok": ok, "checked_utc": now, "last_data_date": last, "error": error, "note": note}
         print(("OK   " if ok else "FAIL ") + name + (f"  last={last}" if last else "") + (f"  {error}" if error else ""))
 
-    for code in FRED_CODES:
-        try:
-            saved = merge_save(DATA / f"{code}.csv", fetch_fred(code).rename(columns={"date": "date"}), "date", KEEP_DAILY)
-            record(code, True, saved["date"].iloc[-1])
-        except Exception as exc:  # noqa: BLE001 - keep going, report in status
-            record(code, False, error=f"{type(exc).__name__}: {exc}"[:200])
+    if slow:
+        for code in FRED_CODES:
+            try:
+                saved = merge_save(DATA / f"{code}.csv", fetch_fred(code).rename(columns={"date": "date"}), "date", KEEP_DAILY)
+                record(code, True, saved["date"].iloc[-1])
+            except Exception as exc:  # noqa: BLE001 - keep going, report in status
+                record(code, False, error=f"{type(exc).__name__}: {exc}"[:200])
 
-    (DATA / "econ").mkdir(exist_ok=True)
-    econ_fail = []
-    for code in ECON_CODES + MARKET_CODES:
-        try:
-            src = FRED_ALIAS.get(code, code)
-            yrs = 10 if code in LONG_MARKET else (2 if code in MARKET_CODES else 12)   # long history feeds the regime fingerprint
-            df = fetch_fred(src, yrs).rename(columns={src: code})
-            saved = merge_save(DATA / "econ" / f"{code}.csv", df, "date", 4000)
-            record(f"ECON_{code}", True, saved["date"].iloc[-1])
-        except Exception as exc:  # noqa: BLE001
-            econ_fail.append(code)
-            record(f"ECON_{code}", False, error=f"{type(exc).__name__}: {exc}"[:200])
+        (DATA / "econ").mkdir(exist_ok=True)
+        econ_fail = []
+        for code in ECON_CODES + MARKET_CODES:
+            try:
+                src = FRED_ALIAS.get(code, code)
+                yrs = 10 if code in LONG_MARKET else (2 if code in MARKET_CODES else 12)   # long history feeds the regime fingerprint
+                df = fetch_fred(src, yrs).rename(columns={src: code})
+                saved = merge_save(DATA / "econ" / f"{code}.csv", df, "date", 4000)
+                record(f"ECON_{code}", True, saved["date"].iloc[-1])
+            except Exception as exc:  # noqa: BLE001
+                econ_fail.append(code)
+                record(f"ECON_{code}", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
-    for name, (ds, code, lf, sf, kw) in CFTC_SOURCES.items():
-        try:
-            saved = merge_save(DATA / f"{name}.csv", fetch_cftc(ds, code, lf, sf, kw), "Date", CFTC_LIMIT)
-            record(name, True, saved["Date"].iloc[-1])
-        except Exception as exc:  # noqa: BLE001
-            record(name, False, error=f"{type(exc).__name__}: {exc}"[:200])
+        for name, (ds, code, lf, sf, kw) in CFTC_SOURCES.items():
+            try:
+                saved = merge_save(DATA / f"{name}.csv", fetch_cftc(ds, code, lf, sf, kw), "Date", CFTC_LIMIT)
+                record(name, True, saved["Date"].iloc[-1])
+            except Exception as exc:  # noqa: BLE001
+                record(name, False, error=f"{type(exc).__name__}: {exc}"[:200])
 
-    for label, fn in (("ECB (ICE formula)", fetch_dxy_ecb), ("Yahoo", fetch_dxy_yahoo), ("Stooq", fetch_dxy_stooq)):
-        try:
-            df = fn()
-            p = DATA / "DXY.csv"
-            if p.exists():   # keep one source per file so the history stays consistent
-                old = pd.read_csv(p)
-                if (str(old["source"].iloc[-1]) if "source" in old else "Yahoo") != label:
-                    p.unlink()
-            df["source"] = label
-            saved = merge_save(p, df, "Date", KEEP_DAILY)
-            record("DXY", True, saved["Date"].iloc[-1], note=f"source: {label}")
-            break
-        except Exception as exc:  # noqa: BLE001
-            err = f"{label}: {type(exc).__name__}: {exc}"[:200]
-            if label == "Stooq":
-                record("DXY", False, error=err)
-            else:
-                print(f"WARN DXY via {label} failed ({err}); trying fallback")
+        for label, fn in (("ECB (ICE formula)", fetch_dxy_ecb), ("Yahoo", fetch_dxy_yahoo), ("Stooq", fetch_dxy_stooq)):
+            try:
+                df = fn()
+                p = DATA / "DXY.csv"
+                if p.exists():   # keep one source per file so the history stays consistent
+                    old = pd.read_csv(p)
+                    if (str(old["source"].iloc[-1]) if "source" in old else "Yahoo") != label:
+                        p.unlink()
+                df["source"] = label
+                saved = merge_save(p, df, "Date", KEEP_DAILY)
+                record("DXY", True, saved["Date"].iloc[-1], note=f"source: {label}")
+                break
+            except Exception as exc:  # noqa: BLE001
+                err = f"{label}: {type(exc).__name__}: {exc}"[:200]
+                if label == "Stooq":
+                    record("DXY", False, error=err)
+                else:
+                    print(f"WARN DXY via {label} failed ({err}); trying fallback")
 
     try:
         saved = merge_save(DATA / "GOLD.csv", fetch_yahoo("GC=F", "Gold"), "Date", KEEP_DAILY)
@@ -796,44 +853,47 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         record("GOLD_PRICE", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
-    for cc, fn in (("GB", fetch_yc_gb), ("CH", fetch_yc_ch), ("NZ", fetch_yc_nz), ("CA", fetch_yc_ca), ("DE", fetch_yc_de), ("FR", fetch_yc_fr), ("IT", fetch_yc_it), ("JP", fetch_yc_jp),
-                   ("AU", fetch_yc_au), ("CN", fetch_yc_cn), ("IN", fetch_yc_in)):
-        try:
-            df = fn().dropna(subset=["2Y", "5Y", "10Y", "30Y"], how="all")
-            saved = merge_save(DATA / f"YC_{cc}.csv", df, "date", INTL_KEEP)
-            record(f"YC_{cc}", True, saved["date"].iloc[-1], note=f"{INTL[cc]} government yields")
-        except Exception as exc:  # noqa: BLE001
-            record(f"YC_{cc}", False, error=f"{type(exc).__name__}: {exc}"[:200])
+    if slow:
+        for cc, fn in (("GB", fetch_yc_gb), ("CH", fetch_yc_ch), ("NZ", fetch_yc_nz), ("CA", fetch_yc_ca), ("DE", fetch_yc_de), ("FR", fetch_yc_fr), ("IT", fetch_yc_it), ("JP", fetch_yc_jp),
+                       ("AU", fetch_yc_au), ("CN", fetch_yc_cn), ("IN", fetch_yc_in)):
+            try:
+                df = fn().dropna(subset=["2Y", "5Y", "10Y", "30Y"], how="all")
+                saved = merge_save(DATA / f"YC_{cc}.csv", df, "date", INTL_KEEP)
+                record(f"YC_{cc}", True, saved["date"].iloc[-1], note=f"{INTL[cc]} government yields")
+            except Exception as exc:  # noqa: BLE001
+                record(f"YC_{cc}", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
-    try:
-        saved = merge_save(DATA / "POLICY_RATES.csv", fetch_policy_rates(), "date", 3000)
-        record("POLICY_RATES", True, saved["date"].iloc[-1], note="BIS central bank policy rates")
-    except Exception as exc:  # noqa: BLE001
-        record("POLICY_RATES", False, error=f"{type(exc).__name__}: {exc}"[:200])
-
-    (DATA / "fx").mkdir(exist_ok=True)
-    for pair in FX_PAIRS:
         try:
-            df, src = fetch_fx_pair(pair)
-            p = DATA / "fx" / f"{pair}.csv"
-            if p.exists():   # keep one source per file so the history stays consistent
-                old = pd.read_csv(p)
-                if "source" in old and str(old["source"].iloc[-1]) != src:
-                    p.unlink()
-            df["source"] = src
-            saved = merge_save(p, df, "date", 800)
-            record(f"FX_{pair}", True, saved["date"].iloc[-1], note=src)
+            saved = merge_save(DATA / "POLICY_RATES.csv", fetch_policy_rates(), "date", 3000)
+            record("POLICY_RATES", True, saved["date"].iloc[-1], note="BIS central bank policy rates")
         except Exception as exc:  # noqa: BLE001
-            record(f"FX_{pair}", False, error=f"{type(exc).__name__}: {exc}"[:200])
+            record("POLICY_RATES", False, error=f"{type(exc).__name__}: {exc}"[:200])
+
+        (DATA / "fx").mkdir(exist_ok=True)
+        for pair in FX_PAIRS:
+            try:
+                df, src = fetch_fx_pair(pair)
+                p = DATA / "fx" / f"{pair}.csv"
+                if p.exists():   # keep one source per file so the history stays consistent
+                    old = pd.read_csv(p)
+                    if "source" in old and str(old["source"].iloc[-1]) != src:
+                        p.unlink()
+                df["source"] = src
+                saved = merge_save(p, df, "date", 800)
+                record(f"FX_{pair}", True, saved["date"].iloc[-1], note=src)
+            except Exception as exc:  # noqa: BLE001
+                record(f"FX_{pair}", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
     (DATA / "idx").mkdir(exist_ok=True)
     for sym in INDEX_SYMBOLS:
         try:
-            df, src = fetch_index(sym)
+            df, src = fetch_index(sym, yahoo_only=fast)
             p = DATA / "idx" / f"{sym}.csv"
             if p.exists():   # keep one source per file so the history stays consistent
                 old = pd.read_csv(p)
                 if "source" in old and str(old["source"].iloc[-1]) != src:
+                    if fast:   # never swap source or wipe history in a fast run
+                        raise RuntimeError(f"saved file is from {old['source'].iloc[-1]}, fast run got {src}: kept old file")
                     p.unlink()
             df["source"] = src
             saved = merge_save(p, df, "date", 800)
@@ -872,35 +932,48 @@ def main() -> int:
         prev_feed = json.loads(fxp.read_text()) if fxp.exists() else None
     except Exception:  # noqa: BLE001
         prev_feed = None
-    try:
-        feed, probs = build_fx_macro(prev_feed)
-        fxp.write_text(json.dumps(feed))
-        record("FX_MACRO", True, str(feed["updated"])[:10], note=("source: own FRED build (FRED + Google News RSS); " + fred_route_note() + "; " + probs)[:300])
-    except Exception as exc:  # noqa: BLE001
-        own_err = f"{type(exc).__name__}: {exc}"[:120]
-        try:   # fallback only: the old published feed
-            r = requests.get(FX_FEED_URL, timeout=30)
-            r.raise_for_status()
-            feed = r.json()
-            if not isinstance(feed, dict) or "fx" not in feed:
-                raise ValueError("unexpected feed shape")
-            feed, kept = fx_pick(prev_feed, feed)
-            if not kept:
-                fxp.write_text(json.dumps(feed))
-            what = "kept previous data/fx_macro.json (newer than the old feed)" if kept else "fallback: fx-macro-confluence data.json"
-            record("FX_MACRO", True, str(feed.get("updated", ""))[:10], note=f"{what} (own build failed: {own_err}); {fred_route_note()}"[:300])
-        except Exception as exc2:  # noqa: BLE001
-            record("FX_MACRO", False, error=f"own build: {own_err}; fallback: {type(exc2).__name__}: {exc2}; {fred_route_note()}"[:300])
+    if fast:   # headlines only; FX_MACRO's own status entry (FRED route note, numbers date) stays as the full run wrote it
+        try:
+            feed, note = fast_news(prev_feed)
+            if feed is not None:
+                write_json_atomic(fxp, feed)
+            record("FX_NEWS", True, news_date(feed or prev_feed), note=note)
+        except Exception as exc:  # noqa: BLE001
+            record("FX_NEWS", False, error=f"{type(exc).__name__}: {exc}"[:200])
+    else:
+        try:
+            feed, probs = build_fx_macro(prev_feed)
+            fxp.write_text(json.dumps(feed))
+            record("FX_MACRO", True, str(feed["updated"])[:10], note=("source: own FRED build (FRED + Google News RSS); " + fred_route_note() + "; " + probs)[:300])
+        except Exception as exc:  # noqa: BLE001
+            own_err = f"{type(exc).__name__}: {exc}"[:120]
+            try:   # fallback only: the old published feed
+                r = requests.get(FX_FEED_URL, timeout=30)
+                r.raise_for_status()
+                feed = r.json()
+                if not isinstance(feed, dict) or "fx" not in feed:
+                    raise ValueError("unexpected feed shape")
+                feed, kept = fx_pick(prev_feed, feed)
+                if not kept:
+                    fxp.write_text(json.dumps(feed))
+                what = "kept previous data/fx_macro.json (newer than the old feed)" if kept else "fallback: fx-macro-confluence data.json"
+                record("FX_MACRO", True, str(feed.get("updated", ""))[:10], note=f"{what} (own build failed: {own_err}); {fred_route_note()}"[:300])
+            except Exception as exc2:  # noqa: BLE001
+                record("FX_MACRO", False, error=f"own build: {own_err}; fallback: {type(exc2).__name__}: {exc2}; {fred_route_note()}"[:300])
 
     try:   # options positioning levels (SPX -> ES, GLD -> gold) from Cboe's free delayed chains; see options_levels.py
         import options_levels
-        for key, (ok, last, err, note) in options_levels.update(DATA).items():
+        for key, (ok, last, err, note) in options_levels.update(DATA, fast=fast).items():
             record(f"OPT_{key}", ok, last, error=err, note=note)
     except Exception as exc:  # noqa: BLE001
         record("OPT_SPX", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
-    (DATA / "status.json").write_text(json.dumps(status, indent=2))
-    return 0 if any(s["ok"] for s in status.values()) else 1
+    status["RUN_MODE"] = {"ok": True, "checked_utc": now, "last_data_date": None, "error": None, "mode": "fast" if fast else "full",
+                          "note": "fast run: news, Fed odds, options and prices only; other sources keep their last full-run entries" if fast
+                          else "full run: all sources"}
+    write_json_atomic(DATA / "status.json", status, indent=2)
+    print(f"RUN_MODE {'fast' if fast else 'full'}: {sum(ran.values())} of {len(ran)} sources ok")
+    return 0 if any(ran.values()) else 1   # 1 only when every source this run touched failed
 
 
 if __name__ == "__main__":

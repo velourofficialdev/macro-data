@@ -99,6 +99,10 @@ def run(out: Path) -> dict:
     install(chains)
     out.mkdir(parents=True, exist_ok=True)
     ol.update(out)
+    for hp in (out / "options").glob("*_history.csv"):   # the first run counts as the previous UTC day's, so day 2 diffs against its baseline
+        h = pd.read_csv(hp)
+        h["date"] = (pd.Timestamp.now("UTC").normalize().tz_localize(None) - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+        h.to_csv(hp, index=False)
     for o in chains["_SPX"]["data"]["options"]:   # day 2: open interest moves at one strike
         if "C05900000" in o["option"]:
             o["open_interest"] += 500
@@ -278,6 +282,147 @@ def fred_key_checks() -> dict:
     return bad
 
 
+def _tree_hashes(root: Path, skip_dirs: tuple, skip_files: tuple) -> dict:
+    import hashlib
+    out = {}
+    for p in sorted(root.rglob("*")):
+        rel = p.relative_to(root).as_posix()
+        if p.is_file() and not rel.startswith(skip_dirs) and rel not in skip_files:
+            out[rel] = hashlib.sha256(p.read_bytes()).hexdigest()
+    return out
+
+
+def fast_mode_checks(work: Path) -> dict:
+    """Fast (hourly) run: slow sources and files untouched, fast sources fail soft and update, status merged, OI baseline held,
+    then the page still builds (also with no fast files at all). All network is faked."""
+    import shutil
+    import subprocess
+    import requests
+    import fed_rate_odds
+    bad = {}
+    for argv, env, want in (([], {}, False), (["--fast"], {}, True), ([], {"FAST_RUN": "1"}, True), ([], {"MODE": "Fast"}, True),
+                            ([], {"MODE": "full"}, False), ([], {"FAST_RUN": "0"}, False), ([], {"FAST_RUN": ""}, False)):
+        if ud.is_fast(argv, env) is not want:
+            bad["is_fast"] = f"{argv} {env} should be {want}"
+    data = work / "data"
+    shutil.rmtree(work, ignore_errors=True)
+    shutil.copytree(ROOT / "data", data)
+    shutil.rmtree(data / "options", ignore_errors=True)
+    for p in ("fx_macro.json",):
+        if not (data / p).exists():
+            (data / p).write_text(json.dumps({"updated": "2026-11-10T10:00:00.000Z", "markets": {"sp500": {"value": 1}}, "fx": {"EURUSD": {"price": 1.1}}, "econ": {}, "curve": {}, "news": [{"title": "old headline"}]}))
+    run(data)                                         # seeds data/options with two full option runs
+    fxm = json.loads((data / "fx_macro.json").read_text())
+    fxm["news"] = [{"title": "old headline", "url": "https://x.example/o", "source": "Reuters", "publishedAt": None}]
+    (data / "fx_macro.json").write_text(json.dumps(fxm))
+    slow_status = {"DGS10": {"ok": True, "checked_utc": "2026-11-17 06:00 UTC", "last_data_date": "2026-11-16", "error": None, "note": None},
+                   "FX_MACRO": {"ok": True, "checked_utc": "2026-11-17 06:00 UTC", "last_data_date": "2026-11-17", "error": None, "note": "source: own FRED build; FRED route: keyed"},
+                   "VIX_TERM": {"ok": True, "checked_utc": "2026-11-17 06:00 UTC", "last_data_date": "2026-11-16", "error": None, "note": "FRED VIXCLS"},
+                   "FX_EURUSD": {"ok": False, "checked_utc": "2026-11-17 06:00 UTC", "last_data_date": None, "error": "old failure", "note": None}}
+    (data / "status.json").write_text(json.dumps({**slow_status, "GOLD_PRICE": {"ok": True, "checked_utc": "old", "last_data_date": "2026-11-01", "error": None, "note": None}}))
+    FAST_DIRS, FAST_FILES = ("options/", "fed/", "idx/"), ("fx_macro.json", "GOLD.csv")
+    slow0 = _tree_hashes(data, FAST_DIRS, FAST_FILES + ("status.json",))
+    fast0 = _tree_hashes(data, (), ("status.json",))
+    oi0 = (data / "options" / "SPX_oi.csv").read_bytes()
+    oich0 = json.loads((data / "options" / "SPX.json").read_text())["oi_changes"]
+    st = lambda: json.loads((data / "status.json").read_text())
+    saved = (ud.DATA, requests.get, fed_rate_odds.update_snapshots, fed_rate_odds.fetch_event_calendar, ud.fetch_fed_odds, ud.fetch_news, ud.fetch_yahoo)
+    ud.DATA = data
+    import contextlib
+    import io
+    quiet = lambda: contextlib.redirect_stdout(io.StringIO())
+    try:
+        def boom(*a, **k): raise OSError("network down (fixture)")
+        # A: every fast source fails -> old files kept, slow untouched, exit 1
+        requests.get = boom
+        fed_rate_odds.update_snapshots = fed_rate_odds.fetch_event_calendar = ud.fetch_fed_odds = ud.fetch_news = ud.fetch_yahoo = boom
+        with quiet():
+            rc = ud.main(fast=True)
+        s1 = st()
+        if rc != 1: bad["fast all fail exit"] = f"exit {rc}, want 1 when every fast source failed"
+        if _tree_hashes(data, (), ("status.json",)) != fast0: bad["fast all fail files"] = "a file changed although every fetch failed"
+        if any(s1.get(k) != v for k, v in slow_status.items()): bad["fast status slow"] = "slow status entries changed"
+        if s1.get("RUN_MODE", {}).get("note", "")[:4] != "fast" or s1["RUN_MODE"].get("mode") != "fast": bad["run mode"] = str(s1.get("RUN_MODE"))
+        if s1["GOLD_PRICE"]["ok"] or not s1["OPT_SPX"]["error"] or s1["FX_NEWS"]["ok"]: bad["fast status fail"] = "failed fast sources must record ok False + error"
+        # B: fixtures -> fast sources update, slow files/status untouched
+        chains = {k: fake_chain(*v) for k, v in CHAINS.items()}
+        install(chains)
+        rows = pd.DataFrame({"Date": pd.bdate_range(end=pd.Timestamp.today().normalize(), periods=300)})
+        ud.fetch_yahoo = lambda sym, col: rows.assign(**{col: np.linspace(100, 130, 300)})
+        ud.fetch_news = lambda: ud.parse_news(FAKE_RSS)
+        ud.fetch_fed_odds = lambda: ({"updated": pd.Timestamp.now("UTC").strftime("%Y-%m-%dT%H:%M:%SZ"), "meetings": [{"event": "FIXT-1", "raw": {}}]},
+                                     {"FIXT-1": pd.DataFrame({"date": ["2026-11-17"], "v": [1.0]})})
+        fed_rate_odds.update_snapshots = lambda: (pd.DataFrame({"snapshot_date": ["2026-11-18"]}), [])
+        fed_rate_odds.fetch_event_calendar = lambda: None
+        with quiet():
+            rc = ud.main(fast=True)
+        s2 = st()
+        if rc != 0: bad["fast exit"] = f"exit {rc}"
+        if _tree_hashes(data, FAST_DIRS, FAST_FILES + ("status.json",)) != slow0: bad["fast slow files"] = "a slow file changed in a fast run"
+        if any(s2.get(k) != v for k, v in slow_status.items()): bad["fast status merge"] = "slow status entries not preserved"
+        for k in ("GOLD_PRICE", "IDX_ES", "IDX_NQ", "IDX_US30", "FED_ZQ", "FED_ODDS", "FX_NEWS", "OPT_SPX", "OPT_GOLD", "RUN_MODE"):
+            if not s2.get(k, {}).get("ok") or s2[k]["checked_utc"] == "old": bad["fast status " + k] = str(s2.get(k))
+        if any(k in s2 for k in ("VOL_INDICES",)) and s2["VOL_INDICES"].get("checked_utc") != s1.get("VOL_INDICES", {}).get("checked_utc"): bad["vol idx"] = "FRED vol-index entry must not be touched"
+        if (data / "options" / "VIX_TERM.json").exists() and s2.get("VIX_TERM") != slow_status["VIX_TERM"]: bad["vix term"] = "VIX_TERM touched"
+        f2 = json.loads((data / "fx_macro.json").read_text())
+        if [n["title"] for n in f2["news"]][:1] != ["Fed & ECB weigh rates 'again'"] or not f2.get("news_updated"): bad["fast news"] = "news not replaced / news_updated missing"
+        if any(f2[k] != fxm[k] for k in ("markets", "fx", "econ", "curve", "updated")): bad["fast fx_macro numbers"] = "markets/fx/econ/curve/updated changed in a fast run"
+        if (data / "options" / "SPX_oi.csv").read_bytes() != oi0: bad["oi baseline"] = "OI baseline rewritten on a non-first run of the day"
+        if json.loads((data / "options" / "SPX.json").read_text())["oi_changes"] != oich0: bad["oi changes"] = "OI change table not carried"
+        if "held" not in (s2["OPT_SPX"]["note"] or ""): bad["oi note"] = "status note must say the OI change is held"
+        if pd.read_csv(data / "GOLD.csv")["Date"].iloc[-1] != rows["Date"].iloc[-1].strftime("%Y-%m-%d"): bad["gold"] = "gold not updated"
+        if s2["FX_NEWS"]["last_data_date"] != "2026-11-16": bad["news date"] = f"FX_NEWS last_data_date {s2['FX_NEWS']['last_data_date']}, want the newest headline date 2026-11-16"
+        if not oich0: bad["oi seed"] = "fixture OI change table is empty, the carry checks below prove nothing"
+        # B2: fast, fast, full on the same UTC day: OI change table and baseline stay as the day's first run made them
+        with quiet():
+            ud.main(fast=True)
+            ud.main(fast=False)
+        oich1 = json.loads((data / "options" / "SPX.json").read_text())["oi_changes"]
+        if oich1 != oich0 or not oich1: bad["oi full same day"] = f"a later full run the same day changed the OI table: {oich1} vs {oich0}"
+        if (data / "options" / "SPX_oi.csv").read_bytes() != oi0: bad["oi baseline full"] = "OI baseline rewritten by a later full run of the day"
+        if st()["RUN_MODE"].get("mode") != "full": bad["run mode full"] = str(st().get("RUN_MODE"))
+        # B3: next day (history last date moved back): the first run diffs against the held baseline, then replaces it
+        n5900 = 0
+        for o in chains["_SPX"]["data"]["options"]:
+            if "C05900000" in o["option"]:
+                o["open_interest"] += 300
+                n5900 += 1
+        install(chains)
+        hp = data / "options" / "SPX_history.csv"
+        h = pd.read_csv(hp); h["date"] = "2000-01-01"; h.to_csv(hp, index=False)
+        with quiet():
+            ud.main(fast=True)
+        nd = json.loads((data / "options" / "SPX.json").read_text())["oi_changes"]
+        if [x["dc"] for x in nd if x["k"] == 5900.0] != [-200 * n5900]: bad["oi next day"] = f"next-day change should be -200 x {n5900} contracts at 5900 (chain base+300 vs baseline base+500): {nd}"
+        if (data / "options" / "SPX_oi.csv").read_bytes() == oi0: bad["oi next day baseline"] = "next day's first run must replace the baseline"
+        f2 = json.loads((data / "fx_macro.json").read_text())   # B2/B3 ran more fast runs: re-read the saved feed
+        # C: empty news keeps the previous headlines and news_updated
+        ud.fetch_news = lambda: []
+        with quiet():
+            ud.main(fast=True)
+        f3 = json.loads((data / "fx_macro.json").read_text())
+        if f3["news"] != f2["news"] or f3["news_updated"] != f2["news_updated"]: bad["empty news"] = "empty news must keep previous headlines"
+        # D: no saved fx_macro.json -> fast news fails soft, nothing created
+        (data / "fx_macro.json").unlink()
+        with quiet():
+            ud.main(fast=True)
+        if (data / "fx_macro.json").exists() or st()["FX_NEWS"]["ok"]: bad["no saved feed"] = "fast run must not invent fx_macro.json"
+        (data / "fx_macro.json").write_text(json.dumps(f2))
+    finally:
+        (ud.DATA, requests.get, fed_rate_odds.update_snapshots, fed_rate_odds.fetch_event_calendar, ud.fetch_fed_odds, ud.fetch_news, ud.fetch_yahoo) = saved
+    # E: the page builds on the result, and with no fast files at all
+    for name, prep in (("after fast run", None), ("no fast files", True)):
+        d = data
+        if prep:
+            d = work / "data-empty"
+            shutil.copytree(data, d)
+            for sub in ("options", "fed", "idx"): shutil.rmtree(d / sub, ignore_errors=True)
+            for f in ("fx_macro.json", "GOLD.csv"): (d / f).unlink(missing_ok=True)
+        r = subprocess.run([sys.executable, "build_dashboard.py", "--data-dir", str(d), "--out", str(work / f"{name.replace(' ', '-')}.html")], cwd=ROOT, capture_output=True, text=True)
+        if r.returncode != 0 or "Traceback" in r.stderr: bad["build " + name] = (r.stdout + r.stderr)[-300:]
+    return bad
+
+
 def guard_out(path: Path) -> Path:
     """Only write under /tmp, the scratchpad or $TEAM_DIR (never $TEAM_DIR itself or the repo)."""
     p = path.resolve()
@@ -311,6 +456,11 @@ def main() -> int:
     for k, v in fred_key_checks().items():
         bad["fred_key " + k] = v
         print("FAIL fred_key " + k + ": " + v)
+    for k, v in fast_mode_checks(out / "fast-run").items():
+        bad["fast_mode " + k] = v
+        print("FAIL fast_mode " + k + ": " + v)
+    if not any(k.startswith("fast_mode") for k in bad):
+        print("OK   fast_mode (slow files/status untouched, fast sources fail soft, OI baseline held, page builds)")
     if not any(k.startswith("fred_key") for k in bad):
         print("OK   fred_key routes + redaction")
     if not any(k.startswith("fx_macro") for k in bad):
