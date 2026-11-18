@@ -1,0 +1,10 @@
+name = "macro-data-fast-cron"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# Hourly, 12:05-21:05 UTC, Monday to Friday (US premarket to close).
+# Widen to every hour with: crons = ["5 * * * 1-5"]
+[triggers]
+crons = ["5 12-21 * * 1-5"]
+
+# No secrets here. Set the token with: npx wrangler secret put GITHUB_TOKEN
