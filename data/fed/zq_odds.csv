@@ -350,12 +350,20 @@ snapshot_date,meeting_date,zq_contract,zq_price,current_effr,pre_meeting_rate,im
 2026-11-17,2027-06-09,ZQM27,95.405,3.88,4.535,4.595,4.6207,-8.6,-74.1,0.0,65.7,34.3,0.0,-2.8,0.0,5.7,False,
 2026-11-17,2027-07-28,ZQQ27,95.355,3.88,4.6207,4.645,4.645,-2.4,-76.5,0.0,90.3,9.7,0.0,-3.1,0.0,8.3,False,"only 3 days after the decision, so the next month's contract ZQQ27 is used"
 2026-11-17,2027-09-15,ZQU27,95.345,3.88,4.645,4.655,4.665,-2.0,-78.5,0.0,92.0,8.0,0.0,-4.0,0.0,8.0,False,
-2026-11-17,2027-10-27,ZQX27,95.295,3.88,4.665,4.705,4.705,-4.0,-82.5,0.0,84.0,16.0,-8.0,16.0,-2.0,16.0,False,"only 4 days after the decision, so the next month's contract ZQX27 is used"
-2026-11-18,2026-12-09,ZQZ26,95.935,3.88,3.88,4.065,4.1407,-26.1,-26.1,0.0,0.0,100.0,0.0,0.0,0.0,0.0,True,implied move 26 bp > 25 bp: market may be pricing a 50 bp move or more than one move
-2026-11-18,2027-01-27,ZQG27,95.685,3.88,4.1407,4.315,4.315,-17.4,-43.5,0.0,30.3,69.7,0.0,2.0,0.0,7.3,False,"only 4 days after the decision, so the next month's contract ZQG27 is used"
-2026-11-18,2027-03-17,ZQH27,95.61,3.88,4.315,4.39,4.4811,-16.6,-60.1,0.0,33.6,66.4,0.0,0.0,0.0,-4.5,False,
-2026-11-18,2027-04-28,ZQK27,95.455,3.88,4.4811,4.545,4.545,-6.4,-66.5,0.0,74.4,25.6,0.0,2.0,0.0,0.4,False,"only 2 days after the decision, so the next month's contract ZQK27 is used"
-2026-11-18,2027-06-09,ZQM27,95.4,3.88,4.545,4.6,4.6236,-7.9,-74.4,0.0,68.6,31.4,0.0,-2.9,0.0,-2.9,False,
-2026-11-18,2027-07-28,ZQQ27,95.35,3.88,4.6236,4.65,4.65,-2.6,-77.0,0.0,89.4,10.6,0.0,0.9,0.0,2.9,False,"only 3 days after the decision, so the next month's contract ZQQ27 is used"
-2026-11-18,2027-09-15,ZQU27,95.34,3.88,4.65,4.66,4.67,-2.0,-79.0,0.0,92.0,8.0,0.0,0.0,0.0,0.0,False,
-2026-11-18,2027-10-27,ZQX27,95.295,3.88,4.67,4.705,4.705,-3.5,-82.5,0.0,86.0,14.0,0.0,-2.0,-4.0,14.0,False,"only 4 days after the decision, so the next month's contract ZQX27 is used"
+2026-11-17,2027-10-27,ZQX27,95.35,3.88,4.665,4.65,4.65,1.5,-77.0,6.0,94.0,0.0,-2.0,0.0,4.0,0.0,False,"only 4 days after the decision, so the next month's contract ZQX27 is used"
+2026-11-18,2026-12-09,ZQZ26,95.93,3.88,3.88,4.07,4.1477,-26.8,-26.8,0.0,0.0,100.0,0.0,0.0,0.0,0.0,True,implied move 27 bp > 25 bp: market may be pricing a 50 bp move or more than one move
+2026-11-18,2027-01-27,ZQG27,95.67,3.88,4.1477,4.33,4.33,-18.2,-45.0,0.0,27.1,72.9,0.0,5.2,0.0,10.5,False,"only 4 days after the decision, so the next month's contract ZQG27 is used"
+2026-11-18,2027-03-17,ZQH27,95.595,3.88,4.33,4.405,4.4961,-16.6,-61.6,0.0,33.6,66.4,0.0,0.0,0.0,-4.5,False,
+2026-11-18,2027-04-28,ZQK27,95.435,3.88,4.4961,4.565,4.565,-6.9,-68.5,0.0,72.4,27.6,0.0,4.0,0.0,2.4,False,"only 2 days after the decision, so the next month's contract ZQK27 is used"
+2026-11-18,2027-06-09,ZQM27,95.375,3.88,4.565,4.625,4.6507,-8.6,-77.1,0.0,65.7,34.3,0.0,0.0,0.0,0.0,False,
+2026-11-18,2027-07-28,ZQQ27,95.325,3.88,4.6507,4.675,4.675,-2.4,-79.5,0.0,90.3,9.7,0.0,0.0,0.0,2.0,False,"only 3 days after the decision, so the next month's contract ZQQ27 is used"
+2026-11-18,2027-09-15,ZQU27,95.315,3.88,4.675,4.685,4.695,-2.0,-81.5,0.0,92.0,8.0,0.0,0.0,0.0,0.0,False,
+2026-11-18,2027-10-27,ZQX27,95.325,3.88,4.695,4.675,4.675,2.0,-79.5,8.0,92.0,0.0,2.0,0.0,4.0,0.0,False,"only 4 days after the decision, so the next month's contract ZQX27 is used"
+2026-11-19,2026-12-09,ZQZ26,95.925,3.88,3.88,4.075,4.1548,-27.5,-27.5,0.0,0.0,100.0,0.0,0.0,0.0,0.0,True,implied move 27 bp > 25 bp: market may be pricing a 50 bp move or more than one move
+2026-11-19,2027-01-27,ZQG27,95.675,3.88,4.1548,4.325,4.325,-17.0,-44.5,0.0,31.9,68.1,0.0,-4.8,0.0,-1.5,False,"only 4 days after the decision, so the next month's contract ZQG27 is used"
+2026-11-19,2027-03-17,ZQH27,95.6,3.88,4.325,4.4,4.4911,-16.6,-61.1,0.0,33.6,66.4,0.0,0.0,0.0,-8.9,False,
+2026-11-19,2027-04-28,ZQK27,95.445,3.88,4.4911,4.555,4.555,-6.4,-67.5,0.0,74.4,25.6,0.0,-2.0,0.0,-5.1,False,"only 2 days after the decision, so the next month's contract ZQK27 is used"
+2026-11-19,2027-06-09,ZQM27,95.385,3.88,4.555,4.615,4.6407,-8.6,-76.1,0.0,65.7,34.3,0.0,0.0,0.0,-5.7,False,
+2026-11-19,2027-07-28,ZQQ27,95.335,3.88,4.6407,4.665,4.665,-2.4,-78.5,0.0,90.3,9.7,0.0,0.0,0.0,-4.3,False,"only 3 days after the decision, so the next month's contract ZQQ27 is used"
+2026-11-19,2027-09-15,ZQU27,95.33,3.88,4.665,4.67,4.675,-1.0,-79.5,0.0,96.0,4.0,0.0,-4.0,0.0,-8.0,False,
+2026-11-19,2027-10-27,ZQX27,95.34,3.88,4.675,4.66,4.66,1.5,-78.0,6.0,94.0,0.0,-2.0,0.0,0.0,0.0,False,"only 4 days after the decision, so the next month's contract ZQX27 is used"
