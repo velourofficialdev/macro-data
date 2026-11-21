@@ -247,6 +247,8 @@
   body.optpage main > .sec:not(#options) { display: none !important; }
   body:not(.optpage) #options { display: none !important; }
   .odvi { cursor: pointer; border-radius: 6px; padding: 4px 6px; } .odvi.on { background: var(--tint-primary); }
+  .optstale { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--warn); border-left-width: 4px; border-radius: 8px; background: color-mix(in srgb, var(--warn) 12%, var(--surface)); color: var(--text); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+  .optstale b { color: var(--warn); }
   .odmode { font-size: 12px; color: var(--muted); margin: 0; padding: 0 16px 8px; }
   .odstack { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 4px 12px 12px; }
   .odpane { border: 1px solid var(--border); border-radius: 8px; padding: 8px; min-width: 0; }
@@ -742,6 +744,7 @@
   <!-- ============ FX ============ -->
   <section class="sec" id="options">
     <div class="sechead"><a href="#overview" class="backlink">← Macro dashboard</a><h2>Options positioning</h2><p>From Cboe's free delayed option chains, taken at each update (after the US close, and hourly in US hours on weekdays once hourly updates are on): open interest is the settled figure from the start of the session; prices are the latest available at the time shown on the desk, not necessarily closes. Gamma exposure assumes dealers hold the opposite side of customers who are long calls and long puts, a common simplification; it maps where hedging flows may cluster, not where price must go. S&amp;P levels come from SPX options and are shifted to ES by the current ES minus SPX gap; gold levels come from GLD options scaled to the COMEX gold future. Not a live trade tape.</p></div>
+    __OPTSTALE__
     <div class="grid" id="odesk">
       <div class="card" style="--w:12"><div class="card-b odbar">
         <div class="ranges" id="od-inst" role="group" aria-label="Instrument"></div>

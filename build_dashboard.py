@@ -1564,6 +1564,27 @@ def build_fingerprint(data: dict) -> str:
             f'<p class="note">History used: {F.index[0].strftime("%b %Y")} to {F.index[-1].strftime("%d %b %Y")}, excluding the last 3 months. Five matches at least a month apart. '
             'What followed past look-alikes is context, not a forecast; five cases is a small sample.</p>')
 
+def build_opt_stale(data: dict, today: date) -> str:
+    """Banner for the options desk when any OPT_* source failed its last check. Empty when all are ok."""
+    st = data.get("status") or {}
+    bad = [k for k, v in st.items() if str(k).startswith("OPT_") and isinstance(v, dict) and v.get("ok") is False]
+    if not bad:
+        return ""
+    dates = [str(s.get("date")) for k, s in (data.get("options") or {}).items() if not str(k).startswith("_") and isinstance(s, dict) and s.get("date")]
+    if not dates:
+        return ('<div class="optstale" id="opt-stale" role="status"><b>Options data is not updating.</b> '
+                "The data provider is currently refusing automated downloads, so this desk is not updating.</div>")
+    last = max(dates)
+    try:
+        n = (today - datetime.strptime(last[:10], "%Y-%m-%d").date()).days
+    except ValueError:
+        n = None
+    age = f", {n} day{'s' if n != 1 else ''} old" if n is not None and n >= 0 else ""
+    return (f'<div class="optstale" id="opt-stale" role="status"><b>Options data is from {esc(last[:10])}{age}.</b> '
+            "The data provider is currently refusing automated downloads, so this desk is not updating. "
+            "Levels below show where positioning stood on that date, not today.</div>")
+
+
 def build_options(data: dict, today: date) -> str:
     opts = data.get("options") or {}
     if not any(not str(k).startswith("_") for k in opts):
@@ -1992,7 +2013,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
         "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__FXPICK__": fx.get("picker", ""), "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]), "__NEWSCHK__": build_news_checked(feed),
-        "__STATUS__": build_status(data, today), "__FOOTER__": build_footer(data), "__OPTIONS__": build_options(data, today), "__FINGERPRINT__": build_fingerprint(data),
+        "__STATUS__": build_status(data, today), "__FOOTER__": build_footer(data), "__OPTIONS__": build_options(data, today), "__OPTSTALE__": build_opt_stale(data, today), "__FINGERPRINT__": build_fingerprint(data),
     }
     for k, v in rep.items():
         page = page.replace(k, v)

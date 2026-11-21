@@ -189,7 +189,7 @@ def build(data_dir: Path, out_html: Path) -> tuple[bool, str]:
     return ok, tail
 
 
-def browser(html: Path, full: bool) -> list[str]:
+def browser(html: Path, full: bool, stale: bool | None = None) -> list[str]:
     from playwright.sync_api import sync_playwright
     errs = []
     url = html.as_uri()
@@ -212,6 +212,14 @@ def browser(html: Path, full: bool) -> list[str]:
                             errs.append(f"{tag}: horizontal scroll on phone")
                         if frag == "#options" and pg.locator("#odesk").count() and pg.is_visible("#overview"):
                             errs.append(f"{tag}: dashboard sections visible on the options page")
+                        if frag == "#options" and stale is not None and w > 1000 and theme == "dark":
+                            shown = pg.locator("#opt-stale").count() > 0 and pg.is_visible("#opt-stale")
+                            if stale and not shown:
+                                errs.append(f"{tag}: stale-data banner missing although an OPT_ source is failing")
+                            if not stale and pg.locator("#opt-stale").count():
+                                errs.append(f"{tag}: stale-data banner present although all OPT_ sources are ok")
+                            if stale and shown and "day" not in pg.inner_text("#opt-stale"):
+                                errs.append(f"{tag}: stale-data banner shows no age in days")
                         if frag == "" and pg.locator("#options").count() and pg.is_visible("#options"):
                             errs.append(f"{tag}: options desk visible on the main page")
                         if full and frag == "#options" and w > 1000 and theme == "dark" and pg.locator("#od-inst button").count():
@@ -283,6 +291,15 @@ def main() -> int:
         fx_data = out / "fixture-data"
         shutil.copytree(ROOT / "data", fx_data)
         shutil.rmtree(fx_data / "options", ignore_errors=True)
+        sp = fx_data / "status.json"   # fixture = healthy options feed, so the stale banner must be off
+        try:
+            stj = json.loads(sp.read_text())
+            for k in stj:
+                if k.startswith("OPT_"):
+                    stj[k].update(ok=True, error=None)
+            sp.write_text(json.dumps(stj))
+        except (OSError, ValueError):
+            pass
         r = sh([sys.executable, "tools/fixtures.py", str(fx_data)])
         errs = [] if r.returncode == 0 else ["fixtures failed:\n" + (r.stdout + r.stderr)[-800:]]
         ok2, tail2 = build(fx_data, out / "fixture" / "index.html")
@@ -293,9 +310,15 @@ def main() -> int:
         res["fixtures"] = {"errors": errs}
 
     berrs = []
+    real_st = {}
+    try:
+        real_st = json.loads((ROOT / "data" / "status.json").read_text())
+    except (OSError, ValueError):
+        pass
+    real_stale = any(k.startswith("OPT_") and v.get("ok") is False for k, v in real_st.items())
     for h in htmls:
         try:
-            berrs += [f"[{h.parent.name}] {e}" for e in browser(h, full=not a.quick)]
+            berrs += [f"[{h.parent.name}] {e}" for e in browser(h, full=not a.quick, stale=(real_stale if h.parent.name == "real" else False if h.parent.name == "fixture" else None))]
         except Exception as exc:  # noqa: BLE001
             berrs.append(f"[{h.parent.name}] browser check crashed: {type(exc).__name__}: {exc}")
     res["browser"] = {"errors": berrs}
