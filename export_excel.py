@@ -142,11 +142,11 @@ def options_levels_sheet(data: dict, today=None) -> pd.DataFrame | None:
         if not isinstance(s, dict) or not s.get("spot"):
             continue
         conv = bd._opt_mapper(s, meta)
-        src, fetched = "Cboe delayed chain", s.get("updated_utc") or s.get("date")
+        src, fetched = "Delayed option chain", s.get("updated_utc") or s.get("date")
         try:
             if ol is not None and hasattr(ol, "source_info"):
                 si = ol.source_info(s, key, today or pd.Timestamp.utcnow().date())
-                src, fetched = si.get("text") or src, si.get("fetched_utc") or fetched
+                src, fetched = (bd.neutral_src(si) or {}).get("text") or src, si.get("fetched_utc") or fetched
         except Exception:  # noqa: BLE001
             pass
         for name, v in (("Price", s.get("spot")), ("Call wall", s.get("call_wall")), ("Put wall", s.get("put_wall")), ("Gamma flip", s.get("gamma_flip")), ("Max pain", s.get("max_pain"))):

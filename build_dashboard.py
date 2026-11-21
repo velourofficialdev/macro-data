@@ -489,7 +489,7 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
         if code == "DFII10":
             band = pick_band(playbook["real_yield"]["bands"], m["z"]); what = playbook["real_yield"].get("what", "")
         else:
-            band = pick_band(playbook["zscore"]["bands"], m["z"]); what = "US Treasury constant-maturity yield from FRED."
+            band = pick_band(playbook["zscore"]["bands"], m["z"]); what = "US Treasury constant-maturity yield, daily close."
         rows.append(yield_row(f"Y:{code}", "US", YIELD_LABELS[code], s, m["z"], band, what,
                               YIELD_LABELS[code] + (" yield" if code != "DFII10" else " Treasury yield (TIPS)"), m["date"]))
         ys[f"Y:{code}"] = s
@@ -536,7 +536,7 @@ def build_watch(playbook: dict, data: dict, computed: dict) -> tuple[list[dict],
                      "latest": fmt(series.iloc[-1], dec), "d1": fmt(delta(series, 1, True), 2, True) + "%",
                      "d5": fmt(delta(series, 5, True), 2, True) + "%", "d20": fmt(delta(series, 20, True), 2, True) + "%",
                      "z": fmt(num(z), 2, True), "date": series.index[-1].strftime("%Y-%m-%d"),
-                     "info": {"title": label, "what": (spec or {}).get("what", "COMEX gold futures (GC=F, continuous front month) from Yahoo Finance."),
+                     "info": {"title": label, "what": (spec or {}).get("what", "Gold futures, continuous front month, daily close."),
                               "band": band_info(band), "dyn": None, "z": num(z)}})
         family(key, {f"P:{key}": series}, dec)
 
@@ -968,7 +968,7 @@ def build_fx(feed: dict | None, data: dict) -> dict[str, str]:
             t = (n.get("publishedAt") or "")[:16].replace("T", " ")
             title = esc(n.get("title", ""))
             link = f'<a href="{esc(url)}" target="_blank" rel="noopener noreferrer">{title}</a>' if url else title
-            nrows.append(f'<li><span class="src">{esc((n.get("source") or "News").split(" ")[0][:10])}</span><div>{link}<small>{esc(t)} UTC</small></div></li>')
+            nrows.append(f'<li><div>{link}<small>{esc(t)} UTC</small></div></li>')   # no publisher label (owner: no sources shown)
         out["news"] = '<ul class="news">' + "".join(nrows) + "</ul>"
     return out
 
@@ -1224,7 +1224,7 @@ def build_cot_cards(playbook: dict, metrics: dict, split: bool = False):
         spec = playbook["cot"][key]
         m = metrics.get(f"COT:{key}")
         if not m:
-            cards.append(f'<article class="cotinner muted"><h3>{esc(spec["title"])}</h3><p>No data yet. It appears after the first successful CFTC update.</p></article>')
+            cards.append(f'<article class="cotinner muted"><h3>{esc(spec["title"])}</h3><p>No data yet. It appears after the first successful positioning update.</p></article>')
             continue
         band = pick_band(spec["bands"], m["index"])
         band = dict(band, label="COT Index: " + band["label"]) if band else band   # names the measure, so it is not read as the Z reading
@@ -1380,7 +1380,7 @@ FRED_TERMS_URL = "https://fred.stlouisfed.org/docs/api/terms_of_use.html"
 
 
 def build_footer(data: dict) -> str:
-    """FRED's required notice + Terms link, shown only when the keyed API route was used (FX_MACRO note or error); never raises."""
+    """NOT USED ON THE PAGE since 2026-11-21 (owner: no footers or source notices; licence risk flagged to the owner). FRED's required notice + Terms link, shown only when the keyed API route was used (FX_MACRO note or error); never raises."""
     try:
         st = (data.get("status") or {}).get("FX_MACRO") or {}
         text = f'{st.get("note") or ""} {st.get("error") or ""}'
@@ -1391,6 +1391,15 @@ def build_footer(data: dict) -> str:
     return (f'<footer class="site-foot wrap"><p class="muted-text">{esc(FRED_NOTICE)} '
             f'By using this page you agree to be bound by the '
             f'<a class="muted-text" href="{FRED_TERMS_URL}" target="_blank" rel="noopener noreferrer">FRED API Terms of Use</a>.</p></footer>')
+
+
+def build_disclaimer(playbook: dict) -> str:
+    """The single educational 'not advice' line (playbook meta.disclaimer); empty when the playbook has none."""
+    try:
+        t = str(((playbook or {}).get("meta") or {}).get("disclaimer") or "").strip()
+    except Exception:  # noqa: BLE001
+        t = ""
+    return f'<p class="disc wrap">{esc(t)}</p>' if t else ""
 
 
 def build_news_checked(feed: dict | None) -> str:
@@ -1436,8 +1445,13 @@ OPT_META = {
     "NDX": {"title": "Nasdaq 100", "src": "NDX options", "map": "NQ", "mode": "add", "dec": 0, "mdec": 2},
     "DJX": {"title": "Dow", "src": "DJX options", "map": "YM", "mode": "mul", "dec": 2, "mdec": 0},
     "RUT": {"title": "Russell 2000", "src": "RUT options", "map": "RTY", "mode": "add", "dec": 0, "mdec": 1},
-    "GOLD": {"title": "Gold", "src": "GLD options", "map": "Gold (GC)", "mode": "mul", "dec": 2, "mdec": 1},
+    "GOLD": {"title": "Gold", "src": "proxy options", "unit": "Proxy", "map": "Gold (future)", "mode": "mul", "dec": 2, "mdec": 1},
 }
+
+
+def _unit(meta: dict) -> str:
+    """Name of the option-price units in the level tables; the proxy is never named."""
+    return str(meta.get("unit") or meta["src"].split()[0])
 
 
 def load_options(data_dir: Path) -> dict:
@@ -1480,6 +1494,46 @@ def _opt_mapper(s: dict, meta: dict):
     return lambda k: None if k is None else k * ratio
 
 
+
+# ---- no source names on the published page (owner, 2026-11-21) ----------------------------------------------------------
+# The private repo keeps every source field; only what is shipped to the page is neutralised here. tools/check.py enforces it.
+_SCRUB = [
+    (r"Cboe delayed chains?", "delayed option chain"), (r"IV as quoted by Cboe", "IV as quoted"),
+    (r"GLD proxy scaled to COMEX gold", "proxy scaled to the gold future"), (r"GLD price units", "proxy price units"),
+    (r"COMEX gold futures?( closes)?( \(GC=F\))?", "gold future closes"), (r"\(COMEX futures\)", "(futures)"), (r"\bCOMEX\b ?", ""),
+    (r"\(?\bGC=F\)?", "gold futures"), (r"\bGLD\b", "proxy"), (r"\bSPY\b", "proxy"), (r"\bTradier\b", "the provider"), (r"\bCboe\b ?", ""),
+    (r"\bYahoo( Finance)?\b", "daily series"), (r"\bFRED\b", "daily series"), (r"\bOANDA\b", "spot"),
+]
+_SCRUB_RE = [(re.compile(a, re.I if a.startswith(r"\bYahoo") else 0), b) for a, b in _SCRUB]
+
+
+def scrub_text(t: str) -> str:
+    for rx, b in _SCRUB_RE:
+        t = rx.sub(b, t)
+    return t
+
+
+def scrub_obj(o):
+    """Recursive scrub_text over every string value (keys untouched)."""
+    if isinstance(o, str):
+        return scrub_text(o)
+    if isinstance(o, list):
+        return [scrub_obj(x) for x in o]
+    if isinstance(o, dict):
+        return {k: scrub_obj(v) for k, v in o.items()}
+    return o
+
+
+def neutral_src(si) -> dict | None:
+    """Options snapshot source info -> labels with no vendor or proxy names: 'Delayed - as of <time> - <n>d old', plus 'proxy-scaled, approximate' when a proxy is used."""
+    if not isinstance(si, dict):
+        return si
+    age = si.get("age_days")
+    text = "Delayed \u00b7 as of " + str(si.get("fetched_utc") or "unknown time") + (f" \u00b7 {age}d old" if isinstance(age, int) else "") + (" \u00b7 proxy-scaled, approximate" if si.get("approx") else "")
+    return {"source": "Delayed option chain", "source_delay": si.get("source_delay"), "fetched_utc": si.get("fetched_utc"), "source_time": si.get("source_time"),
+            "age_days": age, "approx": bool(si.get("approx")), "text": text}
+
+
 def opt_payload(data: dict, playbook: dict | None = None, today: date | None = None) -> dict:
     out = {}
     today = today or datetime.now(timezone.utc).date()
@@ -1509,6 +1563,8 @@ def opt_payload(data: dict, playbook: dict | None = None, today: date | None = N
                 out[key][name] = None
         if not isinstance(out[key].get("x"), dict):
             out[key]["x"] = {}
+        out[key]["src"] = neutral_src(out[key].get("src"))
+        out[key] = scrub_obj(out[key])
     vi = (data.get("options") or {}).get("_vol_idx")
     if out and vi is not None and len(vi) > 60:
         idx_map = {"SPX": ("VIXCLS", "VIX"), "NDX": ("VXNCLS", "VXN"), "DJX": ("VXDCLS", "VXD"), "RUT": ("RVXCLS", "RVX"), "GOLD": ("GVZCLS", "GVZ")}
@@ -1632,7 +1688,7 @@ def build_options(data: dict, today: date) -> str:
     opts = data.get("options") or {}
     if not any(not str(k).startswith("_") for k in opts):
         return ('<div class="card" style="--w:12"><div class="card-b"><p class="quiet">No options data yet. It appears after the next scheduled update '
-                '(weekdays 22:30 UTC) downloads the Cboe chains.</p></div></div>')
+                '(weekdays 22:30 UTC) downloads the option chains.</p></div></div>')
     html = []
     for key, meta in OPT_META.items():
         s = opts.get(key)
@@ -1694,18 +1750,18 @@ def build_options(data: dict, today: date) -> str:
                 if hrows else "")
         age = (today - datetime.strptime(s["date"], "%Y-%m-%d").date()).days if s.get("date") else 0
         stale = ' <span class="badge warn">stale</span>' if age > 4 else ""
-        mapnote = (f"{meta['map']} levels = {meta['src'].split()[0]} level {'+ basis ' + format(s['mapped_price'] - spot, '+,.2f') if meta['mode'] == 'add' else '× ' + format(s['mapped_price'] / spot, ',.3f')} "
-                   f"(last prices: {meta['map']} {f(s['mapped_price'], dm)}, {meta['src'].split()[0]} {f(spot, d0)}). The basis drifts during the day; re-check it against your chart."
+        mapnote = (f"{meta['map']} levels = {_unit(meta)} level {'+ basis ' + format(s['mapped_price'] - spot, '+,.2f') if meta['mode'] == 'add' else '× ' + format(s['mapped_price'] / spot, ',.3f')} "
+                   f"(last prices: {meta['map']} {f(s['mapped_price'], dm)}, {_unit(meta)} {f(spot, d0)}). The basis drifts during the day; re-check it against your chart."
                    if conv else "Mapped price unavailable this run, so levels are in option units only.")
         first = not html
         html.append(
             f'<details class="card collapse optgrp" style="--w:12"{" open" if first else ""}><summary class="card-h"><span class="ttl"><span class="chev"></span><h3>{meta["title"]} · level table, open-interest changes, history</h3></span>'
             f'<span class="note">{badge_}{stale}</span></summary><div class="grid optin">'
             f'<div class="card" style="--w:7"><div class="card-h"><h3>{meta["title"]} key levels <span class="muted-text">· {esc(meta["src"])}</span> {badge_}{stale}</h3></div>'
-            f'<div class="card-b">{stats}<div class="scroll"><table class="opttab"><thead><tr><th>Level</th><th>{esc(meta["src"].split()[0])}</th>{mapped_head}<th>vs price</th><th></th></tr></thead><tbody>{trs}</tbody></table></div>'
+            f'<div class="card-b">{stats}<div class="scroll"><table class="opttab"><thead><tr><th>Level</th><th>{esc(_unit(meta))}</th>{mapped_head}<th>vs price</th><th></th></tr></thead><tbody>{trs}</tbody></table></div>'
             f'<p class="optread">{esc(read)}</p><p class="note">{esc(mapnote)}</p></div></div>'
             f'<div class="card" style="--w:5"><div class="card-h"><h3>{meta["title"]}: biggest open-interest changes</h3><p class="note">Contracts, vs the previous update</p></div><div class="card-b scroll">{chg}</div></div>'
-            f'<div class="card" style="--w:12"><div class="card-h"><h3>{meta["title"]}: levels over the last 10 updates</h3><p class="note">In {esc(meta["src"].split()[0])} units</p></div><div class="card-b scroll">{htab or "<p class=quiet>Builds up one row per update.</p>"}</div></div></div></details>')
+            f'<div class="card" style="--w:12"><div class="card-h"><h3>{meta["title"]}: levels over the last 10 updates</h3><p class="note">In {esc(_unit(meta))} units</p></div><div class="card-b scroll">{htab or "<p class=quiet>Builds up one row per update.</p>"}</div></div></div></details>')
     return "".join(html)
 
 # Options desk switch: False = public build (no desk, no options numbers anywhere); True = internal build.
@@ -2047,6 +2103,13 @@ def inject_chart(page: str, data_dir: Path) -> str:
             feed = chart_feed.build_chart_feed(data_dir, include_opt_keys=OPTIONS_DESK_PUBLIC)
         except TypeError:  # older chart_feed without the keyword
             feed = chart_feed.build_chart_feed(data_dir)
+        if isinstance(feed, dict):
+            for sy in feed.get("symbols") or []:   # no source labels shipped; names and delay text scrubbed
+                if isinstance(sy, dict):
+                    sy["src"] = ""
+                    for k in ("name", "delay"):
+                        if isinstance(sy.get(k), str):
+                            sy[k] = scrub_text(sy[k])
         if not isinstance(feed, dict) or not isinstance(feed.get("symbols"), list):
             feed = {"v": 1, "symbols": []}
     except Exception as exc:  # noqa: BLE001
@@ -2096,6 +2159,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
 
     if OPTIONS_DESK_PUBLIC:
         payload["opt"] = opt_payload(data, playbook, today)
+    opt_html = build_options(data, today) if OPTIONS_DESK_PUBLIC else None
     page = TEMPLATE
     rep = {
         "__ASOF__": esc(as_of), "__BUILT__": esc(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
@@ -2104,7 +2168,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
         "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__FXPICK__": fx.get("picker", ""), "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]), "__NEWSCHK__": build_news_checked(feed),
-        "__STATUS__": build_status(data, today), "__FOOTER__": build_footer(data), "__OPTIONS__": build_options(data, today) if OPTIONS_DESK_PUBLIC else "", "__OPTSTALE__": build_opt_stale(data, today) if OPTIONS_DESK_PUBLIC else "", "__FINGERPRINT__": build_fingerprint(data),
+        "__FOOTER__": build_disclaimer(playbook), "__OPTIONS__": "" if (opt_html is None or "No options data yet" in opt_html) else opt_html, "__OPTEMPTY__": opt_html if (opt_html and "No options data yet" in opt_html) else "", "__OPTSTALE__": build_opt_stale(data, today) if OPTIONS_DESK_PUBLIC else "", "__FINGERPRINT__": build_fingerprint(data),
     }
     for k, v in rep.items():
         page = page.replace(k, v)

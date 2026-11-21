@@ -21,9 +21,9 @@
     exportJSON: function () { snapshotCur(); return JSON.stringify(exportObj(), null, 1); },
     importJSON: function (text) { return doImport(text); },
     cloudSave: function (/* state */) { /* Phase 2 hook: intentionally does nothing */ },
-    levelsFor: function (symbol) { return levelsFor(symbol); },
     deskSymbol: function (optKey) { return deskSymbol(optKey); },
-    mountDesk: function (host, symbol, levels, opts) { return mountDesk(host, symbol, levels, opts); }
+    setSymbol: function (id) { return deskFollow(id); },
+    setLevels: function (symbol, list) { return setDeskLevels(symbol, list); }
   };
   if (!root) { rejectReady(new Error("no #kl-root")); return; }
 
@@ -266,11 +266,11 @@
   function buildShell() {
     if (builtShell) return; builtShell = true;
     root.textContent = "";
-    var top = el("div", "kl-row");
+    var bar = el("div", "kl-bar"), top = el("div", "kl-row");
     symBar = el("div", "ranges"); symBar.setAttribute("role", "group"); symBar.setAttribute("aria-label", "Chart symbol");
     top.appendChild(symBar); top.appendChild(el("span", "kl-sp"));
     fullB = btn("Expand", "Expand the chart to full screen (Esc closes)"); fullB.setAttribute("aria-expanded", "false"); top.appendChild(fullB);
-    root.appendChild(top);
+    bar.appendChild(top);
 
     var r2 = el("div", "kl-row");
     ivBar = el("div", "ranges"); ivBar.setAttribute("role", "group"); ivBar.setAttribute("aria-label", "Interval");
@@ -286,7 +286,7 @@
     scaleBar = el("div", "ranges"); scaleBar.setAttribute("role", "group"); scaleBar.setAttribute("aria-label", "Price scale");
     [["log", "Log", "Logarithmic price scale"], ["percent", "%", "Percent change from the first visible bar"]].forEach(function (x) { var b = btn(x[1], x[2], ""); b.dataset.s = x[0]; b.setAttribute("aria-pressed", "false"); scaleBar.appendChild(b); scBtns[x[0]] = b; });
     r2.appendChild(scaleBar);
-    root.appendChild(r2);
+    bar.appendChild(r2);
 
     var r3 = el("div", "kl-row");
     indBtn = btn("Indicators", "Add or edit indicators"); indBtn.setAttribute("aria-haspopup", "true"); indBtn.setAttribute("aria-expanded", "false"); r3.appendChild(indBtn);
@@ -295,7 +295,7 @@
     r3.appendChild(exB); r3.appendChild(imB);
     var fileIn = el("input"); fileIn.type = "file"; fileIn.accept = "application/json,.json"; fileIn.hidden = true; fileIn.setAttribute("aria-label", "Layout file"); r3.appendChild(fileIn);
     var helpB = btn("Shortcuts", "Keyboard shortcuts"); helpB.setAttribute("aria-haspopup", "true"); helpB.setAttribute("aria-expanded", "false"); r3.appendChild(helpB);
-    root.appendChild(r3);
+    bar.appendChild(r3); root.appendChild(bar);
 
     chipsEl = el("div", "kl-chips"); root.appendChild(chipsEl);
 
@@ -328,15 +328,6 @@
 
     srcEl = el("p", "kl-src"); root.appendChild(srcEl);
     msgEl = el("p", "kl-msg"); msgEl.setAttribute("role", "status"); root.appendChild(msgEl);
-    var notes = el("div", "kl-notes");
-    [
-      "Opening this tab loads the KLineChart library from jsDelivr, which sees your IP address. Nothing else from the page is sent.",
-      "Data: daily closes stored by the dashboard; not live. Candles and bars are drawn close-to-close, so there is no intraday high or low. Intraday intervals need data the dashboard does not store.",
-      "Drawings and indicators are saved on this device; use Export to keep a copy.",
-      "Charting tool, not advice."
-    ].forEach(function (t, i) { var np = el("p", "note", t); if (i === 1) dataNote = np; notes.appendChild(np); });
-    root.appendChild(notes);
-
     indPop = el("div", "kl-pop"); indPop.hidden = true; root.appendChild(indPop);
     helpPop = el("div", "kl-pop"); helpPop.hidden = true; root.appendChild(helpPop);
 
@@ -377,7 +368,7 @@
     window.addEventListener("resize", resizeSoon);
     root._helpB = helpB;
   }
-  var dataNote = null, dataNoteBase = "";
+  var dataNote = { textContent: "" };
   function hasDesk() { try { return !!(window.P && window.P.opt); } catch (e) { return false; } }
   function say(t, err) { if (!msgEl) return; msgEl.textContent = t; msgEl.className = "kl-msg" + (err ? " err" : ""); }
   function showState(title, sub, quiet) {
@@ -389,7 +380,7 @@
   function showFail() {
     showState("The chart library could not load (blocked or offline). The Live tab still works.");
     var b = btn("Open the Live tab", "Switch to the TradingView Live tab"); stateEl.appendChild(b);
-    b.addEventListener("click", function () { var lb = document.querySelector('#chart-tabs [data-v="live"]'); if (lb) lb.click(); });
+    b.addEventListener("click", function () { var lb = document.querySelector('#pc-tabs [data-v="live"]'); if (lb) lb.click(); });
   }
   var rsT = 0;
   function resizeSoon() { clearTimeout(rsT); rsT = setTimeout(function () { if (chart) { try { chart.resize(); } catch (e) {} } }, 60); }
@@ -414,6 +405,9 @@
     });
     pop.appendChild(tb);
     pop.appendChild(el("p", "kl-why", "On a touch screen: tap a tool, then tap the chart. Drag a handle to move a point. Pinch to zoom."));
+    pop.appendChild(el("h4", "", "About this chart"));
+    ["Daily closes stored by the dashboard, not live. Candles and bars are drawn close-to-close, so there is no intraday high or low; intraday intervals need data the dashboard does not store." + (dataNote && /intraday price/.test(dataNote.textContent) ? " The latest point may be an intraday price until the close." : ""),
+     "Drawings and indicators are saved on this device; use Export to keep a copy.", "Charting tool, not advice."].forEach(function (t) { pop.appendChild(el("p", "kl-why", t)); });
   }
 
   /* ---------- full screen (same node, CSS lift) ---------- */
@@ -439,7 +433,7 @@
 
   function init() {
     var k = window.klinecharts;
-    readTokens(); registerCustom(k);
+    readTokens(); registerCustom(k); registerLevel(k);
     chart = k.init(chartEl, { timezone: "UTC", styles: themeStyles(), layout: { barSpaceLimit: { min: 0.05, max: 60 } } });
     if (!chart) throw new Error("init failed");
     try { chart.setOffsetRightDistance(24); } catch (e) {}
@@ -451,7 +445,7 @@
       }
     });
     chart.subscribeAction("onCrosshairChange", onCross);
-    var want = state.last && byId[state.last.symbol] ? state.last.symbol : feed[0].id;
+    var want = wantSym && byId[wantSym] ? wantSym : state.last && byId[state.last.symbol] ? state.last.symbol : feed[0].id;
     if (!state.last) state.last = { symbol: want, tab: "kline" };
     watchTheme();
     showSymbol(want, true);
@@ -462,6 +456,7 @@
     if (!chart || !byId[id]) return;
     if (!first) { saveNow(); }
     curSym = id; state.last.symbol = id; state.last.tab = "kline";
+    try { window.dispatchEvent(new CustomEvent("kl:symbol", { detail: { id: id } })); } catch (e) { /* no listeners */ }
     var s = byId[id], st = sc();
     restoring = true; clearOverlays(true); clearIndicators(); restoring = false;
     metas = {}; selId = null; pendingId = null; activeTool = ""; paintTools(); hideStyle();
@@ -490,7 +485,7 @@
     try { setRange(st.range, false); } catch (e) { /* keep going */ }
     finally {
       if (stateEl) stateEl.hidden = true;
-      try { paintTop(); readLast(); } catch (e) { /* keep going */ }
+      try { paintTop(); readLast(); drawLevels(); } catch (e) { /* keep going */ }
       if (!firstReady) { firstReady = true; resolveReady(); }
     }
   }
@@ -503,9 +498,9 @@
     Object.keys(scBtns).forEach(function (k) { scBtns[k].setAttribute("aria-pressed", String(k === st.scale)); });
     typeSel.value = st.type;
     var last = s.ts[s.ts.length - 1];
-    var line = (st.interval === "W" ? "Weekly last close of the daily series" : (s.delay || "Daily close")) + " \u00B7 " + (s.src || "source not stated") + " \u00B7 last point " + iso(last) + " \u00B7 " + s.ts.length.toLocaleString("en-US") + " points, saved by the dashboard (not live)";
+    var line = (st.interval === "W" ? "Weekly last close of the daily series" : (s.delay || "Daily close")) + " \u00B7 as of " + iso(last) + " \u00B7 " + s.ts.length.toLocaleString("en-US") + " points, saved by the dashboard (not live)";
     if (s.partial && !/intraday/i.test(s.delay || "")) line += " \u00B7 latest point may be intraday until the close";
-    if (dataNote) { if (!dataNoteBase) dataNoteBase = dataNote.textContent; dataNote.textContent = dataNoteBase + (s.partial ? " The latest point may be an intraday price until the close." : ""); }
+    dataNote.textContent = s.partial ? "The latest point may be an intraday price until the close." : "";
     if (st.type !== "area") line += " \u00B7 drawn close-to-close: daily closes only, no intraday high/low";
     srcEl.textContent = line;
     lockB.setAttribute("aria-pressed", String(locked)); hideB.setAttribute("aria-pressed", String(hidden_));
@@ -607,13 +602,14 @@
   function cycleMagnet() { magnet = (magnet + 1) % 3; state.last.magnet = magnet; paintTop(); if (chart) chart.getOverlays().forEach(function (o) { chart.overrideOverlay({ id: o.id, mode: modeName() }); }); }
   function applyLock(quiet) { if (!chart) return; chart.getOverlays().forEach(function (o) { if (o.id !== pendingId) chart.overrideOverlay({ id: o.id, lock: locked }); }); if (!quiet) paintTop(); }
   function applyHide(quiet) {
-    if (!chart) return; chart.getOverlays().forEach(function (o) { chart.overrideOverlay({ id: o.id, visible: !hidden_ }); });
+    if (!chart) return; chart.getOverlays().forEach(function (o) { if (o.name !== "vlLevel") chart.overrideOverlay({ id: o.id, visible: !hidden_ }); });
     if (!quiet) { paintTop(); if (hidden_) hideStyle(); }
   }
   function clearOverlays(silent) {
     if (!chart) return; var was = restoring; restoring = true;
     try { chart.removeOverlay(); } catch (e) {}
-    restoring = was; metas = {}; selId = null; pendingId = null; hideStyle();
+    restoring = was; metas = {}; selId = null; pendingId = null; hideStyle(); lvIds = [];
+    if (!silent) drawLevels();
   }
   function deleteSelected() { if (chart && selId) { try { chart.removeOverlay({ id: selId }); } catch (e) {} } }
   function isComplete(o) { return !!TOOLNAME[o.name] && o.id !== pendingId && o.currentStep === -1 && o.points && o.points.length > 0; }
@@ -642,7 +638,7 @@
     if (!chart || i < 0 || i >= hist.length) return;
     hidx = i; restoring = true; clearOverlays(true);
     hist[i].forEach(function (r) { mkOv(r); });
-    applyLock(true); applyHide(true); restoring = false; paintHist(); saveSoon();
+    applyLock(true); applyHide(true); restoring = false; drawLevels(); paintHist(); saveSoon();
   }
   function undo() { restoreHist(hidx - 1); }
   function redo() { restoreHist(hidx + 1); }
@@ -843,27 +839,18 @@
     var r = el("div", "kl-li"), s = el("span"); s.appendChild(document.createTextNode(label)); s.appendChild(el("div", "kl-why", tip)); r.appendChild(s);
     var b = btn("Add", "Add " + label); b.addEventListener("click", function () { addInd(n); closePop(pop, indBtn); }); r.appendChild(b); pop.appendChild(r);
   }
-  /* Phase 2 hook: desk levels for a symbol (internal build only). Empty until Phase 2. */
-  function levelsFor(symbol) {
-    try { if (!(window.P && window.P.opt)) return []; } catch (e) { return []; }
-    return [];   // Phase 2 fills this from the internal desk payload
-  }
-
-
-  /* ---------- options desk price chart (internal build): a second, separate chart instance. It never touches the main chart's
-     state, drawings or saved layout. Levels are drawn as labelled horizontal lines in the chart's own price units. ---------- */
+  /* ---------- options desk hooks (desk build only): the chart follows the desk instrument; its levels are an overlay ---------- */
   function deskSymbol(optKey) {
     try {
       parseFeed();
       for (var i = 0; i < feed.length; i++) {
         var o = feed[i]; if (o.optKey && o.optKey === optKey) {
-          var n = o.c.length; return { id: o.id, name: o.name, src: o.src, delay: o.delay, unit: o.unit, dec: o.dec, optUnits: o.optUnits, n: n, lastDate: iso(o.ts[n - 1]), lastClose: o.c[n - 1], partial: o.partial };
+          var n = o.c.length; return { id: o.id, name: o.name, delay: o.delay, unit: o.unit, dec: o.dec, optUnits: o.optUnits, n: n, lastDate: iso(o.ts[n - 1]), lastClose: o.c[n - 1], partial: o.partial };
         }
       }
     } catch (e) { /* no series */ }
     return null;
   }
-  var DESK_BARS = { "1M": 22, "3M": 66, "6M": 132, "1Y": 264, "All": 1e9 };
   var DESK_SLOT = { cw: 0, pw: 1, flip: 2, mp: 3 };
   function registerLevel(k) {
     regOverlay(k, {
@@ -881,60 +868,31 @@
       }
     });
   }
-  function mountDesk(host, symbol, levels, opts) {
-    var h = { dead: false, chart: null, sym: symbol, levels: levels || [], range: (opts && opts.range) || "6M", ids: [], tries: 0, err: null };
-    h.ready = new Promise(function (res, rej) { h._res = res; h._rej = rej; }); h.ready.catch(function () {});
-    function lastBars() { return h.chart ? h.chart.getDataList() : []; }
-    function drawLevels() {
-      if (!h.chart) return;
-      h.ids.forEach(function (id) { try { h.chart.removeOverlay({ id: id }); } catch (e) {} }); h.ids = [];
-      var d = lastBars(); if (!d.length) return;
-      var ts = d[d.length - 1].timestamp;
-      readTokens();
-      h.levels.forEach(function (L) {
-        if (!fin(L.value)) return;
-        try {
-          var id = h.chart.createOverlay({ name: "vlLevel", lock: true, visible: true, points: [{ timestamp: ts, value: L.value }], extendData: { id: L.id, label: L.label, ck: L.ck, dash: L.dash, w: L.w },
-            styles: { text: { color: T.onp, backgroundColor: T[L.ck] || T.text, borderColor: T[L.ck] || T.text, family: T.font, size: 11 } } });
-          if (id) h.ids.push(id);
-        } catch (e) { /* skip one level */ }
-      });
-    }
-    function applyRange() {
-      var d = lastBars(); if (!d.length || !h.chart) return;
-      var n = Math.min(d.length, DESK_BARS[h.range] || DESK_BARS["6M"]), w = Math.max(120, host.clientWidth - 70);
-      try { h.chart.setBarSpace(Math.max(1.5, Math.min(30, w / n))); h.chart.scrollToRealTime(); } catch (e) {}
-    }
-    function afterData() {
-      if (h.dead || !h.chart) return;
-      if (!lastBars().length) { if (++h.tries < 20) setTimeout(afterData, 50); return; }
-      applyRange(); drawLevels(); h._res(h);
-    }
-    h.update = function (sym, lv, o) {
-      if (h.dead || !h.chart) { h.sym = sym; h.levels = lv || []; if (o && o.range) h.range = o.range; return; }
-      try { h.chart.resize(); } catch (e) {}
-      var changed = sym !== h.sym; h.sym = sym; h.levels = lv || []; if (o && o.range) h.range = o.range;
-      readTokens(); try { h.chart.setStyles(themeStyles()); h.chart.setStyles({ candle: { type: "area" } }); } catch (e) {}
-      if (changed) { var s = byId[sym]; if (!s) return; h.tries = 0; try { h.chart.setSymbol({ ticker: sym, pricePrecision: s.dec, volumePrecision: 0 }); h.chart.setPeriod({ type: "day", span: 1 }); } catch (e) {} setTimeout(afterData, 0); }
-      else { applyRange(); drawLevels(); }
-    };
-    h.resize = function () { if (h.chart && !h.dead) { try { h.chart.resize(); } catch (e) {} applyRange(); drawLevels(); } };
-    h.destroy = function () { h.dead = true; ids_clear(); try { if (h.chart && window.klinecharts) window.klinecharts.dispose(host); } catch (e) {} h.chart = null; };
-    function ids_clear() { h.ids = []; }
-    h.getChart = function () { return h.chart; };
-    parseFeed();
-    if (!byId[symbol]) { h.err = "no series"; h._rej(new Error("no series")); return h; }
-    loadLib().then(function () {
-      if (h.dead) return;
-      var k = window.klinecharts; readTokens(); registerCustom(k); registerLevel(k);
-      var c = k.init(host, { timezone: "UTC", styles: themeStyles() }); if (!c) throw new Error("init failed");
-      h.chart = c;
-      try { c.setStyles({ candle: { type: "area" } }); c.setOffsetRightDistance(16); } catch (e) {}
-      c.setDataLoader({ getBars: function (p) { var s = byId[p.symbol.ticker]; p.callback(s ? barsFor(s, "D") : [], false); } });
-      var s0 = byId[h.sym]; c.setSymbol({ ticker: h.sym, pricePrecision: s0.dec, volumePrecision: 0 }); c.setPeriod({ type: "day", span: 1 });
-      setTimeout(afterData, 0);
-    }).catch(function (err) { h.err = String(err && err.message || err); h._rej(err); });
-    return h;
+  var wantSym = null, deskLv = { sym: null, list: [] }, lvIds = [];
+  function deskFollow(id) {   // the desk instrument changed: show its series (the saved layout of every symbol stays as it was)
+    wantSym = typeof id === "string" && byId[id] ? id : null;
+    if (wantSym && chart && firstReady && curSym !== wantSym) showSymbol(wantSym);
+    return !!wantSym;
+  }
+  function drawLevels() {   // overlays named vlLevel are never saved or exported (not a drawing tool)
+    if (!chart) return;
+    lvIds.forEach(function (id) { try { chart.removeOverlay({ id: id }); } catch (e) {} }); lvIds = [];
+    if (!deskLv.sym || deskLv.sym !== curSym || !deskLv.list.length) return;
+    var d = chart.getDataList(); if (!d.length) return;
+    var ts = d[d.length - 1].timestamp, was = restoring; restoring = true; readTokens();
+    deskLv.list.forEach(function (L) {
+      if (!fin(L.value)) return;
+      try {
+        var id = chart.createOverlay({ name: "vlLevel", lock: true, visible: true, points: [{ timestamp: ts, value: L.value }], extendData: { id: L.id, label: L.label, ck: L.ck, dash: L.dash, w: L.w },
+          styles: { text: { color: T.onp, backgroundColor: T[L.ck] || T.text, borderColor: T[L.ck] || T.text, family: T.font, size: 11 } } });
+        if (id) lvIds.push(id);
+      } catch (e) { /* skip one level */ }
+    });
+    restoring = was;
+  }
+  function setDeskLevels(symbol, list) {
+    deskLv = { sym: typeof symbol === "string" ? symbol : null, list: Array.isArray(list) ? list.filter(function (L) { return L && fin(L.value); }) : [] };
+    drawLevels();
   }
 
   /* ---------- keyboard ---------- */
@@ -968,7 +926,7 @@
     readTokens(); state.theme = pageTheme();
     chart.setStyles(themeStyles());
     chart.getOverlays().forEach(function (o) { if (metas[o.id]) chart.overrideOverlay({ id: o.id, styles: ovStyles(metas[o.id]) }); });
-    saveSoon();
+    drawLevels(); saveSoon();
   }
   function watchTheme() {
     if (themeWatch) return; themeWatch = true;

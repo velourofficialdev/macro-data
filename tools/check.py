@@ -364,9 +364,7 @@ def public_absence(html: Path, label: str, fixture_snap: dict | None) -> list[st
             errs.append(f"[{label}] public build still contains {what}")
     # the chart-feed data block itself (not the shared chart code) must carry no options mapping fields
     feed = re.search(r'<script type="application/json" id="chart-feed">(.*?)</script>', h, flags=re.S)
-    if feed is None:
-        errs.append(f"[{label}] public build has no #chart-feed data block")
-    elif re.search(r"(?i)opt_key|opt_units", feed.group(1)):
+    if feed is not None and re.search(r"(?i)opt_key|opt_units", feed.group(1)):
         errs.append(f"[{label}] public build still contains opt_key/opt_units in the chart feed")
     if fixture_snap:   # fixture numbers must not be in the visible text (tags and scripts stripped)
         vis = re.sub(r"<(script|style)\b.*?</\1>", " ", h, flags=re.S | re.I)
@@ -393,77 +391,98 @@ def public_absence(html: Path, label: str, fixture_snap: dict | None) -> list[st
     return errs
 
 
-def desk_grid_browser(html: Path) -> list[str]:
-    """Internal build: move one panel, reload, the order persisted, Reset restores it; phone has no horizontal scroll."""
+def desk_tabs_browser(html: Path) -> list[str]:
+    """Internal build: the desk sidebar shows one view at a time, remembers the view and the collapsed state, deep links work,
+    Reset layout restores the Terminal, every view fits a 390 px phone without horizontal scroll."""
     from playwright.sync_api import sync_playwright
     errs = []
-    order_js = "Array.from(document.querySelectorAll('#dpanels .dpanel[data-panel]')).map(e => e.dataset.panel)"
+    views = ["terminal", "spine", "terrain", "grid", "smile", "stack", "vol", "replay", "copy", "flow", "tables", "guide", "method"]
+    vis_js = "Array.from(document.querySelectorAll('#odesk .dtab')).filter(e => e.offsetParent !== null).map(e => e.dataset.tab)"
     with sync_playwright() as p:
         b = p.chromium.launch(executable_path=CHROME) if CHROME else p.chromium.launch()
         try:
             pg = b.new_page(viewport={"width": 1440, "height": 900}, color_scheme="dark")
             log = []
             pg.on("pageerror", lambda e: log.append(str(e)))
-            pg.on("console", lambda m: log.append(m.text) if m.type == "error" and "fonts.g" not in m.text else None)
+            pg.on("console", lambda m: log.append(m.text) if m.type == "error" and "fonts.g" not in m.text and "jsdelivr" not in m.text.lower() and "ERR_" not in m.text and "Failed to load resource" not in m.text else None)
             try:
                 pg.goto(html.as_uri() + "#options")
-                pg.evaluate("try { localStorage.removeItem('macro-desk-layout') } catch (e) {}")
+                pg.evaluate("try { localStorage.removeItem('macro-desk-tab'); localStorage.removeItem('macro-desk-side'); localStorage.removeItem('macro-desk-layout') } catch (e) {}")
                 pg.reload()
                 pg.wait_for_timeout(900)
-                before = pg.evaluate(order_js)
-                if len(before) < 5:
-                    return [f"desk grid: only {len(before)} .dpanel[data-panel] elements"]
-                first = before[0]
-                btn = pg.locator(f".dpanel[data-panel='{first}'] button").filter(has_text=re.compile(r"[▼↓v]|down", re.I))
-                if not btn.count():   # accept an aria-label / title instead of visible text
-                    btn = pg.locator(f".dpanel[data-panel='{first}'] button[aria-label*='down' i], .dpanel[data-panel='{first}'] button[title*='down' i], .dpanel[data-panel='{first}'] [data-act='down']")
-                if not btn.count():
-                    return ["desk grid: no move-down button found in the first panel header (text/aria-label/title with 'down' or data-act='down')"]
-                btn.first.click()
+                if pg.evaluate(vis_js) != ["terminal"]:
+                    errs.append(f"desk tabs: default view is not only the Terminal: {pg.evaluate(vis_js)}")
+                for v in views:
+                    if not pg.locator(f"#dside-l button[data-tab='{v}']").count():
+                        errs.append(f"desk tabs: sidebar item '{v}' missing")
+                        continue
+                    pg.click(f"#dside-l button[data-tab='{v}']")
+                    pg.wait_for_timeout(250)
+                    if pg.evaluate(vis_js) != [v]:
+                        errs.append(f"desk tabs: view '{v}' did not show alone: {pg.evaluate(vis_js)}")
+                    if pg.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1"):
+                        errs.append(f"desk tabs: horizontal scroll on view '{v}' at 1440")
+                want = {"terminal": ["terminal"], "positioning": ["spine", "terrain", "grid", "stack"], "volatility": ["smile", "vol"], "tools": ["replay", "copy", "flow", "tables"], "learn": ["guide", "method"]}
+                got = pg.evaluate("Object.fromEntries([...document.querySelectorAll('#dside-l .dgrp')].map(g => [g.dataset.grp, [...g.querySelectorAll('button[data-tab]')].map(b => b.dataset.tab)]))")
+                if got != want:
+                    errs.append(f"desk tabs: sidebar groups are {got}, expected {want}")
+                gh = pg.locator("#dside-l .dgrp[data-grp='tools'] .dgrp-h")
+                gh.click()
+                pg.wait_for_timeout(150)
+                if pg.locator("#dside-l button[data-tab='replay']").is_visible():
+                    errs.append("desk tabs: collapsing the Tools group did not hide its items")
+                pg.reload()
+                pg.wait_for_timeout(600)
+                if pg.locator("#dside-l button[data-tab='replay']").is_visible():
+                    errs.append("desk tabs: the collapsed Tools group was not remembered after a reload")
+                pg.locator("#dside-l .dgrp[data-grp='tools'] .dgrp-h").click()
+                pg.click("#dside-l button[data-tab='smile']")
+                pg.reload()
+                pg.wait_for_timeout(700)
+                if pg.evaluate(vis_js) != ["smile"]:
+                    errs.append("desk tabs: the chosen view was not remembered after a reload")
+                pg.goto(html.as_uri() + "#options/grid")
+                pg.reload()
+                pg.wait_for_timeout(600)
+                if pg.evaluate(vis_js) != ["grid"]:
+                    errs.append("desk tabs: deep link #options/grid did not open the Grid view")
+                pg.click("#dside-t")
                 pg.wait_for_timeout(300)
-                moved = pg.evaluate(order_js)
-                if moved == before:
-                    errs.append("desk grid: move-down did not change the order")
+                if pg.get_attribute("#odesk", "data-side") != "closed":
+                    errs.append("desk tabs: the sidebar toggle did not collapse it")
                 pg.reload()
-                pg.wait_for_timeout(900)
-                after = pg.evaluate(order_js)
-                if after != moved:
-                    errs.append(f"desk grid: order did not survive a reload ({moved[:4]} -> {after[:4]})")
-                saved = pg.evaluate("(() => { try { return JSON.parse(localStorage.getItem('macro-desk-layout')) } catch (e) { return null } })()")
-                if not saved or saved.get("v") != 1 or not isinstance(saved.get("order"), list):
-                    errs.append(f"desk grid: localStorage macro-desk-layout is not {{v:1, order:[...]}}: {str(saved)[:80]}")
+                pg.wait_for_timeout(600)
+                if pg.get_attribute("#odesk", "data-side") != "closed":
+                    errs.append("desk tabs: the collapsed sidebar was not remembered after a reload")
                 rb = pg.get_by_role("button", name=re.compile("reset layout", re.I))
                 if not rb.count():
-                    errs.append("desk grid: no 'Reset layout' button")
+                    errs.append("desk tabs: no 'Reset layout' button")
                 else:
                     rb.first.click()
                     pg.wait_for_timeout(300)
-                    if pg.evaluate(order_js) != before:
-                        errs.append("desk grid: Reset layout did not restore the default order")
-                    pg.reload()
-                    pg.wait_for_timeout(600)
-                    if pg.evaluate(order_js) != before:
-                        errs.append("desk grid: default order not kept after Reset and reload")
-                errs += [f"desk grid: console: {m[:160]}" for m in log]
+                    if pg.evaluate(vis_js) != ["terminal"] or pg.get_attribute("#odesk", "data-side") != "open":
+                        errs.append("desk tabs: Reset layout did not restore the Terminal and the open sidebar")
+                # panel collapse persists (saved layout: {v:1, collapsed:[...]})
+                pg.click("#dside-l button[data-tab='terminal']")
+                pg.click(".dpanel[data-panel='ladder'] .dtools [data-a='col']")
+                saved = pg.evaluate("(() => { try { return JSON.parse(localStorage.getItem('macro-desk-layout')) } catch (e) { return null } })()")
+                if not saved or saved.get("v") != 1 or "ladder" not in (saved.get("collapsed") or []):
+                    errs.append(f"desk tabs: collapsed panel not saved in macro-desk-layout: {str(saved)[:80]}")
+                errs += [f"desk tabs: console: {m[:160]}" for m in log]
             except Exception as exc:  # noqa: BLE001
-                errs.append(f"desk grid: crashed: {type(exc).__name__}: {str(exc)[:160]}")
+                errs.append(f"desk tabs: crashed: {type(exc).__name__}: {str(exc)[:160]}")
             finally:
                 pg.close()
-            # phone, every panel open: no horizontal page scroll
-            pg = b.new_page(viewport={"width": 390, "height": 900}, color_scheme="dark")
+            # phone, every view: no horizontal page scroll
+            pg = b.new_page(viewport={"width": 390, "height": 844}, color_scheme="dark")
             try:
-                pg.goto(html.as_uri() + "#options")
-                pg.evaluate("try { localStorage.removeItem('macro-desk-layout') } catch (e) {}")
-                pg.reload()
-                pg.wait_for_timeout(900)
-                for _ in range(3):   # open every collapsed panel (a collapsed panel has aria-expanded=false on its toggle)
-                    t = pg.locator(".dpanel button[aria-expanded='false']")
-                    if not t.count():
-                        break
-                    t.first.click()
-                    pg.wait_for_timeout(120)
-                if pg.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1"):
-                    errs.append("desk grid: horizontal scroll on a 390 px phone with all panels open")
+                for v in views:
+                    pg.goto(html.as_uri() + f"#options/{v}")
+                    pg.evaluate("try { localStorage.clear() } catch (e) {}")
+                    pg.reload()
+                    pg.wait_for_timeout(500)
+                    if pg.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1"):
+                        errs.append(f"desk tabs: horizontal scroll on a 390 px phone in view '{v}'")
             except Exception as exc:  # noqa: BLE001
                 errs.append(f"desk phone: crashed: {type(exc).__name__}: {str(exc)[:160]}")
             finally:
@@ -476,6 +495,52 @@ def desk_grid_browser(html: Path) -> list[str]:
 KL_URL = "https://cdn.jsdelivr.net/npm/klinecharts@10.1.1/dist/umd/klinecharts.min.js"
 KL_REASON = {"why": ""}   # "mismatch" when the downloaded bytes failed the SRI check; "unreachable" otherwise
 KL_SRI = "sha384-xkC4/84Bj5cSxBeqZuaHxfU6OGkQpaAtTHc5gwE/kJd4vt7vRtFvslHtVTEq11Zl"
+
+
+SRC_WORDS = re.compile(r"\b(?:Cboe|Tradier|Yahoo|FRED|Federal Reserve|CFTC|CME|COMEX|OANDA|Kalshi|Reuters|GLD|SPY)\b|jsDelivr|jsdelivr|KLineChart|Google News|GC=F|\^GSPC|stlouisfed|\bICE\b(?! ?(?:\d|rate))|ECB(?:'s)? (?:reference|official|fixing|rate)|from the ECB|ECB \(", re.I if False else 0)
+
+
+def no_source_absence(html: Path, label: str) -> list[str]:
+    """Owner 2026-11-21: nobody sees our sources. The published page (visible text, titles/tooltips/aria/data attributes, the JSON shipped to the page) and the xlsx
+    hold no vendor names or hosts and no footer. Not scanned: script code (TradingView symbol ids, the chart library URL), headline items (third-party text), the TradingView credit."""
+    errs = []
+    h = html.read_text(errors="ignore")
+    if re.search(r"<footer\b", h):
+        errs.append(f"[{label}] page still has a <footer>")
+    if re.search(r'id="srccard"|Data sources and update times', h):
+        errs.append(f"[{label}] page still has the data-sources card")
+    body = re.sub(r"<ul class=\"news\">.*?</ul>", " ", h, flags=re.S)
+    blocks = {}
+    m = re.search(r'<script type="application/json" id="chart-feed">(.*?)</script>', body, flags=re.S)
+    if m:
+        blocks["chart-feed JSON"] = m.group(1)
+    m = re.search(r"const P = (\{.*?\});\n", body, flags=re.S)
+    if m:
+        blocks["payload JSON (P)"] = m.group(1)
+    vis = re.sub(r"<(script|style)\b.*?</\1>", " ", body, flags=re.S | re.I)
+    attrs = " ".join(re.findall(r'\s(?:title|aria-label|alt|placeholder|data-[\w-]+|content)="([^"]*)"', vis))
+    blocks["visible text"] = re.sub(r"<[^>]+>", " ", vis)
+    blocks["attributes"] = attrs
+    for name, text in blocks.items():
+        hits = sorted({m_.group(0) for m_ in SRC_WORDS.finditer(text)})
+        if hits:
+            errs.append(f"[{label}] source names in {name}: {', '.join(hits[:8])}")
+    xl = html.parent / "Macro_Dashboard.xlsx"
+    if xl.exists():
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(xl, read_only=True)
+            bad = set()
+            for ws in wb:
+                for row in ws.iter_rows(values_only=True):
+                    for v in row:
+                        if isinstance(v, str):
+                            bad |= {m_.group(0) for m_ in SRC_WORDS.finditer(v)}
+            if bad:
+                errs.append(f"[{label}] source names in the xlsx: {', '.join(sorted(bad)[:8])}")
+        except Exception as exc:  # noqa: BLE001
+            errs.append(f"[{label}] xlsx unreadable for the source-name check: {exc}")
+    return errs
 
 
 def cached_klinecharts(out: Path) -> Path | None:
@@ -524,14 +589,16 @@ def chart_browser(html: Path, out: Path) -> tuple[list[str], list[str]]:
                 pg.wait_for_timeout(1500)
                 early = [u for u in reqs if "cdn.jsdelivr.net" in u or "tradingview" in u.lower()]
                 if early:
-                    errs.append(f"chart: third-party request before the card was opened: {early[0][:100]}")
-                if pg.locator("#tvcard").count() == 0 or pg.locator("#kl-root").count() == 0:
-                    return errs + ["chart: #tvcard / #kl-root not found in the internal build"], warns
-                pg.click("#tvcard > summary")
-                pg.wait_for_timeout(500)
-                if pg.locator("#chart-tabs button[data-v='kline']").count() == 0 or pg.locator("#chart-tabs button[data-v='live']").count() == 0:
-                    errs.append("chart: #chart-tabs must have kline and live buttons")
-                pg.click("#chart-tabs button[data-v='kline']")
+                    errs.append(f"chart: third-party request before the options desk was opened (main page): {early[0][:100]}")
+                if pg.locator("#kl-root").count() == 0 or pg.locator("#dterm #kl-root").count() == 0:
+                    return errs + ["chart: #kl-root is not inside the desk terminal (#dterm) in the internal build"], warns
+                if pg.locator("#tvcard").count():
+                    errs.append("chart: the standalone Chart card (#tvcard) is still on the main page")
+                pg.goto(html.as_uri() + "#options")
+                pg.wait_for_timeout(1200)
+                if pg.locator("#pc-tabs button[data-v='kline']").count() == 0 or pg.locator("#pc-tabs button[data-v='live']").count() == 0:
+                    errs.append("chart: #pc-tabs must have kline and live buttons")
+                pg.click("#pc-tabs button[data-v='kline']")
                 pg.wait_for_timeout(500)
                 if any("tradingview" in u.lower() for u in reqs):
                     errs.append("chart: TradingView was requested although only the Velour tab was chosen")
@@ -545,9 +612,9 @@ def chart_browser(html: Path, out: Path) -> tuple[list[str], list[str]]:
                 get_state = """async () => {
                     await VelourChart.ready;
                     const c = VelourChart.chart();
-                    return {ov: c.getOverlays().length, ind: c.getIndicators().map(i => i.name)};
+                    return {ov: c.getOverlays().filter(o => o.name !== 'vlLevel').length, ind: c.getIndicators().map(i => i.name)};
                 }"""
-                open_js = "async () => { const d = document.getElementById('tvcard'); if (!d.open) d.querySelector('summary').click(); }"
+                open_js = "async () => { }"   # the desk opens on the Terminal, the chart draws by itself
                 pg.evaluate("() => VelourChart.ready")
                 draw = """async () => {
                     await VelourChart.ready;
@@ -555,7 +622,7 @@ def chart_browser(html: Path, out: Path) -> tuple[list[str], list[str]]:
                     c.createOverlay({name: 'horizontalStraightLine', points: [{timestamp: b.timestamp, value: b.close}]});
                     c.createIndicator('MA');
                     VelourChart.save();
-                    return {ov: c.getOverlays().length, ind: c.getIndicators().map(i => i.name), sym: VelourChart.symbol()};
+                    return {ov: c.getOverlays().filter(o => o.name !== 'vlLevel').length, ind: c.getIndicators().map(i => i.name), sym: VelourChart.symbol()};
                 }"""
                 d = pg.evaluate(draw)
                 if d["ov"] < 1 or "MA" not in d["ind"]:
@@ -564,7 +631,7 @@ def chart_browser(html: Path, out: Path) -> tuple[list[str], list[str]]:
                 pg.reload()
                 pg.wait_for_timeout(800)
                 pg.evaluate(open_js)
-                pg.click("#chart-tabs button[data-v='kline']")
+                pg.click("#pc-tabs button[data-v='kline']")
                 st = pg.evaluate(get_state)
                 if st["ov"] < 1:
                     errs.append("chart: drawing did not survive a reload")
@@ -581,7 +648,7 @@ def chart_browser(html: Path, out: Path) -> tuple[list[str], list[str]]:
                 pg.reload()
                 pg.wait_for_timeout(800)
                 pg.evaluate(open_js)
-                pg.click("#chart-tabs button[data-v='kline']")
+                pg.click("#pc-tabs button[data-v='kline']")
                 cleared = pg.evaluate(get_state)
                 if cleared["ov"] != 0:
                     errs.append(f"chart: storage cleared but {cleared['ov']} drawing(s) still shown")
@@ -598,6 +665,12 @@ def chart_browser(html: Path, out: Path) -> tuple[list[str], list[str]]:
                 for t in ("light", "dark", "auto", "light"):
                     pg.click(f"[data-theme-btn='{t}']")
                     pg.wait_for_timeout(300)
+                lvl = pg.evaluate("async () => { await VelourChart.ready; VelourChart.setLevels(VelourChart.symbol(), [{id:'cw', label:'Call wall', value: 1, ck:'primary', dash:'solid', w:1}]); return VelourChart.chart().getOverlays().filter(o => o.name === 'vlLevel').length; }")
+                if lvl != 1:
+                    errs.append(f"chart: the levels overlay was not drawn on the desk chart ({lvl})")
+                if "vlLevel" in pg.evaluate("() => VelourChart.exportJSON()"):
+                    errs.append("chart: level overlays leaked into the exported layout")
+                pg.evaluate("() => VelourChart.setLevels(null, [])")
                 if pg.evaluate("() => { const r = document.getElementById('kl-root'); return !!r && r.clientWidth > 100; }") is False:
                     errs.append("chart: #kl-root has no width after theme switches")
                 errs += [f"chart: console: {m[:160]}" for m in log]
@@ -610,7 +683,7 @@ def chart_browser(html: Path, out: Path) -> tuple[list[str], list[str]]:
     return errs, warns
 
 
-def empty_state_browser(html: Path) -> list[str]:
+def empty_state_browser(html: Path, chart_html: Path) -> list[str]:
     """Internal build with no options JSON and no chart data: both empty states render and the Live tab still works."""
     from playwright.sync_api import sync_playwright
     errs = []
@@ -626,14 +699,13 @@ def empty_state_browser(html: Path) -> list[str]:
                 pg.wait_for_timeout(900)
                 if "No options data yet" not in pg.inner_text("body"):
                     errs.append("empty state: 'No options data yet' card missing when there is no options JSON")
-                pg.goto(html.as_uri() + "#overview")
-                pg.wait_for_timeout(500)
-                pg.click("#tvcard > summary")
-                pg.click("#chart-tabs button[data-v='kline']")
+                pg.goto(chart_html.as_uri() + "#options")   # options data present, no chart series: the desk shows, the chart says why
+                pg.wait_for_timeout(900)
+                pg.click("#pc-tabs button[data-v='kline']")
                 pg.wait_for_timeout(600)
                 if "Chart data not available" not in pg.inner_text("#kl-root"):
                     errs.append("empty state: 'Chart data not available' missing in the Velour tab when there is no chart data")
-                pg.click("#chart-tabs button[data-v='live']")
+                pg.click("#pc-tabs button[data-v='live']")
                 pg.wait_for_timeout(400)
                 if not pg.is_visible("#tv-live"):
                     errs.append("empty state: the Live tab does not show when there is no chart data")
@@ -741,9 +813,17 @@ def main() -> int:
             for rel in ("GOLD.csv", "DXY.csv", "DGS10.csv", "idx", "fx"):
                 q = e_data / rel
                 shutil.rmtree(q, ignore_errors=True) if q.is_dir() else q.unlink(missing_ok=True)
+            c_data = out / "nochart-data"   # options kept, no chart sources
+            shutil.copytree(fx_data, c_data)
+            for rel in ("GOLD.csv", "DXY.csv", "DGS10.csv", "idx", "fx"):
+                q = c_data / rel
+                shutil.rmtree(q, ignore_errors=True) if q.is_dir() else q.unlink(missing_ok=True)
+            okc, tailc = build(c_data, out / "nochart" / "index.html", desk=True)
             oke, taile = build(e_data, out / "empty" / "index.html", desk=True)
-            if oke:
-                res["fixtures"]["errors"] += empty_state_browser(out / "empty" / "index.html")
+            if oke and okc:
+                res["fixtures"]["errors"] += empty_state_browser(out / "empty" / "index.html", out / "nochart" / "index.html")
+            elif oke:
+                res["fixtures"]["errors"].append("no-chart internal build failed:\n" + tailc)
             else:
                 res["fixtures"]["errors"].append("empty-data internal build failed:\n" + taile)
 
@@ -752,6 +832,8 @@ def main() -> int:
     if flag_ok:
         for h, label, snap in pub:
             berrs += public_absence(h, label, snap)
+    for h, label, _snap in pub + [(i, 'internal-' + i.parent.name, None) for i in internal]:
+        berrs += no_source_absence(h, label)
     for h, label, _snap in pub:
         try:
             berrs += [f"[{label}] {e}" for e in browser(h, full=False, stale=None, desk=False)]
@@ -760,7 +842,7 @@ def main() -> int:
     for h in internal:
         try:
             berrs += [f"[internal-{h.parent.name}] {e}" for e in browser(h, full=True, stale=False, desk=True)]
-            berrs += [f"[internal-{h.parent.name}] {e}" for e in desk_grid_browser(h)]
+            berrs += [f"[internal-{h.parent.name}] {e}" for e in desk_tabs_browser(h)]
             cerrs, cwarns = chart_browser(h, out)
             berrs += [f"[internal-{h.parent.name}] {e}" for e in cerrs]
             warns += cwarns

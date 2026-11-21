@@ -3,8 +3,8 @@
     python tools/shots.py PAGE.html OUT_DIR [--only main|options] [--sections overview,fx] [--klib PATH_TO_klinecharts.min.js]
 
 For dark desktop, light desktop and dark phone it saves one PNG per section of the main page, one per
-panel (.dpanel) of the options desk (internal build only; the public build has no desk) and the chart card on both
-tabs (Velour chart, Live) into OUT_DIR, and writes OUT_DIR/layout.md listing machine-found suspects:
+sidebar view of the options desk (internal build only; the public build has no desk) and the centre chart panel on both
+tabs (Chart, Live) into OUT_DIR, and writes OUT_DIR/layout.md listing machine-found suspects:
   - element wider than its card (cut off on the right)
   - text clipped by its own box (overflow hidden and content taller or wider)
   - two labels overlapping inside an SVG chart
@@ -56,18 +56,17 @@ SUSPECTS_JS = r"""
 
 
 def chart_shots(pg, out: Path, tag: str) -> None:
-    """Open the chart card and save both tabs (Velour chart, Live). The Live tab needs the internet; offline it shows its fallback note."""
+    """Desk Terminal: the centre panel on both tabs (Chart, Live). The Live tab needs the internet; offline it shows its fallback note."""
     try:
-        pg.evaluate("document.getElementById('tvcard').open = true")
+        pg.click("#dside-l button[data-tab='terminal']")
         for tab in ("kline", "live"):
-            btn = pg.locator(f'#chart-tabs button[data-v="{tab}"]')
+            btn = pg.locator(f'#pc-tabs button[data-v="{tab}"]')
             if not btn.count():
                 return
             btn.click()
             pg.wait_for_timeout(2500 if tab == "kline" else 1500)
-            pg.locator("#tvcard").screenshot(path=str(out / f"{tag}-main-chart-{tab}.png"))
-        pg.locator('#chart-tabs button[data-v="kline"]').click()
-        pg.evaluate("document.getElementById('tvcard').open = false")
+            pg.locator('.dpanel[data-panel="pchart"]').screenshot(path=str(out / f"{tag}-options-chart-{tab}.png"))
+        pg.locator('#pc-tabs button[data-v="kline"]').click()
     except Exception as exc:  # noqa: BLE001
         print(f"chart screenshots skipped: {type(exc).__name__}: {exc}", file=sys.stderr)
 
@@ -88,7 +87,7 @@ def terminal_shots(b, url: str, out: Path, klib: Path | None) -> list[str]:
                 pg.goto(url + "#options")
                 pg.wait_for_timeout(2200)
                 pg.evaluate("(() => { const h = document.querySelector('.stickyhead'); if (h) h.style.position = 'static' })()")
-                blk = pg.locator("#dterm")
+                blk = pg.locator("#odesk")
                 if not blk.count() or not blk.first.is_visible():
                     notes.append(f"terminal {theme} {w}: no #dterm block")
                     continue
@@ -142,16 +141,14 @@ def main() -> int:
                     ban = pg.locator("#opt-stale")   # sits outside the #odesk cards
                     if ban.count() and ban.first.is_visible():
                         ban.first.screenshot(path=str(out / f"{tag}-options-banner.png"))
-                    cards = pg.locator("#odesk > .card, #odesk .dpanel")
-                    for i in range(cards.count()):
-                        if cards.nth(i).is_visible():
-                            h = cards.nth(i).locator("h3")
-                            title = h.first.inner_text() if h.count() else "controls"
-                            title = re.sub(r"^\s*\d+[\s.:)\-]*", "", title)   # the file name already carries the number
-                            slug = "".join(c if c.isalnum() else "-" for c in title.lower()).strip("-")[:40] or "card"
-                            cards.nth(i).screenshot(path=str(out / f"{tag}-options-{i:02d}-{slug}.png"))
-                if page_name == "main" and not want and pg.locator("#tvcard").count():
-                    chart_shots(pg, out, tag)
+                    # one picture per sidebar view (the desk shows one view at a time)
+                    for v in pg.eval_on_selector_all("#dside-l button[data-tab]", "bs => bs.map(b => b.dataset.tab)"):
+                        pg.click(f"#dside-l button[data-tab='{v}']")
+                        pg.wait_for_timeout(500)
+                        pg.locator("#odesk").screenshot(path=str(out / f"{tag}-options-view-{v}.png"))
+                    pg.click("#dside-l button[data-tab='terminal']")
+                    if pg.locator("#pc-tabs").count() and w > 700:
+                        chart_shots(pg, out, tag)
                 if page_name == "options" and not pg.locator("#odesk").count():
                     report.append(f"## {tag} options: no desk in this page (public build; use --options-desk on for the internal build)")
                     pg.close()

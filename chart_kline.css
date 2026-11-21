@@ -1,5 +1,5 @@
 /* Velour chart (KLineChart). Colours come only from the page tokens in :root; nothing here adds a colour or a font. */
-#kl-root { --klb: color-mix(in srgb, var(--text) 22%, transparent); position: relative; display: block; min-width: 0; font-size: 12px; color: var(--text); }
+#kl-root { --klb: color-mix(in srgb, var(--text) 22%, transparent); position: relative; display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; min-width: 0; font-size: 12px; color: var(--text); padding: 0 6px 2px; }
 #kl-root * { box-sizing: border-box; }
 #kl-root [hidden] { display: none !important; }
 #kl-root .kl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 8px; min-width: 0; }
@@ -107,3 +107,20 @@
   #kl-root .kl-row { flex-wrap: wrap; overflow-x: visible; }
   #kl-root .kl-tools { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); }
 }
+
+/* options desk centre panel: dense toolbar, the chart takes all the height that is left */
+#kl-root .kl-row { margin: 0 0 3px; gap: 3px 6px; flex: none; }
+#kl-root .kl-btn, #kl-root .kl-sel, #kl-root .kl-in { font-size: 11px; padding: 2px 7px; min-height: 24px; }
+#kl-root .ranges button { font-size: 11px; padding: 2px 6px; }
+#kl-root .ranges button:disabled { display: none; }
+#kl-root .kl-chips { margin: 0 0 3px; flex: none; }
+#kl-root .kl-main { flex: 1 1 0; min-height: 0; }
+#kl-root .kl-tools { max-height: none; }
+#kl-root .kl-stage { height: auto; min-height: 160px; }
+#kl-root .kl-read { flex: none; margin: 0 0 3px; min-height: 16px; font-size: 11px; }
+#kl-root .kl-src { flex: none; margin: 3px 0 0; font-size: 10.5px; line-height: 1.3; }
+#kl-root .kl-msg { flex: none; margin: 2px 0 0; }
+@media (max-width: 640px) { #kl-root .kl-stage { height: 340px; min-height: 280px; } #kl-root .kl-main { flex: none; } }
+#kl-root .kl-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 3px 6px; margin: 0 0 3px; min-width: 0; }
+#kl-root .kl-bar .kl-row { display: contents; }
+#kl-root .kl-bar .kl-sp { flex: 1 1 0; min-width: 0; }
