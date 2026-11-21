@@ -423,6 +423,270 @@ def fast_mode_checks(work: Path) -> dict:
     return bad
 
 
+# ---------------------------------------------------------------- unit tests for the options desk maths, caps and chart feed
+def _surf(strikes, g_all, g_ex0=None, dtes=(0, 1), c=None, p=None, smile=None, extra=None):
+    sf = {"strikes": strikes, "expiries": [{"e": f"2026-11-{19 + i}", "dte": d} for i, d in enumerate(dtes)],
+          "greeks": {"gamma": {"all": g_all, "ex": [g_ex0 or g_all, g_all]}},
+          "walls": {"all": {"c": c or [0] * len(strikes), "p": p or [0] * len(strikes)}}}
+    if smile:
+        sf["smile"] = smile
+    sf["greeks"].update(extra or {})
+    return sf
+
+
+def desk_unit_tests() -> dict:
+    """Hand-computed expectations on tiny synthetic surfaces. Returns name -> message for every failure."""
+    import csv
+    import io
+    import shutil
+    import tempfile
+    from datetime import date
+    bad: dict = {}
+
+    def check(name, cond, msg=""):
+        if not cond:
+            bad[name] = msg or "failed"
+
+    K = [90.0, 95.0, 100.0, 105.0, 110.0]
+    # hedging pressure: all positive -> b=1 score 0; all negative -> b=-1 score 100; cancelling -> 0 / 50; zeros -> 50
+    h = ol.hedging_pressure(_surf(K, [1, 1, 1, 1, 1]), 100.0, 5.0)
+    check("hp +1", h and h["balance"] == 1 and h["score"] == 0 and h["n"] == 5, str(h))
+    h = ol.hedging_pressure(_surf(K, [-1, -1, -1, -1, -1]), 100.0, 5.0)
+    check("hp -1", h and h["balance"] == -1 and h["score"] == 100, str(h))
+    h = ol.hedging_pressure(_surf(K, [1, -1, 0, 1, -1]), 100.0, 5.0)
+    check("hp 0", h and h["balance"] == 0 and h["score"] == 50, str(h))
+    h = ol.hedging_pressure(_surf(K, [0, 0, 0, 0, 0]), 100.0, 5.0)
+    check("hp zero denominator", h and h["balance"] == 0 and h["score"] == 50, str(h))
+    h = ol.hedging_pressure(_surf(K, [-50.5, 49.5, 0, 0, 0]), 100.0, 5.0)   # b=-0.01 -> 50.5 -> 51 (half up; round-half-even would give 50)
+    check("hp half-up", h and h["score"] == 51, str(h))
+    h = ol.hedging_pressure(_surf(K, [-9, -9, 4, 9, 9]), 100.0, 2.0)   # window 96..104 keeps only strike 100 (G=4): b=1
+    check("hp window", h and h["n"] == 1 and h["score"] == 0 and h["lo"] == 96 and h["hi"] == 104, str(h))
+    h = ol.hedging_pressure(_surf(K, [1, 1, 1, 1, 1]), 100.0, None)   # fallback sigma = 2% of spot = 2 -> window 96..104
+    check("hp fallback sigma", h and h["n"] == 1, str(h))
+    check("hp none without strikes", ol.hedging_pressure({}, 100.0, 5.0) is None)
+
+    # 0DTE magnet
+    sf = _surf(K, [0, 0, 0, 0, 0], g_ex0=[1, -5, 2, 3, -1])
+    z = ol.zero_dte(sf, 100.0, 16.0, 5.0)
+    check("magnet pick", z and z["magnet"] == 95.0 and z["dist"] == -5.0 and z["dist_pct"] == -5.0 and z["dte"] == 0 and z["points"] == [90.0, 95.0, 100.0, 105.0, 110.0] and z["basis"] == "ATM IV, 1 trading day", str(z))
+    z = ol.zero_dte(sf, 100.0, 16.0, 2.0)
+    check("magnet window", z and z["magnet"] == 100.0, str(z))
+    z = ol.zero_dte(sf, 100.0, 16.0, None)   # sigma = 100 * 0.16 * sqrt(1/252) = 1.008
+    check("magnet sigma from IV", z and z["magnet"] == 100.0 and abs(z["sigma"] - 1.01) < 0.005, str(z))
+    check("magnet none", ol.zero_dte(sf, 100.0, None, None) is None)
+    sf2 = _surf(K, [0] * 5, g_ex0=[9, 9, 9, 9, 9], dtes=(2, 1))
+    sf2["greeks"]["gamma"]["ex"] = [[9, 9, 9, 9, 9], [1, -5, 2, 3, -1]]   # nearest expiry = smallest dte = index 1
+    z = ol.zero_dte(sf2, 100.0, 16.0, 5.0)
+    check("magnet nearest expiry", z and z["dte"] == 1 and z["magnet"] == 95.0, str(z))
+
+    # IV rank
+    r = ol.iv_rank(list(range(1, 101)))
+    check("rank top", r and r["rank"] == 100.0 and r["pct"] == 99.0 and r["n"] == 100 and r["lo"] == 1 and r["hi"] == 100, str(r))
+    check("rank n<60", ol.iv_rank(list(range(59))) is None)
+    check("rank n=60", ol.iv_rank(list(range(60))) is not None)
+    r = ol.iv_rank([5.0] * 80)
+    check("rank flat", r and r["rank"] == 50.0 and r["pct"] == 0.0, str(r))
+    r = ol.iv_rank(list(range(300)))   # window 252 -> values 48..299
+    check("rank window", r and r["n"] == 252 and r["lo"] == 48 and r["hi"] == 299 and r["rank"] == 100.0, str(r))
+    r = ol.iv_rank([30.0] + [20.0 + (i % 5) for i in range(100)] + [float("nan"), 10.0])   # NaN dropped; last is the min
+    check("rank bottom", r and r["rank"] == 0.0 and r["pct"] == 0.0, str(r))
+
+    # skew and surface (OTM smile: puts below spot, calls at/above)
+    sm1 = {"p": [[90, 30], [95, 25], [100, 22], [105, 99]], "c": [[90, 77], [100, 20], [105, 18], [110, 17]]}
+    sm2 = {"p": [[96, 24]], "c": [[100, 20], [104, 19]]}
+    sf = _surf(K, [0] * 5, smile=[sm1, sm2])
+    sk = ol.skew_by_expiry(sf, 100.0)
+    check("skew values", sk and sk[0]["iv"] == [30.0, 25.0, 20.0, 18.0, 17.0] and sk[0]["skew_95_105"] == 7.0, str(sk and sk[0]))
+    check("skew none outside", sk and sk[1]["iv"] == [None, None, 20.0, None, None] and sk[1]["skew_95_105"] is None, str(sk and sk[1]))
+    sx = ol.iv_surface(sf, 100.0, 0.96, 1.04, 0.02)
+    check("surface interp", sx and sx["m"] == [0.96, 0.98, 1.0, 1.02, 1.04] and sx["iv"][1] == [24.0, 22.0, 20.0, 19.5, 19.0] and sx["dte"] == [0, 1], str(sx))
+    sx = ol.iv_surface(sf, 100.0)
+    check("surface grid", sx and len(sx["m"]) == 31 and sx["iv"][0][0] is None and sx["iv"][0][15] == 20.0, str(sx and sx["iv"][0][:3]))
+
+    # walls
+    sf = _surf(K, [0] * 5, c=[1, 3, 5, 2, 0], p=[-4, -1, 0, 0, -2], extra={"delta": {"all": [3, -6, 0, 2, 1]}})
+    w = ol.major_walls(sf, "gamma", 2)
+    check("walls gamma", w and [x["k"] for x in w["pos"]] == [100.0, 95.0] and [x["k"] for x in w["neg"]] == [90.0, 110.0]
+          and abs(w["pos"][0]["share"] - 5 / 18) < 1e-3, str(w))
+    check("walls share<=1", w and sum(x["share"] for x in w["pos"] + w["neg"]) <= 1.0 + 1e-9)
+    w = ol.major_walls(sf, "delta", 5)
+    check("walls delta", w and [x["k"] for x in w["pos"]] == [90.0, 105.0, 110.0] and [x["k"] for x in w["neg"]] == [95.0]
+          and sum(x["share"] for x in w["pos"] + w["neg"]) <= 1.0 + 1e-9, str(w))
+    w = ol.major_walls(sf, "conc", 1)
+    check("walls conc", w and w["pos"][0]["k"] == 90.0 and w["pos"][0]["v"] == 5.0 and w["neg"] == [], str(w))   # gross 5,4,5,2,2: tie goes to the lowest strike
+    check("walls none", ol.major_walls({}, "gamma") is None)
+    ex = ol.desk_extras({"spot": 100.0, "surface": {}}, date(2026, 11, 21))
+    check("desk_extras no raise", isinstance(ex, dict) and ex["hp"] is None and ex["walls"] is None and ex["ivr"] is None, str(ex))
+    check("desk_extras garbage", isinstance(ol.desk_extras({"spot": "x", "surface": 5}, date(2026, 11, 21)), dict))
+
+    # source_info: Cboe fallback vs Tradier fields
+    today = date(2026, 11, 21)
+    old = {"key": "SPX", "label": "SPX", "date": "2026-11-19", "updated_utc": "2026-11-19 03:45 UTC", "source_time": "x"}
+    si = ol.source_info(old, "SPX", today)
+    check("source fallback", si["text"] == "Cboe delayed chain · delayed · fetched 2026-11-19 03:45 UTC · 2 days old" and not si["approx"] and si["proxy"] is None and si["age_days"] == 2, si["text"])
+    check("source licence default", "permission for public display pending" in si["licence_note"] and si["iv_source"] == "IV as quoted by Cboe")
+    gold = {**old, "key": "GOLD", "mapped_ratio": 10.9}
+    si = ol.source_info(gold, "GOLD", today)
+    check("source gold proxy", si["approx"] and si["proxy"] == "GLD" and si["proxy_ratio"] == 10.9 and "GLD proxy scaled to COMEX gold" in si["text"] and "(approximate)" in si["text"], si["text"])
+    tr = {**old, **TRADIER_FIELDS}
+    si = ol.source_info(tr, "SPX", today)
+    check("source tradier", si["approx"] and all(x in si["text"] for x in ("Tradier sandbox", "15 min delayed", "SPY proxy scaled to SPX ×10.02 (approximate)", "computed from option mid prices", "fetched 2026-11-19 03:45 UTC"))
+          and "personal/internal" in si["licence_note"], si["text"])
+    check("source never raises", isinstance(ol.source_info({}, "SPX", today)["text"], str) and isinstance(ol.source_info(None, "SPX", today), dict))
+    sfld = ol.source_fields("SPX", {}, {"source": "Tradier sandbox"})
+    check("source_fields", sfld["source"] == "Tradier sandbox" and sfld["source_delay"] == "delayed")
+
+    # Pine and CSV
+    snap = {"key": "SPX", "label": "SPX", "date": "2026-11-19", "updated_utc": "2026-11-19 03:45 UTC", "call_wall": 7400.0, "put_wall": 7000.0,
+            "gamma_flip": None, "max_pain": 7515.0, "mapped_ratio": 1.007014}
+    tv = ol.tv_levels("SPX", snap, {"symbol": "ES1!", "label": "ES (E-mini S&P 500 future)"})
+    pine, rows = tv["pine"], list(csv.reader(io.StringIO(tv["csv"])))
+    check("pine header", pine.startswith("//@version=5\n") and 'indicator("Velour options levels SPX", overlay=true)' in pine
+          and 'input.bool(false, "Show in ES (E-mini S&P 500 future) units")' in pine and "Educational, not advice" in pine and "Cboe delayed chain" in pine, pine[:300])
+    check("pine levels", pine.count("hline(") == 3 and "#90BFF9" in pine and "#B96AC9" in pine and "color.gray" in pine and "hline.style_dotted" in pine
+          and "Gamma flip" not in pine.split("indicator(")[1], pine)
+    check("pine ratio (no mode: ratio rule)", "ratio = 1.00701" in pine and "7400.00 * ratio" in pine)
+    check("csv", rows[0] == ["level", "instrument", "value", "mapped_symbol", "mapped_value", "source", "fetched_utc"]
+          and len(rows) == 4 and rows[1] == ["call_wall", "SPX", "7400.00", "ES1!", "7451.90", "Cboe delayed chain", "2026-11-19 03:45 UTC"]
+          and all(r[0] != "gamma_flip" for r in rows), str(rows))
+    # mapped values follow the template rule: add -> k + basis, otherwise k * ratio (2 dp)
+    spot_ = 7450.0
+    for key_, mode_, mp_ in (("SPX", "add", 7498.25), ("DJX", "mul", 441.8)):
+        basis_, ratio_ = round(mp_ - spot_, 4), round(mp_ / spot_, 6)
+        sn_ = {**snap, "key": key_, "label": key_, "mapped_ratio": ratio_}
+        t_ = ol.tv_levels(key_, sn_, {"symbol": "X1!", "label": "X", "mode": mode_, "basis": basis_, "ratio": ratio_})
+        r_ = list(csv.reader(io.StringIO(t_["csv"])))[1:]
+        want = [f"{(float(r[2]) + basis_) if mode_ == 'add' else (float(r[2]) * ratio_):.2f}" for r in r_]
+        check(f"tv mapped rule {key_}", r_ and [r[4] for r in r_] == want, str((mode_, [r[4] for r in r_], want)))
+        check(f"tv pine rule {key_}", ("+ basis" in t_["pine"] and "basis = " in t_["pine"]) if mode_ == "add" else ("* ratio" in t_["pine"] and "+ basis" not in t_["pine"]), t_["pine"])
+    check("tv gold header", "GLD price units" in ol.tv_levels("GOLD", {"call_wall": 400.0}, {"mode": "mul", "ratio": 10.0, "label": "GC"})["pine"])
+    tv0 = ol.tv_levels("SPX", {**snap, "mapped_ratio": None}, None)
+    check("pine no ratio", "ratio = 1.0" in tv0["pine"] and tv0["csv"].splitlines()[1].split(",")[3] == "", tv0["pine"])
+    check("tv_levels empty", ol.tv_levels("GOLD", {}, None)["pine"].count("hline(") == 0)
+
+    # snapshot caps on a temp dir
+    tmp = Path(tempfile.mkdtemp(prefix="caps-"))
+    try:
+        opt = tmp / "options"
+        (opt / "snapshots" / "sub").mkdir(parents=True)
+        (tmp / "chart").mkdir()
+        days = pd.date_range("2024-01-01", periods=600).strftime("%Y-%m-%d")
+        pd.DataFrame({"date": list(days)[::-1], "spot": range(600)}).to_csv(opt / "X_history.csv", index=False)   # unsorted on purpose
+        pd.DataFrame({"date": days[:100], "spot": range(100)}).to_csv(opt / "Y_history.csv", index=False)
+        pd.DataFrame({"strike": [1, 2, 2, 3, 3], "call_oi": [1, 2, 3, 4, 5], "put_oi": [0] * 5}).to_csv(opt / "X_oi.csv", index=False)
+        import os as _os
+        import time as _t
+        now = _t.time()
+        for i in range(520):
+            f = opt / "snapshots" / ("sub" if i % 2 else ".") / f"s{i:03d}.json"
+            f.write_text("{}")
+            _os.utime(f, (now - i * 60, now - i * 60))
+        old_f = opt / "snapshots" / "old.json"
+        old_f.write_text("{}")
+        _os.utime(old_f, (now - 40 * 86400,) * 2)
+        (tmp / "chart" / "a.json").write_text(json.dumps(list(range(3500))))
+        dd = [0] + [1] * 3499
+        (tmp / "chart" / "b.json").write_text(json.dumps({"symbols": [{"t0": "2020-01-01", "dd": dd, "c": list(range(3500))}]}))
+        rem = ud.cap_snapshots(tmp)
+        hx = pd.read_csv(opt / "X_history.csv")
+        check("cap history rows", len(hx) == 400 and hx["date"].is_monotonic_increasing and hx["date"].iloc[-1] == days[-1] and hx["date"].iloc[0] == days[200] and rem["history_rows"] == 200, str(rem))
+        check("cap history untouched", len(pd.read_csv(opt / "Y_history.csv")) == 100)
+        oi = pd.read_csv(opt / "X_oi.csv")
+        check("cap oi dedup", list(oi["strike"]) == [1, 2, 3] and list(oi["call_oi"]) == [1, 3, 5] and rem["oi_rows"] == 2, str(oi))
+        left = [f for f in (opt / "snapshots").rglob("*") if f.is_file()]
+        check("cap snapshot files", len(left) == 500 and not old_f.exists() and (opt / "snapshots" / "s000.json").exists() and rem["snapshot_files"] == 21, f"{len(left)} {rem}")
+        check("cap chart list", json.loads((tmp / "chart" / "a.json").read_text()) == list(range(500, 3500)))
+        sb = json.loads((tmp / "chart" / "b.json").read_text())["symbols"][0]
+        d_first = pd.Timestamp(sb["t0"])
+        check("cap chart dd", len(sb["c"]) == 3000 and len(sb["dd"]) == 3000 and sb["c"][0] == 500 and d_first == pd.Timestamp("2020-01-01") + pd.Timedelta(days=500)
+              and sb["c"][-1] == 3499 and (d_first + pd.Timedelta(days=int(sum(sb["dd"])))) == pd.Timestamp("2020-01-01") + pd.Timedelta(days=3499), str(sb["t0"]))
+        rem2 = ud.cap_snapshots(tmp)
+        check("cap idempotent", not any(rem2.values()), str(rem2))
+        check("cap missing dir", ud.cap_snapshots(tmp / "nope") == {"history_rows": 0, "oi_rows": 0, "snapshot_files": 0, "chart_points": 0})
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # chart feed round trip
+    import chart_feed as cf
+    from datetime import datetime, timezone
+    tmp = Path(tempfile.mkdtemp(prefix="feed-"))
+    try:
+        (tmp / "idx").mkdir()
+        (tmp / "fx").mkdir()
+        dts = ["2026-11-02", "2026-11-03", "2026-11-06", "2026-11-09", "2026-11-10"]
+        pd.DataFrame({"Date": dts, "Gold": [4000.123, 4010.456, 4020.5, 4030.0, 4040.999]}).to_csv(tmp / "GOLD.csv", index=False)
+        pd.DataFrame({"date": dts, "Close": [5000.5, 5001, 5002, 5003, 5004.25], "source": "Yahoo ^GSPC"}).to_csv(tmp / "idx" / "ES.csv", index=False)
+        pd.DataFrame({"date": dts[::-1], "DGS10": [4.1, 4.2, "", 4.4, 4.5]}).to_csv(tmp / "DGS10.csv", index=False)   # unsorted + a blank
+        (tmp / "status.json").write_text(json.dumps({"GOLD_PRICE": {"note": "source: Yahoo GC=F"}}))
+        feed = cf.build_chart_feed(tmp)
+        ids = [x["id"] for x in feed["symbols"]]
+        check("feed ids", ids == ["GOLD", "SPX", "US10Y"], str(ids))
+        def decode(sy):
+            d, out = pd.Timestamp(sy["t0"]), []
+            for g in sy["dd"]:
+                d = d + pd.Timedelta(days=g)
+                out.append(d.strftime("%Y-%m-%d"))
+            return out
+        g, spx, us = feed["symbols"]
+        check("feed dates", decode(g) == dts and decode(spx) == dts and decode(us) == [d for d in dts if d != "2026-11-06"], str(decode(us)))
+        check("feed values", g["c"] == [4000.12, 4010.46, 4020.5, 4030.0, 4041.0] and g["src"] == "Yahoo GC=F" and spx["src"] == "Yahoo ^GSPC" and us["src"] == "FRED DGS10, daily", str(g["c"]))
+        check("feed shape", all(x["ohlc"] is False and x["intervals"] == ["D", "W"] and x["delay"] and len(x["dd"]) == len(x["c"]) for x in feed["symbols"]) and feed["v"] == 1)
+        check("feed opt keys off by default", all("opt_key" not in x and "opt_units" not in x for x in feed["symbols"]))
+        g, spx, us = cf.build_chart_feed(tmp, include_opt_keys=True)["symbols"]
+        check("feed opt keys opt-in", g["opt_key"] == "GOLD" and g["opt_units"] == "mapped" and spx["opt_units"] == "index")
+        check("feed last_partial false for old data", all(x["last_partial"] is False and x["delay"] == "Daily close" for x in feed["symbols"]))
+        _today = datetime.now(timezone.utc)
+        pd.DataFrame({"Date": ["2026-11-02", _today.strftime("%Y-%m-%d")], "Gold": [1.0, 2.0]}).to_csv(tmp / "GOLD.csv", index=False)
+        gp = cf.build_chart_feed(tmp)["symbols"][0]
+        check("feed last_partial today", gp["last_partial"] is (_today.weekday() < 5) and (("intraday" in gp["delay"]) is (_today.weekday() < 5)), str(gp["delay"]))
+        check("feed max_points", len(cf.build_chart_feed(tmp, max_points=2)["symbols"][0]["c"]) == 2)
+        check("feed empty dir", cf.build_chart_feed(tmp / "nope") ["symbols"] == [])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return bad
+
+
+TRADIER_FIELDS = {"source": "Tradier sandbox", "source_delay": "15 min delayed", "proxy": "SPY", "proxy_ratio": 10.02,
+                  "iv_source": "computed from option mid prices", "licence_note": "Tradier sandbox: personal/internal use only"}
+
+
+def tradier_variant(out: Path) -> str:
+    """Make the SPX fixture snapshot look like a Tradier sandbox one (fields only; numbers stay fake) so the labels are exercised."""
+    p = out / "options" / "SPX.json"
+    snap = json.loads(p.read_text())
+    snap.update(TRADIER_FIELDS)
+    p.write_text(json.dumps(snap, separators=(",", ":")))
+    return "SPX fixture snapshot carries Tradier sandbox source fields"
+
+
+def surface_checks(out: Path) -> dict:
+    """The saved fixture snapshots must carry the new fields and feed every desk function."""
+    from datetime import date
+    bad = {}
+    for k in ol.INSTRUMENTS:
+        s = json.loads((out / "options" / f"{k}.json").read_text())
+        sf = s.get("surface") or {}
+        n = len(sf.get("strikes", []))
+        for f in ("oi", "volu"):
+            v = sf.get(f) or {}
+            if not (len(v.get("c", [])) == n and len(v.get("p", [])) == n and n):
+                bad[f"{k} surface.{f}"] = "missing or not aligned with strikes"
+        if not all(s.get(f) is not None for f in ("source", "source_delay", "iv_source", "licence_note")):
+            bad[f"{k} source fields"] = "not written to the snapshot"
+        ex = ol.desk_extras(s, date.today())
+        for part in ("hp", "magnet", "skew", "ivs", "walls"):
+            if ex.get(part) is None:
+                bad[f"{k} desk_extras.{part}"] = "None on a full fixture surface"
+        if ex.get("walls"):
+            for g, w in ex["walls"].items():
+                if w and sum(x["share"] for x in w["pos"] + w["neg"]) > 1 + 1e-6:
+                    bad[f"{k} walls {g}"] = "shares exceed 1"
+        tv = ol.tv_levels(k, s, None)
+        if "//@version=5" not in tv["pine"] or not tv["csv"].startswith("level,instrument"):
+            bad[f"{k} tv_levels"] = "bad output"
+    return bad
+
+
 def guard_out(path: Path) -> Path:
     """Only write under /tmp, the scratchpad or $TEAM_DIR (never $TEAM_DIR itself or the repo)."""
     p = path.resolve()
@@ -447,6 +711,16 @@ def main() -> int:
         if s.get("surface_error"):
             bad[k + " surface"] = s["surface_error"]
             print("FAIL " + k + " surface: " + s["surface_error"])
+    print("OK   " + tradier_variant(out))
+    for k, v in surface_checks(out).items():
+        bad["surface " + k] = v
+        print("FAIL surface " + k + ": " + v)
+    unit = desk_unit_tests()
+    for k, v in unit.items():
+        bad["unit " + k] = v
+        print("FAIL unit " + k + ": " + v[:300])
+    if not unit:
+        print("OK   desk unit tests (hedging, magnet, rank, skew, surface, walls, source_info, Pine/CSV, caps, chart feed)")
     for k, v in fx_macro_checks().items():
         bad["fx_macro " + k] = v
         print("FAIL fx_macro " + k + ": " + v)

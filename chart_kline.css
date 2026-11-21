@@ -1,0 +1,109 @@
+/* Velour chart (KLineChart). Colours come only from the page tokens in :root; nothing here adds a colour or a font. */
+#kl-root { --klb: color-mix(in srgb, var(--text) 22%, transparent); position: relative; display: block; min-width: 0; font-size: 12px; color: var(--text); }
+#kl-root * { box-sizing: border-box; }
+#kl-root [hidden] { display: none !important; }
+#kl-root .kl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 8px; min-width: 0; }
+#kl-root .kl-row .ranges { flex: 0 1 auto; min-width: 0; }
+#kl-root .kl-sp { flex: 1 1 auto; }
+#kl-root .kl-lab { flex: none; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+
+/* buttons */
+#kl-root .kl-btn, #kl-root .kl-sel, #kl-root .kl-in {
+  font: inherit; font-size: 12px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border-strong);
+  border-radius: 6px; padding: 4px 10px; cursor: pointer; flex: none; white-space: nowrap; line-height: 1.3; min-height: 28px;
+}
+#kl-root .kl-btn:hover:not(:disabled), #kl-root .kl-tool:hover:not(:disabled) { background: var(--tint-primary); color: var(--primary-ink); }
+#kl-root .kl-btn:disabled, #kl-root .kl-tool:disabled, #kl-root .ranges button:disabled, #kl-root .kl-sel:disabled { opacity: .45; cursor: default; }
+#kl-root .kl-btn[aria-pressed="true"], #kl-root .kl-tool[aria-pressed="true"] { background: var(--tint-primary); color: var(--primary-ink); border-color: var(--primary); font-weight: 600; }
+#kl-root .kl-btn:focus-visible, #kl-root .kl-tool:focus-visible, #kl-root .ranges button:focus-visible, #kl-root .kl-sel:focus-visible, #kl-root .kl-in:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+#kl-root .kl-in { cursor: text; width: 64px; padding: 2px 6px; }
+#kl-root .kl-in.wide { width: 160px; }
+#kl-root .kl-sel { cursor: pointer; max-width: 100%; }
+#kl-root .ranges { border: 1px solid var(--border); border-radius: 8px; padding: 2px; }
+#kl-root .ranges button { white-space: nowrap; }
+
+/* stage: drawing bar on the left, chart on the right */
+#kl-root .kl-main { display: flex; gap: 6px; min-width: 0; }
+#kl-root .kl-tools { flex: none; width: 34px; display: flex; flex-direction: column; gap: 2px; padding: 3px; border: 1px solid var(--klb); border-radius: 8px; background: var(--surface); max-height: 520px; overflow-y: auto; scrollbar-width: thin; }
+#kl-root .kl-tool { flex: none; width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+#kl-root .kl-tool svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+#kl-root .kl-tool.sep { margin-top: 4px; }
+#kl-root .kl-tools hr { flex: none; width: 100%; border: 0; border-top: 1px solid var(--border); margin: 3px 0; }
+#kl-root .kl-stage { position: relative; flex: 1 1 auto; min-width: 0; height: 480px; border: 1px solid var(--klb); border-radius: 8px; overflow: hidden; background: var(--surface); }
+#kl-root .kl-chart { position: absolute; inset: 0; }
+#kl-root .kl-wm { position: absolute; left: 0; right: 0; top: 46%; transform: translateY(-50%); text-align: center; font-size: clamp(36px, 10vw, 96px); font-weight: 700; letter-spacing: .25em; color: var(--text); opacity: .06; pointer-events: none; user-select: none; z-index: 1; }
+#kl-root .kl-read { min-height: 20px; margin: 0 0 6px; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#kl-root .kl-read b { color: var(--text); font-weight: 600; }
+#kl-root .kl-pos { color: var(--primary-ink); font-weight: 600; }
+#kl-root .kl-neg { color: var(--secondary-ink); font-weight: 600; }
+#kl-root .kl-state { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: var(--muted); background: var(--surface); flex-direction: column; gap: 10px; }
+
+/* selected-object style bar */
+#kl-root .kl-style { position: absolute; right: 8px; top: 6px; z-index: 6; max-width: calc(100% - 16px); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 8px; background: var(--surface); border: 1px solid var(--klb); border-radius: 8px; box-shadow: 0 4px 16px color-mix(in srgb, var(--text) 18%, transparent); }
+#kl-root .kl-style .nm { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; flex: none; }
+#kl-root .kl-sw { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; padding: 0; cursor: pointer; outline: 1px solid var(--klb); }
+#kl-root .kl-sw[aria-pressed="true"] { border-color: var(--surface); outline: 2px solid var(--text); }
+#kl-root .kl-sw[data-c="primary"] { background: var(--primary); }
+#kl-root .kl-sw[data-c="secondary"] { background: var(--secondary); }
+#kl-root .kl-sw[data-c="warn"] { background: var(--warn); }
+#kl-root .kl-sw[data-c="text"] { background: var(--text); }
+#kl-root .kl-sw[data-c="muted"] { background: var(--muted); }
+
+/* popovers */
+#kl-root .kl-pop { position: absolute; z-index: 8; width: min(340px, calc(100% - 8px)); max-height: 70vh; overflow: auto; padding: 10px 12px; background: var(--surface); border: 1px solid var(--klb); border-radius: 8px; box-shadow: 0 8px 28px color-mix(in srgb, var(--text) 22%, transparent); }
+#kl-root .kl-pop h4 { margin: 8px 0 4px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+#kl-root .kl-pop h4:first-child { margin-top: 0; }
+#kl-root .kl-pop .kl-li { display: flex; align-items: center; gap: 8px; padding: 3px 0; min-width: 0; }
+#kl-root .kl-pop .kl-li > span:first-child { flex: 1 1 auto; min-width: 0; }
+#kl-root .kl-pop .kl-why { color: var(--muted); font-size: 11px; }
+#kl-root .kl-pop table { border-collapse: collapse; width: 100%; }
+#kl-root .kl-pop td { padding: 3px 0; vertical-align: top; }
+#kl-root .kl-pop td:first-child { white-space: nowrap; padding-right: 12px; font-weight: 600; }
+#kl-root .kl-pop kbd { font: inherit; font-size: 11px; border: 1px solid var(--klb); border-radius: 4px; padding: 0 5px; background: var(--surface-2); }
+
+/* active indicator chips */
+#kl-root .kl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+#kl-root .kl-chips:empty { display: none; }
+#kl-root .kl-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 8px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface-2); min-width: 0; }
+#kl-root .kl-chip.off { opacity: .6; }
+#kl-root .kl-chip .kl-btn { min-height: 22px; padding: 0 7px; border-radius: 999px; background: transparent; border-color: transparent; color: var(--muted); }
+#kl-root .kl-chip .kl-in { width: 44px; min-height: 22px; padding: 0 4px; }
+
+#kl-root .kl-nodata { padding: 20px 0; color: var(--muted); }
+#kl-root .kl-nodata strong { color: var(--text); display: block; margin-bottom: 4px; }
+#kl-root .kl-src { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+#kl-root .kl-msg { margin: 6px 0 0; font-size: 12px; color: var(--text); }
+#kl-root .kl-msg.err { color: var(--secondary-ink); }
+#kl-root .kl-msg:empty { display: none; }
+#kl-root .kl-notes { margin-top: 8px; }
+#kl-root .kl-notes .note { margin: 0 0 4px; }
+
+/* expanded: the same node is lifted over the viewport with CSS only (same technique as .tvfull), so the chart is never rebuilt */
+#kl-root.kl-full { position: fixed; inset: var(--kltop, 0px) 0 0 0; z-index: 25; background: var(--surface); padding: 10px 12px; display: flex; flex-direction: column; overflow: auto; }
+#kl-root.kl-full .kl-main { flex: 1 1 auto; min-height: 240px; }
+#kl-root.kl-full .kl-stage { height: auto; }
+#kl-root.kl-full .kl-tools { max-height: none; }
+#kl-root.kl-full .kl-notes { display: none; }
+
+/* phone: the drawing bar becomes one scrolling strip above the chart; nothing makes the page scroll sideways */
+@media (max-width: 640px) {
+  #kl-root .kl-main { flex-direction: column; }
+  #kl-root .kl-tools { width: auto; flex-direction: row; max-height: none; overflow-x: auto; overflow-y: hidden; }
+  #kl-root .kl-tools hr { width: 0; height: 22px; border: 0; border-left: 1px solid var(--border); margin: 0 3px; align-self: center; }
+  #kl-root .kl-tool.sep { margin: 0 0 0 4px; }
+  #kl-root .kl-stage { height: 380px; min-height: 320px; }
+  #kl-root .kl-row { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; padding-bottom: 2px; }
+  #kl-root .kl-row > * { flex: none; }
+  #kl-root .kl-row .kl-sp { display: none; }
+  #kl-root .kl-wm { display: none; }
+  #kl-root .kl-read { white-space: normal; }
+  #kl-root .kl-style { left: 6px; right: 6px; }
+  #kl-root.kl-full .kl-stage { height: auto; min-height: 240px; }
+}
+@media print { #kl-root { display: none !important; } }
+
+/* phone: toolbar groups wrap so the last buttons are not cut off; the drawing strip scrolls with a right-edge fade as a cue */
+@media (max-width: 560px) {
+  #kl-root .kl-row { flex-wrap: wrap; overflow-x: visible; }
+  #kl-root .kl-tools { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); }
+}

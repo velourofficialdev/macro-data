@@ -280,6 +280,8 @@ def build_surface(raw: pd.DataFrame, spot: float, asof: pd.Timestamp, window: fl
     if df.empty:
         return {}
     ex = greek_exposures(df, spot)
+    ex["oi"] = df["oi"].values          # contracts, for the strike ladder's OI / volume columns (same row order as df)
+    ex["volume"] = df["volume"].values
     step = bucket_step(df["strike"].unique())
     if step:
         ex["strike"] = np.floor(ex["strike"] / step + 0.5) * step   # floor(x+0.5), not round(): banker's rounding makes uneven buckets
@@ -305,6 +307,9 @@ def build_surface(raw: pd.DataFrame, spot: float, asof: pd.Timestamp, window: fl
     walls = {"all": {"c": vec(calls, "gamma"), "p": vec(puts, "gamma")},
              "ex": [{"c": vec(calls[calls["expiry"] == e], "gamma"), "p": vec(puts[puts["expiry"] == e], "gamma")} for e in cols]}
 
+    oi_vec = {"c": vec(calls, "oi"), "p": vec(puts, "oi")}
+    volu_vec = {"c": vec(calls, "volume"), "p": vec(puts, "volume")}
+
     exp_meta = []
     for e in cols:
         sub = df[df["expiry"] == e]
@@ -327,7 +332,7 @@ def build_surface(raw: pd.DataFrame, spot: float, asof: pd.Timestamp, window: fl
             if n > 120:
                 sm_e[side] = sm_e[side][::math.ceil(n / 120)]
     return {"strikes": [float(k) for k in strikes], "step": step, "expiries": exp_meta, "greeks": greeks, "walls": walls,
-            "smile": smile, "units": GREEK_UNITS}
+            "smile": smile, "units": GREEK_UNITS, "oi": oi_vec, "volu": volu_vec}
 
 
 # ---------------------------------------------------------------- scenario reprice (Effective / Shadow), vol term structure, VRP
@@ -538,10 +543,12 @@ def update(data_dir: Path, fast: bool = False) -> dict[str, tuple[bool, str | No
             if carry is not None:
                 changes = carry
             mapped = fetch_last_close(ysym)
+            meta = dict(getattr(raw, "attrs", {}).get("meta") or {})   # a fetcher may attach source fields to the frame; Cboe has none
             snap = {"key": key, "label": label, "mapped_label": mapped and mlabel, "mapped_price": mapped,
                     "mapped_ratio": round(mapped / spot, 6) if mapped else None,
                     "date": day, "source_time": stamp, "updated_utc": asof.strftime("%Y-%m-%d %H:%M UTC"),
                     "oi_changes": changes, **a}
+            snap.update(source_fields(key, snap, meta))
             try:   # the interactive Greek views; the level table above still works if this part fails
                 snap["surface"] = build_surface(raw, spot, asof, window)
                 df_w = prepare(raw, asof)
@@ -581,6 +588,289 @@ def update(data_dir: Path, fast: bool = False) -> dict[str, tuple[bool, str | No
     ok, last, err = update_vol_indices(outdir)
     result["VOL_INDICES"] = (ok, last, err, "FRED VIX, VXN, VXD, RVX, GVZ, VIX3M" if ok else None)
     return result
+
+
+# ---------------------------------------------------------------- options desk additions (Phase 1)
+# Everything below is additive: pure functions over a saved snapshot, no network. Each one is safe to call on old
+# snapshots (saved before these fields existed) and returns None / an empty result rather than raising.
+SOURCE_FIELDS = ("source", "source_delay", "proxy", "proxy_ratio", "iv_source", "licence_note")
+CBOE_DEFAULTS = {"source": "Cboe delayed chain", "source_delay": "delayed", "iv_source": "IV as quoted by Cboe",
+                 "licence_note": "Cboe data: permission for public display pending"}
+PROXY_TARGET = {"GOLD": "COMEX gold"}      # what the proxy options are scaled to, when it is not the instrument itself
+TV_SYMBOL = {"SPX": "ES1!", "NDX": "NQ1!", "DJX": "YM1!", "RUT": "RTY1!", "GOLD": "GC1!"}   # TradingView names of the mapped futures
+HP_HALF_WIDTH_FALLBACK = 0.02               # window half-width as a share of spot when no 1-day move is known
+
+
+def _floor_half_up(x: float) -> int:
+    return int(math.floor(x + 0.5))
+
+
+def source_fields(key: str, snap: dict, meta: dict | None = None) -> dict:
+    """The six source fields to store in a snapshot: what a fetcher provided, else the Cboe defaults."""
+    meta = meta or {}
+    out = {}
+    for f in SOURCE_FIELDS:
+        v = meta.get(f, snap.get(f))
+        if v is None or v == "":
+            v = CBOE_DEFAULTS.get(f)
+        out[f] = v
+    if out["proxy"] is None and key == "GOLD":
+        out["proxy"] = "GLD"
+        out["proxy_ratio"] = snap.get("mapped_ratio") if out["proxy_ratio"] is None else out["proxy_ratio"]
+    return out
+
+
+def _one_line(x) -> str:
+    return re.sub(r"\s+", " ", str(x)).strip()
+
+
+def source_info(snap: dict, key: str, today) -> dict:
+    """Honest source line for a snapshot. Missing fields fall back to the Cboe wording; GOLD is always a GLD proxy."""
+    snap = snap or {}
+    f = source_fields(key, snap)
+    fetched = _one_line(snap.get("updated_utc") or "")
+    fetched_short = fetched.replace(" UTC", "")
+    age = None
+    try:
+        d0 = pd.Timestamp(snap.get("date") or fetched_short[:10]).date()
+        t = today.date() if hasattr(today, "date") else today
+        age = max(0, (t - d0).days)
+    except Exception:  # noqa: BLE001
+        pass
+    proxy, ratio = f["proxy"], f["proxy_ratio"]
+    approx = proxy is not None
+    parts = [_one_line(f["source"]), _one_line(f["source_delay"])]
+    if proxy:
+        target = PROXY_TARGET.get(key, snap.get("label") or key)
+        r = f" ×{float(ratio):.4g}" if isinstance(ratio, (int, float)) and ratio else ""
+        parts.append(f"{_one_line(proxy)} proxy scaled to {target}{r} (approximate)")
+        parts.append(_one_line(f["iv_source"]))
+    elif f["iv_source"] != CBOE_DEFAULTS["iv_source"]:
+        parts.append(_one_line(f["iv_source"]))
+    if fetched:
+        parts.append(f"fetched {fetched_short} UTC")
+    if age is not None:
+        parts.append("today" if age == 0 else f"{age} day{'s' if age != 1 else ''} old")
+    return {**f, "fetched_utc": fetched or None, "source_time": snap.get("source_time"), "age_days": age,
+            "approx": approx, "text": " · ".join(p for p in parts if p)}
+
+
+def _gamma_all(surface: dict) -> tuple[np.ndarray, np.ndarray] | None:
+    try:
+        ks = np.asarray(surface["strikes"], dtype=float)
+        g = np.asarray(surface["greeks"]["gamma"]["all"], dtype=float)
+        return (ks, g) if len(ks) and len(ks) == len(g) else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def hedging_pressure(surface: dict, spot: float, day_move) -> dict | None:
+    """Balance b = sum(G) / sum(|G|) over strikes within spot +/- 2 sigma (sigma = 1-day move, else 2% of spot);
+    score = floor(50 * (1 - b) + 0.5): 0 = positive gamma dominates (hedging tends to dampen), 100 = negative dominates."""
+    kg = _gamma_all(surface or {})
+    if kg is None or not spot:
+        return None
+    ks, g = kg
+    sd = float(day_move) if day_move else HP_HALF_WIDTH_FALLBACK * spot
+    lo, hi = spot - 2 * sd, spot + 2 * sd
+    m = (ks >= lo) & (ks <= hi)
+    n = int(m.sum())
+    if n == 0:
+        return None
+    den = float(np.abs(g[m]).sum())
+    b = float(g[m].sum() / den) if den > 0 else 0.0
+    score = min(100, max(0, _floor_half_up(50 * (1 - b))))
+    return {"score": int(score), "balance": round(b, 4), "lo": round(lo, 2), "hi": round(hi, 2), "n": n}
+
+
+def zero_dte(surface: dict, spot: float, atm_iv, day_move) -> dict | None:
+    """Strike with the largest |gamma| in the nearest expiry (smallest dte >= 0), within spot +/- 2 sigma."""
+    try:
+        exps = surface["expiries"]
+        cand = [(e["dte"], i) for i, e in enumerate(exps) if e.get("dte") is not None and e["dte"] >= 0]
+        if not cand or not spot:
+            return None
+        dte, i = min(cand)
+        if day_move:
+            sigma, basis = float(day_move), "ATM IV, 1 trading day"
+        elif atm_iv:
+            sigma, basis = spot * float(atm_iv) / 100.0 * math.sqrt(1 / 252), "ATM IV, 1 trading day"
+        else:
+            return None
+        ks = np.asarray(surface["strikes"], dtype=float)
+        g = np.abs(np.asarray(surface["greeks"]["gamma"]["ex"][i], dtype=float))
+        m = (ks >= spot - 2 * sigma) & (ks <= spot + 2 * sigma) & (g > 0)
+        if not m.any():
+            return None
+        idx = np.where(m)[0]
+        j = idx[int(np.argmax(g[idx]))]
+        mag = float(ks[j])
+        return {"expiry": exps[i]["e"], "dte": int(dte), "magnet": mag, "dist": round(mag - spot, 2),
+                "dist_pct": round((mag - spot) / spot * 100, 3), "sigma": round(sigma, 2),
+                "points": [round(spot + k * sigma, 2) for k in (-2, -1, 0, 1, 2)], "basis": basis}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def iv_rank(series, window: int = 252) -> dict | None:
+    """Rank of the last value inside its own last `window` values: (last-min)/(max-min)*100 (50 if flat);
+    pct = percent of the window strictly below last. None with fewer than 60 values."""
+    try:
+        v = pd.to_numeric(pd.Series(list(series)), errors="coerce").dropna().astype(float).tolist()[-window:]
+    except Exception:  # noqa: BLE001
+        return None
+    n = len(v)
+    if n < 60:
+        return None
+    last, lo, hi = v[-1], min(v), max(v)
+    rank = (last - lo) / (hi - lo) * 100 if hi > lo else 50.0
+    pct = sum(1 for x in v if x < last) / n * 100
+    return {"rank": round(rank, 1), "pct": round(pct, 1), "lo": lo, "hi": hi, "last": last, "n": n, "window": window}
+
+
+def _otm_smile(sm: dict, spot: float) -> tuple[np.ndarray, np.ndarray]:
+    """OTM smile of one expiry as (moneyness, iv in vol points): puts below spot, calls at or above it."""
+    pts = {}
+    for k, v in sm.get("p", []):
+        if k < spot:
+            pts[float(k)] = float(v)
+    for k, v in sm.get("c", []):
+        if k >= spot:
+            pts[float(k)] = float(v)
+    if not pts:
+        return np.array([]), np.array([])
+    ks = np.array(sorted(pts))
+    return ks / spot, np.array([pts[k] for k in ks])
+
+
+def _interp(m: np.ndarray, iv: np.ndarray, x: float):
+    if len(m) < 2 or x < m[0] - 1e-12 or x > m[-1] + 1e-12:
+        return None
+    return float(np.interp(x, m, iv))
+
+
+def skew_by_expiry(surface: dict, spot: float, grid=(0.90, 0.95, 1.00, 1.05, 1.10)) -> list | None:
+    try:
+        out = []
+        for e, sm in zip(surface["expiries"], surface["smile"]):
+            m, iv = _otm_smile(sm, spot)
+            vals = [_interp(m, iv, x) for x in grid]
+            a, b = _interp(m, iv, 0.95), _interp(m, iv, 1.05)
+            out.append({"e": e["e"], "dte": e.get("dte"), "m": list(grid),
+                        "iv": [None if x is None else round(x, 2) for x in vals],
+                        "skew_95_105": None if a is None or b is None else round(a - b, 2)})
+        return out
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def iv_surface(surface: dict, spot: float, m_lo: float = 0.85, m_hi: float = 1.15, step: float = 0.01) -> dict | None:
+    try:
+        npts = _floor_half_up((m_hi - m_lo) / step) + 1
+        grid = [round(m_lo + i * step, 4) for i in range(npts)]
+        dte, rows = [], []
+        for e, sm in zip(surface["expiries"], surface["smile"]):
+            m, iv = _otm_smile(sm, spot)
+            row = [None if (v := _interp(m, iv, x)) is None else round(v, 2) for x in grid]
+            if any(v is not None for v in row):
+                dte.append(e.get("dte"))
+                rows.append(row)
+        return {"m": grid, "dte": dte, "iv": rows} if rows else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _top(ks: np.ndarray, v: np.ndarray, den: float, n: int, sign: int) -> list:
+    idx = [i for i in np.argsort(-sign * v, kind="stable") if sign * v[i] > 0][:n]
+    return [{"k": float(ks[i]), "v": float(v[i]), "share": round(abs(float(v[i])) / den, 4) if den else 0.0} for i in idx]
+
+
+def major_walls(surface: dict, greek: str = "gamma", n: int = 5) -> dict | None:
+    """Largest positive and negative strikes. gamma: call side (walls.c) and put side (walls.p), share of the sum of
+    |c| + |p|. Other greeks: net per strike, share of sum |net|. greek="conc": gross gamma |c|+|p| per strike (pos only)."""
+    try:
+        ks = np.asarray(surface["strikes"], dtype=float)
+        if greek in ("gamma", "conc"):
+            c = np.asarray(surface["walls"]["all"]["c"], dtype=float)
+            p = np.asarray(surface["walls"]["all"]["p"], dtype=float)
+            if greek == "conc":
+                gross = np.abs(c) + np.abs(p)
+                return {"pos": _top(ks, gross, float(gross.sum()), n, 1), "neg": []}
+            den = float(np.abs(c).sum() + np.abs(p).sum())
+            return {"pos": _top(ks, c, den, n, 1), "neg": _top(ks, p, den, n, -1)}
+        net = np.asarray(surface["greeks"][greek]["all"], dtype=float)
+        den = float(np.abs(net).sum())
+        return {"pos": _top(ks, net, den, n, 1), "neg": _top(ks, net, den, n, -1)}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def desk_extras(snap: dict, today) -> dict:
+    """Everything the desk panels need beyond the snapshot, in one call. Never raises; a failed part is None.
+    `ivr` is filled by the dashboard build from the FRED volatility index, not here."""
+    snap = snap or {}
+    sf = snap.get("surface") or {}
+    spot = snap.get("spot")
+
+    def safe(fn, *a):
+        try:
+            return fn(*a)
+        except Exception:  # noqa: BLE001
+            return None
+    walls = {g: safe(major_walls, sf, g) for g in ("gamma", "delta", "vanna", "charm", "conc")}
+    return {"hp": safe(hedging_pressure, sf, spot, snap.get("day_move")),
+            "magnet": safe(zero_dte, sf, spot, snap.get("atm_iv"), snap.get("day_move")),
+            "ivr": None,
+            "skew": safe(skew_by_expiry, sf, spot),
+            "ivs": safe(iv_surface, sf, spot),
+            "walls": walls if any(walls.values()) else None}
+
+
+def tv_levels(key: str, snap: dict, mapping: dict | None = None) -> dict:
+    """Pine v5 script and CSV of the call wall, put wall, gamma flip and max pain for TradingView.
+    mapping (optional): {"symbol": TradingView symbol, "label": text for the toggle, "ratio": mapped/index, "mode": "add"|"mul", "basis": mapped-index}; defaults
+    come from the snapshot's mapped_ratio and TV_SYMBOL. Values are in the options' own units; the Pine toggle
+    adds the basis (mode add) or multiplies by the ratio. Levels that are None are skipped."""
+    import csv
+    import io
+    snap = snap or {}
+    mapping = mapping or {}
+    sym = _one_line(mapping.get("symbol") or TV_SYMBOL.get(key, key))
+    ratio = mapping.get("ratio") if mapping.get("ratio") is not None else snap.get("mapped_ratio")
+    ratio = float(ratio) if isinstance(ratio, (int, float)) and ratio else None
+    basis = mapping.get("basis")
+    basis = float(basis) if isinstance(basis, (int, float)) and math.isfinite(basis) else None
+    add = mapping.get("mode") == "add"          # same rule as the page: add -> level + basis, otherwise level * ratio
+    ok_map = (basis is not None) if add else (ratio is not None)
+    unit = "GLD price units" if key == "GOLD" else f"{snap.get('label') or key} index units"
+
+    def mapped(v):
+        return v + basis if add else v * ratio
+    label = _one_line(mapping.get("label") or sym)
+    today = datetime.now(timezone.utc).date()
+    src = source_info(snap, key, today)
+    asof = src["fetched_utc"] or "unknown time"
+    lv = [("call_wall", "Call wall", snap.get("call_wall"), "#90BFF9", "hline.style_solid"),
+          ("put_wall", "Put wall", snap.get("put_wall"), "#B96AC9", "hline.style_solid"),
+          ("gamma_flip", "Gamma flip", snap.get("gamma_flip"), "#D9B26A", "hline.style_dashed"),
+          ("max_pain", "Max pain", snap.get("max_pain"), "color.gray", "hline.style_dotted")]
+    lv = [x for x in lv if isinstance(x[2], (int, float)) and math.isfinite(x[2])]
+    pine = ["//@version=5",
+            f"// Velour options levels {key}. Educational, not advice.",
+            f"// Source: {src['text']}",
+            f"// As of: {asof}. Levels are from delayed open interest, not live prices.",
+            f"// Values are in {unit}" + ((f"; the toggle adds the futures basis {basis:.4f} ({label}): level + basis." if add else f"; the toggle multiplies by {ratio:.8g} ({label}): level * ratio.") if ok_map else "; no mapped price was available."),
+            f'indicator("Velour options levels {key}", overlay=true)',
+            f'useMapped = input.bool(false, "Show in {label} units")',
+            (f"basis = {basis:.4f}" if add else f"ratio = {ratio:.8g}") if ok_map else "ratio = 1.0"]
+    for _id, title, v, col, style in lv:
+        pine.append(f'hline(useMapped ? {v:.2f} {"+ basis" if add and ok_map else "* ratio"} : {v:.2f}, "{title}", color={col}, linestyle={style}, linewidth=2)')
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\n")
+    w.writerow(["level", "instrument", "value", "mapped_symbol", "mapped_value", "source", "fetched_utc"])
+    for _id, _t, v, _c, _s in lv:
+        w.writerow([_id, key, f"{v:.2f}", sym if ok_map else "", f"{mapped(v):.2f}" if ok_map else "", src["source"], src["fetched_utc"] or ""])
+    return {"pine": "\n".join(pine) + "\n", "csv": buf.getvalue()}
 
 
 if __name__ == "__main__":

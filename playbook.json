@@ -484,5 +484,118 @@
     "so_what": "Check whether it is a bull steepener (yields falling, front end leading) or a bear steepener (yields rising, long end leading)."
    }
   ]
+ },
+ "options_desk": {
+  "panels": {
+   "ladder": {
+    "label": "Strike ladder",
+    "meaning": "Each row is one strike price, with the estimated option exposure at that strike (gamma, delta, vanna, charm, theta, vega). Markers show spot, the biggest strike, the gamma flip and the walls. Dealers are assumed to hold the opposite side of customer positions, so these figures are estimates, not a record of real dealer books.",
+    "so_what": "Strikes with large exposure are where dealer hedging may matter most. This describes conditions only; it does not predict direction."
+   },
+   "greeks_view": {
+    "label": "Greeks view",
+    "meaning": "Bars show one Greek summed by strike for the chosen expiry. Gamma is in dollars of delta per 1% move in the underlying. Dealers are assumed to hold the opposite side of customer positions, so these figures are estimates, not a record of real dealer books.",
+    "so_what": "Compare where the bars are largest and where they change sign. Short expiries react faster as time passes."
+   },
+   "walls": {
+    "label": "Major walls",
+    "meaning": "The strikes with the largest positive and negative exposure for the chosen Greek, with each one's share of the total. This list ranks all strikes by call-side and put-side gamma, so a top wall can sit on either side of spot and can differ from the call wall and put wall in the stat strip, which are the largest gamma strikes above and below spot.",
+    "so_what": "A high share means exposure is concentrated in few strikes. Walls are reference levels that price sometimes pauses near, not barriers."
+   },
+   "hedging": {
+    "label": "Hedging pressure",
+    "meaning": "A 0 to 100 score for how dealer hedging may react to moves near spot. It uses net gamma at strikes within two day-moves of spot: score = round(50 x (1 - balance)), where balance is the sum of gamma divided by the sum of absolute gamma. 0 means positive gamma dominates, 100 means negative gamma dominates. Dealers are assumed to hold the opposite side of customer positions, so these figures are estimates, not a record of real dealer books.",
+    "so_what": "Low scores suggest hedging tends to dampen moves; high scores suggest it tends to amplify them. It is a rule of thumb, not a forecast."
+   },
+   "magnet": {
+    "label": "0DTE magnet, expected range and IV rank",
+    "meaning": "The magnet is the strike with the largest absolute gamma in the nearest expiry within two expected moves of spot. The expected range is spot plus or minus one day-move, taken from at-the-money implied volatility over one trading day. IV rank is a proxy: the 30-day implied vol index (for example VIX) ranked against its own last 252 trading days, 0 lowest and 100 highest. These are approximate.",
+    "so_what": "The range is a statistical guide, not a limit; price can finish outside it. A high IV rank means options are expensive compared with the past year, a low rank means cheap."
+   },
+   "skew": {
+    "label": "IV skew by expiry",
+    "meaning": "Implied volatility across strikes, drawn from out-of-the-money options (puts below spot, calls above), one line per expiry. Skew is IV at 95% of spot minus IV at 105%, in volatility points. Values are interpolated between quoted strikes and left blank outside the quoted range.",
+    "so_what": "Positive skew means downside options cost more than upside ones, a sign of demand for protection. It is context, not a signal."
+   },
+   "surface": {
+    "label": "IV surface",
+    "meaning": "Implied volatility by expiry (rows) and moneyness (strike divided by spot), interpolated between quoted strikes. Colour can show IV, IV minus 20-day realised vol, or a neutral scale.",
+    "so_what": "Look for how the term structure and the smile change together. Blank cells mean no quotes there, not zero volatility."
+   },
+   "freshness": {
+    "label": "Freshness bar",
+    "meaning": "One line on each panel: the data source, its delay, whether a proxy instrument was scaled (marked approximate), how IV was obtained, and when the data was fetched.",
+    "so_what": "Check the age before reading any panel. Options data here is delayed and may be days old; proxy-based levels are approximate."
+   },
+   "order_flow": {
+    "label": "Order flow",
+    "meaning": "A placeholder for trade and order-book data. It needs a live feed the dashboard does not have, so nothing is shown or simulated.",
+    "so_what": "Nothing to read yet. When a feed is added, its source and delay will be labelled like every other panel."
+   },
+   "tv_levels": {
+    "label": "Copy levels for TradingView",
+    "meaning": "Copies the call wall, put wall, gamma flip and max pain as a Pine v5 script or a CSV, in the units of the mapped chart symbol, with the source and time in the header.",
+    "so_what": "Levels are for reference lines on your own chart. They are delayed and, for proxies, approximate; this is educational, not advice."
+   }
+  },
+  "hedging_bands": [
+   {
+    "min": 0,
+    "max": 35,
+    "label": "Hedging tends to dampen moves"
+   },
+   {
+    "min": 35,
+    "max": 65,
+    "label": "Dealer flow balanced"
+   },
+   {
+    "min": 65,
+    "max": 100,
+    "label": "Hedging tends to amplify moves"
+   }
+  ],
+  "methodology": [
+   {
+    "title": "Data source and delay",
+    "text": "Each panel reads its source, delay and fetch time from the saved snapshot and shows them in its freshness bar. Option data is delayed, not live. When a proxy instrument is used (for example GLD for gold, or SPY for the S&P 500) its levels are scaled to the index or metal and are approximate."
+   },
+   {
+    "title": "Licence notes",
+    "text": "Each snapshot carries a licence note. Cboe data is shown here only while permission for public display is pending; Tradier sandbox data is for personal or internal use only. The desk is off in the public build."
+   },
+   {
+    "title": "Dealer-side assumption and units",
+    "text": "Dealers are assumed to hold the opposite side of customer positions, so these figures are estimates, not a record of real dealer books. Gamma exposure (GEX) is in dollars of delta per 1% move in the underlying."
+   },
+   {
+    "title": "Hedging-pressure formula",
+    "text": "G_i is net gamma exposure per strike over all expiries. Window: strikes from spot - 2 sigma to spot + 2 sigma, where sigma is the one-day move (fallback 2% of spot). Balance b = sum(G_i) / sum(|G_i|) over the window, from -1 to 1 (0 if the denominator is 0). Score = round(50 x (1 - b)). 0 means positive gamma dominates (hedging tends to dampen moves); 100 means negative gamma dominates (hedging tends to amplify them)."
+   },
+   {
+    "title": "Expected range and 0DTE magnet",
+    "text": "Expected range = spot plus or minus sigma, with sigma from at-the-money implied volatility over one trading day: spot x IV/100 x sqrt(1/252), unless a day-move is supplied. The magnet is the strike with the largest absolute gamma in the nearest expiry, searched within spot plus or minus 2 sigma."
+   },
+   {
+    "title": "IV-rank proxy",
+    "text": "A proxy, not the instrument's own option history. It uses the 30-day implied vol index from FRED (VIX, VXN, VXD, RVX or GVZ) and ranks the latest value against its own last 252 trading days: (last - min) / (max - min) x 100. The percentile is the share of those days below the latest value. Shown only with at least 60 days of data."
+   },
+   {
+    "title": "Skew and surface",
+    "text": "Skew is IV at 95% moneyness minus IV at 105%, in volatility points, built from out-of-the-money options. The surface is linearly interpolated between quoted strikes, with no extrapolation: cells outside the quoted range stay blank."
+   },
+   {
+    "title": "Snapshot retention",
+    "text": "To keep the repository small, option history files keep their newest 400 rows, open-interest files are de-duplicated by strike, any hourly snapshots keep the newest 30 days and at most 500 files, and stored chart series keep their newest 3,000 points."
+   },
+   {
+    "title": "The chart",
+    "text": "The chart uses daily closes stored by the dashboard; the latest point may be an intraday price until the session closes. It is not live. Candles and bars are drawn close-to-close, so they show no intraday high or low. It is a charting tool, not advice."
+   }
+  ],
+  "chart": {
+   "close_only_note": "Daily closes; the latest point may be an intraday price until the session closes. Not live. Candles are drawn close-to-close, with no intraday high or low.",
+   "persistence_note": "Drawings and indicators are saved on this device. Use Export to keep a copy."
+  }
  }
 }

@@ -58,6 +58,7 @@
     }
   }
   /* legacy names used by the chart script */
+  :root { --call: var(--primary); --put: var(--secondary); }   /* options desk and chart: calls / up use the primary, puts / down the secondary */
   :root { --ink: var(--text); --line: var(--grid); --line2: var(--border-strong); --tile: var(--surface); --tint: var(--surface-2); --onser: var(--on-primary); --head: var(--surface-2); }
 
   /* Type scale: page title 20/600 · section title 16/600 · card label 11 caps · big number 24/600 · body 14 · table 13 */
@@ -198,6 +199,7 @@
   .quick li:last-child { border-bottom: 0; }
   .ql { font-size: 13px; color: var(--muted); } .qv { font-weight: 600; text-align: right; }
   .qb { grid-column: 1 / -1; justify-self: start; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--tint-secondary); color: var(--secondary-ink); }
+  /*OPTDESK:BEGIN*/
   .optstats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--muted); margin: 2px 0 10px; }
   .optstats b { color: var(--text); font-weight: 600; }
   .opttab td, .opttab th { padding: 5px 10px; }
@@ -230,7 +232,7 @@
   .odgcols[hidden] { display: none !important; } .odgcols { display: none; font-size: 11px; padding: 2px 8px; margin: 0; flex: none; } @media (max-width: 760px) { .odgcols { display: inline-block; } }
   #od-rng { flex: none; }
   .odfeed { font-size: 11px; color: var(--muted); margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
-  .odfeed i { width: 7px; height: 7px; border-radius: 50%; background: var(--up); display: inline-block; } .odfeed.stale i { background: var(--warn); }
+  .odfeed i { width: 7px; height: 7px; border-radius: 50%; background: var(--call); display: inline-block; } .odfeed.stale i { background: var(--warn); }
   .odfeed + .btn.ghost { margin-left: 0; }
   .odreg { margin: 0 16px 14px; padding: 6px 10px; border-left: 3px solid var(--c, var(--muted)); background: var(--surface-2); border-radius: 0 6px 6px 0; font-size: 12px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
   .odreg b { color: var(--c); text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
@@ -257,9 +259,150 @@
   .odpane .odbox { height: 380px; margin: 0; }
   .odguide p { margin: 0 0 8px; font-size: 13px; line-height: 1.55; } .odguide b { color: var(--text); }
   .odprompt { width: 100%; min-height: 220px; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px; margin: 6px 0 8px; resize: vertical; box-sizing: border-box; }
+  .pos { color: var(--call); } .neg { color: var(--put); }
+  #odesk .card { border-color: color-mix(in srgb, var(--text) 22%, transparent); }
+  .odctl { margin-bottom: 12px; }
+  .dgrid > .dpanel { min-width: 0; }
+  .dpanel > .card-h { align-items: center; }
+  .dtools { display: inline-flex; gap: 2px; flex: none; margin-left: auto; order: 9; }
+  .dtools button { font: inherit; font-size: 12px; line-height: 1; min-width: 26px; height: 26px; padding: 0 6px; border: 1px solid transparent; background: transparent; color: var(--muted); border-radius: 6px; cursor: pointer; flex: none; }
+  .dtools button:hover:not(:disabled) { color: var(--text); background: var(--surface-2); border-color: var(--border-strong); }
+  .dtools button:disabled { opacity: .35; cursor: default; }
+  .dpanel .dgrab { cursor: grab; } .dpanel.dragging { opacity: .5; } .dpanel.dover { outline: 2px dashed var(--primary); outline-offset: -2px; }
+  .dpanel.dcollapsed > :not(.card-h):not(.dfresh) { display: none !important; }
+  .dpanel.dfull { position: fixed; inset: var(--tvtop, 0px) 0 0 0; z-index: 25; border-radius: 0; overflow: auto; background: var(--surface); grid-column: auto !important; }
+  .dpanel.dfull .odbox { height: calc(100vh - var(--tvtop, 0px) - 150px); min-height: 260px; }
+  .dpanel.dfull .dlad, .dpanel.dfull .odgrid { max-height: none; height: calc(100vh - var(--tvtop, 0px) - 150px); }
+  .dfresh { display: flex; align-items: flex-start; gap: 4px 8px; padding: 0 16px 6px; font-size: 11px; color: var(--muted); }
+  .dfresh i { width: 7px; height: 7px; border-radius: 50%; background: var(--call); display: inline-block; flex: none; margin-top: 4px; }
+  .dfresh > span:first-of-type { flex: 1 1 0; min-width: 0; }
+  .dfresh .dbadge { flex: none; }
+  .dpanel[data-panel="order_flow"] { align-self: start; }
+  .dfresh.stale i { background: var(--warn); }
+  .dbadge { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; flex: none; }
+  .dbadge.warn { color: var(--warn); border-color: var(--warn); }
+  .dguide { margin: 0 16px 12px; font-size: 12px; color: var(--muted); } .dguide p { margin: 4px 0; line-height: 1.5; } .dguide b { color: var(--text); }
+  .dctl { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 0 16px 4px; align-items: center; }
+  .dctl .ranges { flex: none; }
+  .ranges button:disabled { opacity: .4; cursor: not-allowed; }
+  .dbox2 { height: 380px; } .dbox3 { height: 250px; }
+  .dlad { max-height: 460px; overflow: auto; margin: 4px 8px 6px; border: 1px solid var(--border); border-radius: 6px; }
+  .dlad table { font-size: 11px; width: 100%; border-collapse: collapse; } .dlad th, .dlad td { padding: 3px 6px; text-align: right; white-space: nowrap; }
+  .dlad thead th { position: sticky; top: 0; background: var(--surface); z-index: 2; }
+  .dlad tbody th { position: sticky; left: 0; background: var(--surface); z-index: 1; text-align: left; font-weight: 600; }
+  .dlad td { background: color-mix(in srgb, var(--c, transparent) calc(var(--i, 0) * 1%), transparent); }
+  .dlad tr { cursor: pointer; } .dlad tr.spot th, .dlad tr.spot td { border-bottom: 1px dashed var(--text); }
+  .dlad tr.pinned th, .dlad tr.pinned td { outline: 1px solid var(--text); outline-offset: -1px; }
+  .dlad td.mk { text-align: left; white-space: normal; min-width: 70px; }
+  .dmk { display: inline-block; font-size: 9px; font-weight: 600; padding: 0 4px; border-radius: 3px; margin: 0 2px 0 0; border: 1px solid currentColor; }
+  .dwalls { padding: 4px 16px 14px; display: grid; gap: 12px; }
+  .dwalls h4 { margin: 0 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .dwrow { display: grid; grid-template-columns: minmax(70px, auto) 1fr auto; gap: 8px; align-items: center; font-size: 12px; padding: 2px 0; font-variant-numeric: tabular-nums; }
+  .dwrow .bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; } .dwrow .bar i { display: block; height: 100%; background: var(--c); }
+  .dwrow b { white-space: nowrap; }
+  .dwrow small { color: var(--muted); display: block; font-size: 10px; }
+  .dgauge, .dmag, .dflow { padding: 4px 16px 14px; }
+  .dgauge svg { width: 100%; max-width: 360px; display: block; margin: 0 auto; }
+  .dgauge .gs { text-align: center; margin-top: 4px; } .dgauge .gs b { font-size: 24px; } .dgauge .gs div { font-size: 12px; color: var(--muted); }
+  .dmag .dm { display: flex; flex-wrap: wrap; gap: 8px 22px; } .dmag .dm > div { min-width: 96px; flex: none; }
+  .dmag .kl { font-size: 10px; } .dmag .v { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; } .dmag .m { font-size: 11px; color: var(--muted); }
+  .dmag .sub { margin: 14px 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .dmag .meth { font-size: 11px; color: var(--muted); margin: 10px 0 0; }
+  .dmag svg { width: 100%; display: block; }
+  .dsk { margin: 0 8px 10px; } .dsk table { font-size: 11px; width: 100%; border-collapse: collapse; } .dsk th, .dsk td { padding: 3px 6px; text-align: right; } .dsk th:first-child, .dsk td:first-child { text-align: left; }
+  .srctab { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; } .srctab th, .srctab td { white-space: normal; overflow-wrap: anywhere; text-align: left; vertical-align: top; padding: 4px 8px 4px 0; }
+  @media (max-width: 560px) { .srctab, .srctab tbody, .srctab tr, .srctab td { display: block; width: 100%; } .srctab thead { display: none; } .srctab tr { padding: 6px 0; border-bottom: 1px solid var(--border); } .srctab td { padding: 1px 0; } .srctab td::before { content: attr(data-l) ": "; color: var(--muted); } .srctab td:first-child { font-weight: 600; } }
+  .dflow .sketch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; } .dflow details { margin: 4px 0 0; } .dflow summary { cursor: pointer; }
+  .dflow .sketch div { border: 1px dashed var(--border-strong); border-radius: 6px; padding: 8px 6px; text-align: center; font-size: 11px; color: var(--muted); }
+  .dflow .sketch div:first-child { grid-column: 1 / -1; }
+  .dmeth { font-size: 12px; line-height: 1.55; } .dmeth h4 { margin: 10px 0 2px; font-size: 12px; } .dmeth p { margin: 0 0 6px; color: var(--muted); }
+  .dlg { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; padding: 12px; }
+  .dlg[hidden] { display: none; }
+  .dlgbox { background: var(--surface); color: var(--text); border: 1px solid color-mix(in srgb, var(--text) 22%, transparent); border-radius: 10px; padding: 14px 16px; width: min(640px, 100%); max-height: 90vh; overflow: auto; }
+  .dlgh { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; } .dlgh h3 { margin: 0; font-size: 14px; }
+  .dlgf { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .dlgbox .odprompt { min-height: 240px; }
+  body.dlock { overflow: hidden; }
+  @media (max-width: 760px) { .dbox2 { height: 320px; } .dpanel.dfull .odbox { height: calc(100vh - var(--tvtop, 0px) - 170px); } .odbar .btn.ghost { margin-left: 0; } }
+  /* ---- options terminal: dense block, four columns on desktop (ladder | greeks + magnet | walls + hedging over price chart | skew + surface), stacked on tablet and phone ---- */
+  .dterm { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 0 0 14px; }
+  .dterm .dcol, .dterm .drow2 { display: contents; }
+  .dterm .dpanel { min-height: 0; min-width: 0; height: 440px; }
+  .dterm .dpanel[data-panel="ladder"] { order: 1; height: 460px; } .dterm .dpanel[data-panel="greeks_view"] { order: 2; } .dterm .dpanel[data-panel="walls"] { order: 3; height: 320px; }
+  .dterm .dpanel[data-panel="hedging"] { order: 4; height: 300px; } .dterm .dpanel[data-panel="magnet"] { order: 5; height: 360px; } .dterm .dpanel[data-panel="pchart"] { order: 6; height: 480px; }
+  .dterm .dpanel[data-panel="skew"] { order: 7; height: 420px; } .dterm .dpanel[data-panel="surface"] { order: 8; height: 440px; }
+  .dterm .dpanel.dcollapsed { height: auto; }
+  .dterm .dpanel.dfull { height: auto; }
+  .dterm .dpanel:not(.dfull) .dguide { display: none; }
+  .dterm .dpanel:not(.dfull) .card-h { padding: 6px 6px 4px 8px; min-height: 30px; gap: 4px 6px; flex-wrap: nowrap; }
+  .dterm .dpanel:not(.dfull) .card-h h3 { flex: 0 0 auto; max-width: 100%; } .dterm .dpanel[data-panel="magnet"]:not(.dfull) .card-h h3 { flex: 0 1 auto; min-width: 0; white-space: normal !important; line-height: 1.25; }
+  .dterm .dpanel:not(.dfull) .card-h .ranges { flex: 0 1 auto; min-width: 0; justify-content: flex-end; }
+  .dterm .dpanel:not(.dfull) .card-h h3 { font-size: 10px; letter-spacing: .09em; white-space: nowrap; }
+  .dterm .dpanel:not(.dfull) .ranges { gap: 1px; } .dterm .dpanel:not(.dfull) .ranges button { font-size: 10.5px; padding: 2px 6px; }
+  .dterm .dpanel:not(.dfull) .dtools button { min-width: 20px; height: 20px; padding: 0 4px; font-size: 11px; }
+  .dterm .dpanel:not(.dfull) .dfresh { padding: 0 8px 3px; font-size: 10px; gap: 4px 6px; }
+  .dterm .dpanel:not(.dfull) .dfresh > span:first-of-type { white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
+  .dterm .dpanel:not(.dfull) .dfresh i { width: 6px; height: 6px; margin-top: 3px; }
+  .dterm .dpanel:not(.dfull) .odcap { padding: 0 8px; font-size: 10px; min-height: 0; line-height: 1.35; }
+  .dterm .dpanel:not(.dfull) .dctl { padding: 0 8px 2px; gap: 3px 8px; }
+  .dterm .dpanel:not(.dfull) .odbox { margin: 0 2px 2px; }
+  .dterm .dpanel:not(.dfull) .odlegend { padding: 0 8px 6px; font-size: 10px; flex-wrap: wrap; gap: 2px 8px; } .dterm .odlegend i { width: 80px; }
+  .dterm .dlad { margin: 2px 4px 4px; flex: 1 1 0; min-height: 0; max-height: none; }
+  .dterm .dpanel:not(.dfull) .dlad table, .dterm .dpanel:not(.dfull) .dsk table { font-size: 10.5px; } .dterm .dlad th, .dterm .dlad td { padding: 2px 5px; }
+  .dterm .dbox2, .dterm .dbox3 { flex: 1 1 0; min-height: 0; height: auto; overflow: hidden; }
+  .dterm .dpanel[data-panel="surface"] .odbox { flex: 1 1 0; min-height: 0; height: auto; }
+  .dterm .dpanel[data-panel="surface"] .odbox.odterr { height: auto; }
+  .dterm .dwalls { padding: 2px 8px 6px; gap: 6px; overflow: auto; flex: 1 1 0; min-height: 0; grid-template-columns: 1fr 1fr; align-content: start; }
+  .dterm .dpanel:not(.dfull) .dwalls h4 { font-size: 9.5px; margin: 0 0 2px; letter-spacing: .05em; }
+  .dterm .dpanel:not(.dfull) .dwrow { grid-template-columns: 1fr auto; font-size: 11px; padding: 1px 0; gap: 4px; }
+  .dterm .dpanel:not(.dfull) .dwrow .bar, .dterm .dpanel:not(.dfull) .dwrow small, .dterm .dpanel:not(.dfull) .dshare, .dterm .dpanel:not(.dfull) .dwalls > .note, .dterm .dpanel:not(.dfull) .dwalls .note { display: none; }
+  .dterm .dpanel:not(.dfull) .dwrow > div:last-child { white-space: nowrap; font-size: 10.5px; }
+  .dterm .dgauge { padding: 0 8px 6px; flex: 1 1 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; }
+  .dterm .dpanel:not(.dfull) .dgauge svg { max-height: 104px; flex: none; } .dterm .dpanel:not(.dfull) .dgauge .gs { margin-top: 0; } .dterm .dpanel:not(.dfull) .dgauge .gs div + div { display: none; }
+  .dterm .dpanel:not(.dfull) .dgauge .gs div { font-size: 10.5px; }
+  .dterm .dmag { padding: 2px 8px 6px; flex: 1 1 0; min-height: 0; overflow: auto; }
+  .dterm .dpanel:not(.dfull) .dmag .dm { gap: 4px 14px; } .dterm .dpanel:not(.dfull) .dmag .dm > div { min-width: 80px; } .dterm .dpanel:not(.dfull) .dmag .v { font-size: 15px; }
+  .dterm .dpanel:not(.dfull) .dmag .sub { margin: 8px 0 3px; font-size: 10px; } .dterm .dpanel:not(.dfull) .dmag .meth { display: none; } .dterm .dpanel:not(.dfull) .dmag svg { max-height: 52px; }
+  .dterm .dsk { margin: 0 4px 4px; max-height: 92px; overflow: auto; flex: none; } .dterm .dpanel:not(.dfull) .dsk .note { display: none; } .dterm .dpanel:not(.dfull) .legend { padding: 0 8px 4px; font-size: 10px; }
+  .dterm .dbadge { font-size: 9px; padding: 0 6px; }
+  .dterm #sf-reset { font-size: 10.5px; padding: 2px 8px; }
+  .dpc { flex: 1 1 0; min-height: 120px; margin: 0 2px 2px; position: relative; } .dpmsg { flex: 1 1 0; padding: 12px; font-size: 12px; color: var(--muted); } .dpmsg b { color: var(--text); display: block; margin-bottom: 4px; font-size: 13px; } .dpc .dpmsg { padding: 12px; font-size: 12px; color: var(--muted); }
+  .dpc .dpmsg b { color: var(--text); display: block; margin-bottom: 4px; font-size: 13px; }
+  .dpclg { display: flex; flex-wrap: wrap; gap: 2px 12px; padding: 2px 8px 6px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .dpclg span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex: none; } .dpclg i { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--c, var(--muted)); } .dpclg i.dsh { border-top-style: dashed; } .dpclg i.dot { border-top-style: dotted; }
+  .dpanel.dfull .dpc { flex: none; height: calc(100vh - var(--tvtop, 0px) - 170px); min-height: 260px; }
+  @media (min-width: 760px) and (max-width: 1199px) {
+    .dterm { grid-template-columns: 1fr 1fr; }
+    .dterm .dpanel[data-panel="pchart"] { grid-column: 1 / -1; order: 5; } .dterm .dpanel[data-panel="magnet"] { order: 6; } .dterm .dpanel[data-panel="skew"] { order: 7; }
+    .dterm .dpanel[data-panel="ladder"], .dterm .dpanel[data-panel="greeks_view"] { height: 520px; } .dterm .dpanel[data-panel="walls"], .dterm .dpanel[data-panel="hedging"] { height: 270px; }
+    .dterm .dpanel[data-panel="magnet"], .dterm .dpanel[data-panel="skew"] { height: 420px; } .dterm .dpanel[data-panel="surface"] { grid-column: 1 / -1; height: 440px; }
+  }
+  @media (min-width: 1200px) {
+    .dterm { grid-template-columns: 19fr 20fr 36fr 25fr; gap: 6px; height: clamp(860px, calc(100vh - 40px), 920px); }
+    .dterm .dcol { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
+    .dterm .drow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex: none; height: 226px; min-height: 0; }
+    .dterm .dpanel, .dterm .dpanel[data-panel] { height: auto; order: 0; }
+    .dterm .dcol > .dpanel, .dterm .drow2 > .dpanel { flex: 1 1 0; }
+    .dterm .dcol.c2 > .dpanel[data-panel="greeks_view"] { flex: 3 1 0; } .dterm .dcol.c2 > .dpanel[data-panel="magnet"] { flex: 2 1 0; }
+    .dterm .dcol.c4 > .dpanel[data-panel="skew"] { flex: 5 1 0; } .dterm .dcol.c4 > .dpanel[data-panel="surface"] { flex: 6 1 0; }
+    .dterm .dpanel.dcollapsed { flex: none !important; height: auto; }
+    .dterm .drow2:has(> .dcollapsed) { align-items: start; } .dterm .drow2:has(> .dcollapsed) > .dpanel:not(.dcollapsed) { height: 226px; }
+    .dterm .dpanel.dfull { flex: none; height: auto; }
+    .dterm .dpanel[data-panel="surface"] .odbox { min-height: 160px; }
+  }
+  .dterm .dpanel[data-panel="walls"]:not(.dfull) .card-h { flex-wrap: wrap; } .dterm .dpanel[data-panel="walls"]:not(.dfull) .card-h .ranges { flex: 1 1 100%; order: 10; justify-content: flex-start; }
+  .dterm .dpanel[data-panel="hedging"]:not(.dfull) .gs b { font-size: 12.5px !important; }
+  @media (min-width: 1200px) {
+    .odctl { margin-bottom: 8px; } .odctl .odbar { padding: 8px 12px 2px; gap: 4px 12px; } .odctl .ranges button { padding: 3px 8px; font-size: 11.5px; }
+    .odctl .odbar .btn.ghost { padding: 4px 10px; font-size: 12px; } .odctl .odmode { padding: 2px 12px 4px; font-size: 11px; }
+    .odctl .card-b.odstats { padding: 0 12px 6px; gap: 4px 18px; } .odctl .odstats div { min-width: 84px; } .odctl .odstats .v { font-size: 15px; margin-top: 0; } .odctl .odstats .m { font-size: 10px; } .odctl .odstats .kl { font-size: 9.5px; }
+    .odctl .odreg { margin: 0 12px 8px; padding: 3px 8px; font-size: 11.5px; }
+  }
+  @media (max-width: 759px) { .dterm .dpanel[data-panel="pchart"] { height: 420px; } }
+  /*OPTDESK:END*/
   .fpprof { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; margin: 0 0 10px; color: var(--muted); }
   .fpprof b { color: var(--text); font-weight: 600; } .fpprof i { font-style: normal; font-size: 11px; }
-  @media (max-width: 760px) { .odstack { grid-template-columns: 1fr; } }
+  /*OPTDESK:BEGIN*/@media (max-width: 760px) { .odstack { grid-template-columns: 1fr; } }/*OPTDESK:END*/
   .quiet { margin: 8px 0 0; font-size: 12px; color: var(--muted); font-style: italic; }
   .signals { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
   .signals li { border-left: 2px solid var(--warn); padding: 4px 0 4px 10px; }
@@ -603,6 +746,12 @@
 
   @media (max-width: 520px) { .wrap { padding: 0 12px; } .brand h1 { font-size: 18px; } .cv.main { height: 300px; } .kv { font-size: 20px; } }
 
+  /* chart card: tabs, panes */
+  #chart-tabs { margin: 2px 0 8px; }
+  #kl-root { min-height: 200px; }
+  .card-b.tvfull #tv-live { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+  #tv-live[hidden], #kl-pane[hidden] { display: none; }
+
   /* print / PDF */
   @media print {
     :root, :root[data-theme] { --background: #fff; --surface: #fff; --surface-2: #f3f4f6; --text: #111; --muted: #555; --border: #ddd; --border-strong: #bbb; --primary-ink: #1d4f8a; }
@@ -616,6 +765,7 @@
     body { font-size: 11px; }
   }
 </style>
+<style>/*__CHART_KLINE_CSS__*/</style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -640,7 +790,7 @@
   </div>
 </div></header>
 <nav class="sections" aria-label="Sections"><div class="wrap">
-  <a href="#overview">Overview</a><a href="#rates">Rates</a><a href="#fed">Fed odds</a><a href="#positioning">Positioning</a><a href="#fx">FX</a><a href="#economy">Economy</a><a href="#options" class="pagetab" title="Opens the options desk as its own page">Options desk</a>
+  <a href="#overview">Overview</a><a href="#rates">Rates</a><a href="#fed">Fed odds</a><a href="#positioning">Positioning</a><a href="#fx">FX</a><a href="#economy">Economy</a><!--OPTDESK:BEGIN--><a href="#options" class="pagetab" title="Opens the options desk as its own page">Options desk</a><!--OPTDESK:END-->
 </div></nav>
 </div>
 
@@ -691,14 +841,21 @@
         __MATRIX__
       </details>
       <details class="card collapse" style="--w:12" id="tvcard">
-        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Chart</h3></span><span class="note tvhint">Open to load a TradingView chart</span></summary>
+        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Chart</h3></span><span class="note tvhint">Open to load the chart</span></summary>
         <div class="card-b">
-          <div class="tvbar"><div class="ranges" id="tv-sym" role="group" aria-label="Chart symbol"></div><button type="button" class="tvx" id="tv-x" aria-expanded="false" aria-controls="tv-box" disabled hidden>Expand</button></div>
-          <div id="tv-box" class="tvbox" aria-live="polite"></div>
-          <p class="note" id="tv-fail" hidden>The TradingView chart could not load (blocked or offline). The rest of the dashboard is unaffected. <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Open tradingview.com</a></p>
-          <p class="note">Charting tool, not advice. Prices come from TradingView, may be delayed, and are separate from the dashboard data above.</p>
-          <p class="note tvnote2">Opening this card loads a TradingView script on this page and it also uses a hidden TradingView frame, so TradingView sees your IP address, cookies and this page's address; nothing else from the page is sent.<br>Remembers symbol, candle interval and date range on this device. Drawings and indicators reset on reload.<br>
-            Index and dollar-index charts are broker CFD quotes (they track the index but are not the official level; the S&amp;P entry is a CFD quote that tracks the S&amp;P 500 Index). The 10Y yield is the Federal Reserve end-of-day series, drawn as a line.</p>
+          <div class="ranges" id="chart-tabs" role="group" aria-label="Chart type"><button type="button" data-v="kline" aria-pressed="true">Velour chart</button><button type="button" data-v="live" aria-pressed="false">Live</button></div>
+          <div id="kl-pane">
+            <script type="application/json" id="chart-feed">__CHART_FEED__</script>
+            <div id="kl-root"></div>
+          </div>
+          <div id="tv-live" hidden>
+            <div class="tvbar"><div class="ranges" id="tv-sym" role="group" aria-label="Chart symbol"></div><button type="button" class="tvx" id="tv-x" aria-expanded="false" aria-controls="tv-box" disabled hidden>Expand</button></div>
+            <div id="tv-box" class="tvbox" aria-live="polite"></div>
+            <p class="note" id="tv-fail" hidden>The TradingView chart could not load (blocked or offline). The rest of the dashboard is unaffected. <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Open tradingview.com</a></p>
+            <p class="note">Charting tool, not advice. Prices come from TradingView, may be delayed, and are separate from the dashboard data above.</p>
+            <p class="note tvnote2">Opening the Live tab loads a TradingView script on this page and it also uses a hidden TradingView frame, so TradingView sees your IP address, cookies and this page's address; nothing else from the page is sent.<br>Remembers symbol, candle interval and date range on this device. Drawings and indicators reset on reload.<br>
+              Index and dollar-index charts are broker CFD quotes (they track the index but are not the official level; the S&amp;P entry is a CFD quote that tracks the S&amp;P 500 Index). The 10Y yield is the Federal Reserve end-of-day series, drawn as a line.</p>
+          </div>
         </div>
       </details>
     </div>
@@ -742,11 +899,13 @@
   </section>
 
   <!-- ============ FX ============ -->
+
+<!--OPTDESK:BEGIN-->
   <section class="sec" id="options">
-    <div class="sechead"><a href="#overview" class="backlink">← Macro dashboard</a><h2>Options positioning</h2><p>From Cboe's free delayed option chains, taken at each update (after the US close, and hourly in US hours on weekdays once hourly updates are on): open interest is the settled figure from the start of the session; prices are the latest available at the time shown on the desk, not necessarily closes. Gamma exposure assumes dealers hold the opposite side of customers who are long calls and long puts, a common simplification; it maps where hedging flows may cluster, not where price must go. S&amp;P levels come from SPX options and are shifted to ES by the current ES minus SPX gap; gold levels come from GLD options scaled to the COMEX gold future. Not a live trade tape.</p></div>
+    <div class="sechead"><a href="#overview" class="backlink">← Macro dashboard</a><h2>Options positioning</h2><p>Computed from delayed option chains. The source, delay and fetch time are on every panel. Open interest is the settled figure from the start of the session; prices are the latest available at the time shown, not necessarily closes. Gamma exposure assumes dealers hold the opposite side of customer positions, a common simplification: it maps where hedging flows may cluster, not where price must go. Index levels come from the index options, or from a proxy scaled to the index and marked approximate; gold levels come from GLD options scaled to the COMEX gold future. Not a live trade tape. Educational context, not advice.</p></div>
     __OPTSTALE__
-    <div class="grid" id="odesk">
-      <div class="card" style="--w:12"><div class="card-b odbar">
+    <div id="odesk">
+      <div class="card odctl"><div class="card-b odbar">
         <div class="ranges" id="od-inst" role="group" aria-label="Instrument"></div>
         <div class="ranges" id="od-greek" role="group" aria-label="Greek"></div>
         <label class="odsel">Expiry <select id="od-ex" aria-label="Expiry"></select></label>
@@ -755,37 +914,79 @@
         <label class="odsel" id="od-mvw">Move <select id="od-mv" aria-label="Price move"></select></label>
         <span class="odfeed" id="od-feed"></span>
         <button type="button" class="btn ghost" id="od-copy">Copy levels</button>
+        <button type="button" class="btn ghost" id="od-tv" title="Pine script and CSV of the call wall, put wall, gamma flip and max pain">Copy levels for TradingView</button>
+        <button type="button" class="btn ghost" id="od-reset" title="Put the panels back in their default order, all open">Reset layout</button>
       </div>
       <p class="odmode" id="od-mnote"></p>
       <div class="card-b odstats" id="od-stats"></div><div class="odreg" id="od-reg"></div></div>
-      <div class="card" style="--w:6"><div class="card-h"><h3>01 · Spine</h3><div class="ranges" id="od-sv" role="group" aria-label="Spine style"><button type="button" data-v="spine" aria-pressed="true">Spine</button><button type="button" data-v="bars" aria-pressed="false">Bars</button></div></div>
-        <div class="odcap" id="od-cap1"></div><div class="odbox" id="od-spine" role="img" aria-label="Exposure by strike with walls, gamma flip and price"></div></div>
-      <div class="card" style="--w:6"><div class="card-h"><h3>02 · Terrain</h3><div class="ranges" id="od-pal" role="group" aria-label="Terrain colours"><button type="button" data-v="div" aria-pressed="true">Calls / puts</button><button type="button" data-v="heat" aria-pressed="false">Heat</button></div></div>
-        <div class="odcap" id="od-cap2"></div><div class="odbox odterr"><canvas id="od-terrain" aria-label="3D relief of the dealer book"></canvas></div><div class="odlegend" id="od-leg"></div></div>
-      <div class="card" style="--w:6"><div class="card-h"><h3>03 · Grid</h3><div style="display:flex;gap:8px;align-items:center;flex:none"><button type="button" class="btn ghost odgcols" id="od-gcols"></button><div class="odsw" id="od-sw" role="group" aria-label="Grid colours"></div></div></div>
-        <div class="odcap" id="od-cap3"></div><div class="odgwrap"><div class="odgrid" id="od-grid"></div><div class="odbar2" id="od-gbar"></div></div></div>
-      <div class="card" style="--w:6"><div class="card-h"><h3>04 · Smile</h3><p class="note" id="od-smn"></p></div>
-        <div class="odcap" id="od-cap4"></div><div class="odbox" id="od-smile" role="img" aria-label="Implied volatility smile for calls and puts with a fitted curve"></div></div>
-      <div class="card" style="--w:12"><div class="card-h"><h3>05 · Cross-expiry stack</h3><p class="note">Two views side by side: pick instrument, Greek, expiry and mode for each</p></div>
-        <div class="odstack"><div class="odpane" id="od-pa"></div><div class="odpane" id="od-pb"></div></div></div>
-      <div class="card" style="--w:5"><div class="card-h"><h3>06 · How to read <span id="od-gname">gamma</span></h3></div><div class="card-b odguide" id="od-guide"></div></div>
-      <div class="card" style="--w:7"><div class="card-h"><h3>07 · Volatility</h3><p class="note" id="od-voln"></p></div>
-        <div class="card-b"><div class="odstats" id="od-volstats"></div><p class="optread" id="od-volread"></p></div>
-        <div class="legend" id="od-tlg"></div><div class="cv" id="od-term" role="img" aria-label="ATM implied volatility and 25-delta risk reversal by expiry"></div></div>
-      <div class="card" style="--w:6"><div class="card-h"><h3>08 · VIX term structure</h3><p class="note">VIX3M ÷ VIX, last 12 months · FRED</p></div>
-        <div class="card-b"><p class="optread" id="od-vixread"></p></div><div class="cv" id="od-vix" role="img" aria-label="VIX3M divided by VIX over the last year"></div></div>
-      <div class="card" style="--w:12"><div class="card-h"><h3>11 · Implied vol index</h3><p class="note">Cboe's official 30-day implied vol index for each market (VIX, VXN, VXD, RVX, GVZ) via FRED · last 12 months</p></div>
-        <div class="card-b"><div class="odstats" id="od-viall"></div><p class="optread" id="od-viread"></p></div><div class="cv" id="od-vichart" role="img" aria-label="Implied volatility index over the last year"></div></div>
-      <div class="card" style="--w:6"><div class="card-h"><h3>09 · Replay</h3><p class="note">Price against the walls and flip at each daily update</p></div>
-        <div class="legend" id="od-rlg"></div><div class="cv" id="od-replay" role="img" aria-label="Price, call wall, put wall and gamma flip over time"></div></div>
-      <div class="card" style="--w:12"><div class="card-h"><h3>10 · AI prompt</h3><div class="ranges" id="od-pt" role="group" aria-label="Prompt type"></div></div>
-        <div class="card-b"><p class="note">Every number below comes from this page's data. Paste it into ChatGPT, Claude or any other assistant.</p><textarea id="od-prompt" class="odprompt" readonly aria-label="Prompt text"></textarea>
-        <button type="button" class="btn ghost" id="od-pcopy" style="margin-left:0">Copy prompt</button></div></div>
+      <div class="dterm" id="dterm" role="group" aria-label="Options terminal">
+        <div class="dcol c1">
+          <div class="card dpanel" data-panel="ladder"><div class="card-h"><h3>Strike ladder</h3><div class="ranges" id="dl-mode" role="group" aria-label="Ladder columns"></div></div>
+            <div class="odcap" id="dl-cap"></div><div class="dlad" id="dl-body"></div></div>
+        </div>
+        <div class="dcol c2">
+          <div class="card dpanel" data-panel="greeks_view"><div class="card-h"><h3>Greeks view</h3><div class="ranges" id="gv-type" role="group" aria-label="Bars or line"></div></div>
+            <div class="dctl"><div class="ranges" id="gv-ex" role="group" aria-label="Expiry"></div><div class="ranges" id="gv-greek" role="group" aria-label="Greek"></div><div class="ranges" id="gv-opts" role="group" aria-label="Options"></div></div>
+            <div class="odcap" id="gv-cap"></div><div class="odbox dbox2" id="gv-box" role="img" aria-label="Exposure by strike, horizontal bars"></div></div>
+          <div class="card dpanel" data-panel="magnet"><div class="card-h"><h3 title="0DTE magnet · expected range · IV rank">0DTE magnet · expected range · IV rank</h3></div><div class="dmag" id="mg-body"></div></div>
+        </div>
+        <div class="dcol c3">
+          <div class="drow2">
+            <div class="card dpanel" data-panel="walls"><div class="card-h"><h3>Major walls</h3><div class="ranges" id="wl-sw" role="group" aria-label="Wall measure"></div></div>
+              <div class="dwalls" id="wl-body"></div></div>
+            <div class="card dpanel" data-panel="hedging"><div class="card-h"><h3>Hedging pressure</h3></div><div class="dgauge" id="hp-body"></div></div>
+          </div>
+          <div class="card dpanel" data-panel="pchart"><div class="card-h"><h3>Price chart with levels</h3><div class="ranges" id="pc-rng" role="group" aria-label="Chart range"></div></div>
+            <div class="odcap" id="pc-cap"></div><div class="dpmsg" id="pc-msg" hidden></div><div class="dpc" id="pc-box" role="img" aria-label="Daily price chart of the selected market with the call wall, put wall, gamma flip, max pain and one-sigma range drawn as horizontal lines"></div><div class="dpclg" id="pc-leg"></div></div>
+        </div>
+        <div class="dcol c4">
+          <div class="card dpanel" data-panel="skew"><div class="card-h"><h3>IV skew by expiry</h3><span class="dbadge" title="Net drift needs hourly snapshots of the book; the dashboard stores one per day. It arrives in Phase 2.">Net drift: Phase 2</span></div>
+            <div class="odbox dbox3" id="sk-chart" role="img" aria-label="Implied volatility against moneyness, one line per expiry"></div><div class="legend" id="sk-leg"></div><div class="scroll dsk" id="sk-tab"></div></div>
+          <div class="card dpanel" data-panel="surface"><div class="card-h"><h3>IV surface</h3><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:none"><div class="ranges" id="sf-col" role="group" aria-label="Surface colouring"></div><button type="button" class="btn ghost odgcols" id="sf-reset" style="display:inline-block;margin:0">Reset view</button></div></div>
+            <div class="odcap" id="sf-cap"></div><div class="odbox odterr"><canvas id="sf-cv" aria-label="3D surface of implied volatility by expiry and moneyness"></canvas></div><div class="odlegend" id="sf-leg"></div></div>
+        </div>
+      </div>
+      <div class="grid dgrid" id="dpanels">
+        <div class="card dpanel" data-panel="order_flow" style="--w:4"><div class="card-h"><h3>Order flow</h3><span class="dbadge">not connected</span></div><div class="dflow" id="of-body"></div></div>
+        <div class="card dpanel" data-panel="spine" style="--w:6"><div class="card-h"><h3>01 · Spine</h3><div class="ranges" id="od-sv" role="group" aria-label="Spine style"><button type="button" data-v="spine" aria-pressed="true">Spine</button><button type="button" data-v="bars" aria-pressed="false">Bars</button></div></div>
+          <div class="odcap" id="od-cap1"></div><div class="odbox" id="od-spine" role="img" aria-label="Exposure by strike with walls, gamma flip and price"></div></div>
+        <div class="card dpanel" data-panel="terrain" style="--w:6"><div class="card-h"><h3>02 · Terrain</h3><div class="ranges" id="od-pal" role="group" aria-label="Terrain colours"><button type="button" data-v="div" aria-pressed="true">Calls / puts</button><button type="button" data-v="heat" aria-pressed="false">Heat</button></div></div>
+          <div class="odcap" id="od-cap2"></div><div class="odbox odterr"><canvas id="od-terrain" aria-label="3D relief of the dealer book"></canvas></div><div class="odlegend" id="od-leg"></div></div>
+        <div class="card dpanel" data-panel="grid" style="--w:6"><div class="card-h"><h3>03 · Grid</h3><div style="display:flex;gap:8px;align-items:center;flex:none"><button type="button" class="btn ghost odgcols" id="od-gcols"></button><div class="odsw" id="od-sw" role="group" aria-label="Grid colours"></div></div></div>
+          <div class="odcap" id="od-cap3"></div><div class="odgwrap"><div class="odgrid" id="od-grid"></div><div class="odbar2" id="od-gbar"></div></div></div>
+        <div class="card dpanel" data-panel="smile" style="--w:6"><div class="card-h"><h3>04 · Smile</h3><p class="note" id="od-smn"></p></div>
+          <div class="odcap" id="od-cap4"></div><div class="odbox" id="od-smile" role="img" aria-label="Implied volatility smile for calls and puts with a fitted curve"></div></div>
+        <div class="card dpanel" data-panel="stack" style="--w:12"><div class="card-h"><h3>05 · Cross-expiry stack</h3><p class="note">Two views side by side: pick instrument, Greek, expiry and mode for each</p></div>
+          <div class="odstack"><div class="odpane" id="od-pa"></div><div class="odpane" id="od-pb"></div></div></div>
+        <div class="card dpanel" data-panel="guide" style="--w:5"><div class="card-h"><h3>06 · How to read <span id="od-gname">gamma</span></h3></div><div class="card-b odguide" id="od-guide"></div></div>
+        <div class="card dpanel" data-panel="vol" style="--w:7"><div class="card-h"><h3>07 · Volatility</h3><p class="note" id="od-voln"></p></div>
+          <div class="card-b"><div class="odstats" id="od-volstats"></div><p class="optread" id="od-volread"></p></div>
+          <div class="legend" id="od-tlg"></div><div class="cv" id="od-term" role="img" aria-label="ATM implied volatility and 25-delta risk reversal by expiry"></div></div>
+        <div class="card dpanel" data-panel="vix" style="--w:6"><div class="card-h"><h3>08 · VIX term structure</h3><p class="note">VIX3M ÷ VIX, last 12 months · FRED</p></div>
+          <div class="card-b"><p class="optread" id="od-vixread"></p></div><div class="cv" id="od-vix" role="img" aria-label="VIX3M divided by VIX over the last year"></div></div>
+        <div class="card dpanel" data-panel="volidx" style="--w:12"><div class="card-h"><h3>11 · Implied vol index</h3><p class="note">The official 30-day implied vol index for each market (VIX, VXN, VXD, RVX, GVZ) via FRED · last 12 months</p></div>
+          <div class="card-b"><div class="odstats" id="od-viall"></div><p class="optread" id="od-viread"></p></div><div class="cv" id="od-vichart" role="img" aria-label="Implied volatility index over the last year"></div></div>
+        <div class="card dpanel" data-panel="replay" style="--w:6"><div class="card-h"><h3>09 · Replay</h3><p class="note">Price against the walls and flip at each daily update</p></div>
+          <div class="legend" id="od-rlg"></div><div class="cv" id="od-replay" role="img" aria-label="Price, call wall, put wall and gamma flip over time"></div></div>
+        <div class="card dpanel" data-panel="prompt" style="--w:12"><div class="card-h"><h3>10 · AI prompt</h3><div class="ranges" id="od-pt" role="group" aria-label="Prompt type"></div></div>
+          <div class="card-b"><p class="note">Every number below comes from this page's data. Paste it into ChatGPT, Claude or any other assistant.</p><textarea id="od-prompt" class="odprompt" readonly aria-label="Prompt text"></textarea>
+          <button type="button" class="btn ghost" id="od-pcopy" style="margin-left:0">Copy prompt</button></div></div>
+        <div class="card dpanel" data-panel="method" style="--w:12"><div class="card-h"><h3>Methodology and licence notes</h3></div><div class="card-b dmeth" id="mt-body"></div></div>
+      </div>
     </div>
     <div class="grid" style="margin-top:12px">
       __OPTIONS__
     </div>
+    <div class="dlg" id="tv-dlg" role="dialog" aria-modal="true" aria-labelledby="tv-dlg-t" hidden>
+      <div class="dlgbox"><div class="dlgh"><h3 id="tv-dlg-t">Levels for TradingView</h3><button type="button" class="btn ghost" id="tv-dlg-x" style="margin:0">Close</button></div>
+        <div class="ranges" id="tv-dlg-tabs" role="group" aria-label="Format"><button type="button" data-v="pine" aria-pressed="true">Pine script</button><button type="button" data-v="csv" aria-pressed="false">CSV</button></div>
+        <p class="note" id="tv-dlg-src"></p>
+        <textarea id="tv-dlg-ta" class="odprompt" readonly aria-label="Levels text"></textarea>
+        <div class="dlgf"><button type="button" class="btn ghost" id="tv-dlg-copy" style="margin:0">Copy</button><button type="button" class="btn ghost" id="tv-dlg-dl" style="margin:0">Download .csv</button><span class="note" id="tv-dlg-note" style="margin:0"></span></div>
+      </div>
+    </div>
   </section>
+<!--OPTDESK:END-->
 
   <section class="sec" id="fx">
     <div class="sechead"><h2>FX, gold and indices</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from the ECB's official euro reference rates (daily 14:15 CET fixing, crossed through the euro; Yahoo then FRED as fallbacks); XAUUSD uses COMEX gold futures. ES, NQ and US30 are the S&amp;P 500, Nasdaq 100 and Dow 30 cash index levels from Yahoo Finance (FRED as fallback). Latest data __FXUPD__ (pairs: ECB fixing; gold and indices: last price of the latest update).</p></div>
@@ -977,7 +1178,33 @@ const P = __PAYLOAD__;
   SYMS.forEach(([n, s]) => { const b = document.createElement("button"); b.type = "button"; b.textContent = n; b.dataset.s = s; b.addEventListener("click", () => { sym = s; put({ symbol: s }); paint(); if (started) render(); }); picker.appendChild(b); });
   { const sv = load(); if (sv.symbol) sym = sv.symbol; }
   paint(); apply();
-  const sync = () => { apply(); if (card.open && !started) { started = true; render(); } };
+  /* tabs: "Velour chart" (own chart script, loads its library on kl:open) and "Live" (TradingView, requested only on this tab) */
+  const tabs = document.getElementById("chart-tabs"), klp = document.getElementById("kl-pane"), tvl = document.getElementById("tv-live"), klr = document.getElementById("kl-root");
+  let tab = "kline", klOn = false, klMsg = false;
+  try { const t = localStorage.getItem("macro-chart-tab"); if (t === "live" || t === "kline") tab = t; } catch (e) {}
+  function klNote(text, live) {
+    klMsg = true; klr.textContent = "";
+    const p = document.createElement("p"); p.className = "note"; p.setAttribute("role", "status"); p.textContent = text; klr.appendChild(p);
+    if (live) { const b = document.createElement("button"); b.type = "button"; b.className = "btn ghost"; b.style.marginLeft = "0"; b.textContent = "Open the Live tab"; b.addEventListener("click", () => setTab("live")); klr.appendChild(b); }
+  }
+  function klOpen() {
+    if (klOn) return;
+    let n = 0; try { n = (JSON.parse(document.getElementById("chart-feed").textContent || "{}").symbols || []).length; } catch (e) {}
+    if (!n) { klNote("Chart data not available. The dashboard has no daily price history to draw yet. The Live tab still works.", true); return; }
+    if (!window.VelourChart) { klNote("Chart not available in this build. The Live tab still works.", true); return; }
+    klOn = true; window.dispatchEvent(new CustomEvent("kl:open"));
+  }
+  function klHide() { if (!klOn) return; klOn = false; window.dispatchEvent(new CustomEvent("kl:hide")); }
+  function applyTab() {
+    tabs.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === tab)));
+    klp.hidden = tab !== "kline"; tvl.hidden = tab !== "live";
+    if (!card.open) { klHide(); return; }
+    if (tab === "kline") klOpen(); else { klHide(); if (!started) { started = true; render(); } }
+  }
+  function setTab(t) { tab = t; try { localStorage.setItem("macro-chart-tab", t); } catch (e) {} if (t !== "live") collapse(); applyTab(); }
+  tabs.querySelectorAll("button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.v)));
+  tabs.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === tab))); klp.hidden = tab !== "kline"; tvl.hidden = tab !== "live";
+  const sync = () => { apply(); applyTab(); };
   card.addEventListener("toggle", sync);
   new MutationObserver(sync).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   if (window.matchMedia) window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { sync(); });
@@ -990,6 +1217,7 @@ const P = __PAYLOAD__;
   }));
 })();
 
+/*OPTDESK:BEGIN*/
 /* Options desk is its own page: #options shows only the desk, every other link shows the dashboard */
 (function () {
   const main = document.title;
@@ -1007,6 +1235,8 @@ const P = __PAYLOAD__;
   window.addEventListener("hashchange", () => route(true));
   route(false);
 })();
+/*OPTDESK:END*/
+if (location.hash === "#opt" + "ions" && !document.getElementById("opt" + "ions")) { try { history.replaceState(null, "", "#overview"); } catch (e) {} }   // no options page in this build: show the dashboard
 
 /* nav highlight for the section being read */
 (function () {
@@ -1157,6 +1387,7 @@ function Terminal(root, cfg) {
     if (Array.isArray(sv)) { const ok = sv.filter(id => P.rows[id] && P.rows[id].family && rows.some(r => r.dataset.id === id)); if (ok.length && ok.every(id => P.rows[id].family === P.rows[ok[0]].family)) { sel = ok.slice(0, 5); focus = sel[sel.length - 1]; } } } catch (e) {}
 
   function startFor(last) {
+    if (!last || isNaN(new Date(last + "T00:00:00Z"))) return "0000-01-01";   // no data yet: nothing to range over
     const d = new Date(last + "T00:00:00Z"), y = d.getUTCFullYear(), mo = d.getUTCMonth(), iso = dt => dt.toISOString().slice(0, 10);
     if (range === "MTD") return iso(new Date(Date.UTC(y, mo, 1)));
     if (range === "QTD") return iso(new Date(Date.UTC(y, Math.floor(mo / 3) * 3, 1)));
@@ -1214,7 +1445,7 @@ function Terminal(root, cfg) {
       const F = P.families[fam], last = F.dates[F.dates.length - 1], st = startFor(last);
       let i0 = F.dates.findIndex(d => d >= st); if (i0 < 0) i0 = 0;
       const labels = F.dates.slice(i0);
-      const sets = sel.map((id, k) => ({ name: P.rows[id].label, tk: P.rows[id].ticker, data: F.series[id].slice(i0), color: colorOf(k) }));
+      const sets = sel.filter(id => F.series[id]).map((id, k) => ({ name: P.rows[id].label, tk: P.rows[id].ticker, data: F.series[id].slice(i0), color: colorOf(k) }));
       if (cfg.rebase) sets.forEach(s => { const b = s.data.find(v => v !== null && v !== undefined && v !== 0); s.data = s.data.map(v => (v === null || v === undefined || b === undefined) ? null : (v / b - 1) * 100); });
       chart = { labels, sets };
       const dec = P.dec[fam] !== undefined ? P.dec[fam] : 2;
@@ -1507,6 +1738,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(render, 120); });
 })();
 
+/*OPTDESK:BEGIN*/
 /* Options desk: Greek tabs, Traditional / Effective / Shadow modes, spine, 3D terrain, grid, smile, cross-expiry stack,
    Greek guide, volatility, VIX term structure, replay and AI prompt. Data: P.opt (options_levels.py). No libraries. */
 (function () {
@@ -1526,7 +1758,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   };
   const st = { inst: keys[0], greek: "gamma", ex: -1, mode: "trad", mv: null, sv: "spine", yaw: -0.5, pitch: (window.innerWidth <= 760 ? 0.62 : 0.55), zoom: 1, pt: "master", pal: "div", gpal: 0, spin: true, rng: "lv", gall: null, sway: 0 };
   const prevSpot = inst => { const hh = (O[inst].history || []).filter(r => r.spot != null); return hh.length > 1 ? hh[hh.length - 2].spot : null; };
-  const GPAL = [["var(--up)", "var(--down)", "Calls green / puts red"], ["var(--primary)", "var(--secondary)", "Brand colours"], ["var(--text)", "var(--muted)", "Mono"], ["var(--warn)", "var(--secondary)", "Warm"]];
+  const GPAL = [["var(--call)", "var(--put)", "Brand colours"], ["var(--text)", "var(--muted)", "Mono"], ["var(--warn)", "var(--secondary)", "Warm"]];
   const $ = id => document.getElementById(id);
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const money = v => { const a = Math.abs(v), s = v < 0 ? "-" : ""; return a >= 1e9 ? s + "$" + (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? s + "$" + (a / 1e6).toFixed(2) + "M" : a >= 1e3 ? s + "$" + (a / 1e3).toFixed(1) + "K" : s + "$" + a.toFixed(0); };
@@ -1647,21 +1879,21 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const cell = (k, val, m) => `<div><div class="kl">${k}</div><div class="v">${val}</div><div class="m">${m || "&nbsp;"}</div></div>`;
     const lab = st.mode === "trad" ? cap(cfg.greek) : (st.mode === "eff" ? "Eff. gamma" : "Shadow gamma") + " @ " + mvLabel(st.inst, st.mv);
     const pv = prevSpot(st.inst), chg = pv ? i.spot - pv : null;
-    const arrow = chg == null ? "" : ` <small class="${chg >= 0 ? "up" : "down"}">${chg >= 0 ? "▲" : "▼"} ${fk(Math.abs(chg))}</small>`;
+    const arrow = chg == null ? "" : ` <small class="${chg >= 0 ? "pos" : "neg"}">${chg >= 0 ? "▲" : "▼"} ${fk(Math.abs(chg))}</small>`;
     const exLab = ser.ex < 0 ? "all ≤60d" : S().expiries[ser.ex].e + (S().expiries[ser.ex].dte === 0 ? " · 0DTE" : "");
     $("od-stats").innerHTML = cell(i.title + " · " + exLab, fk(i.spot) + arrow, (i.map ? fm(i.spot) + " · " : "") + i.date + (st.mode !== "trad" ? " · scenario " + fk(L.px) : ""))
-      + cell("Call wall", `<span class="up">${fk(L.cw)}</span>`, fm(L.cw)) + cell("Put wall", `<span class="down">${fk(L.pw)}</span>`, fm(L.pw))
+      + cell("Call wall", `<span class="pos">${fk(L.cw)}</span>`, fm(L.cw)) + cell("Put wall", `<span class="neg">${fk(L.pw)}</span>`, fm(L.pw))
       + cell("Max pain", fk(i.max_pain), i.front_move ? "front expiry" : "") + cell("G-flip", fk(L.flip), fm(L.flip))
-      + cell("King node", L.king ? `<span class="${L.king.v > 0 ? "up" : "down"}">${fk(L.king.k)}</span>` : "n/a", L.king ? (L.king.v > 0 ? "positive · pin" : "negative · repel") : "")
+      + cell("King node", L.king ? `<span class="${L.king.v > 0 ? "pos" : "neg"}">${fk(L.king.k)}</span>` : "n/a", L.king ? (L.king.v > 0 ? "positive · pin" : "negative · repel") : "")
       + cell("Σ " + lab, money(tot), S().units[cfg.greek])
       + cell("±1σ day", i.day_move == null ? "n/a" : fk(i.day_move), i.day_move ? `${fk(i.spot - i.day_move)} – ${fk(i.spot + i.day_move)}` : "")
       + cell("P/C", i.pcr_oi == null ? "n/a" : i.pcr_oi.toFixed(2), i.pcr_vol == null ? "open interest" : "volume " + i.pcr_vol.toFixed(2))
       + cell("ATM IV", i.atm_iv == null ? "n/a" : i.atm_iv.toFixed(1) + "%", (i.vol && i.vol.iv30 != null) ? "30-day " + i.vol.iv30.toFixed(1) + "%" : "");
-    const reg = $("od-reg"); reg.style.setProperty("--c", R.pos ? "var(--up)" : "var(--down)");
-    reg.innerHTML = `<b>● ${R.name}</b><span>${R.pos ? "Positive" : "Negative"} gamma: ${R.why}.</span>`;
+    const reg = $("od-reg"); reg.style.setProperty("--c", R.pos ? "var(--call)" : "var(--put)");
+    reg.innerHTML = `<b>● ${esc(R.name)}</b><span>${R.pos ? "Positive" : "Negative"} gamma: ${esc(R.why)}.</span>`;
     const age = i.date ? Math.round((Date.now() - Date.parse(i.date)) / 864e5) : 0, feed = $("od-feed");
     const fst = age > 4 || isStale(st.inst);
-    feed.className = "odfeed" + (fst ? " stale" : ""); feed.innerHTML = `<i></i>${fst ? "Stale · " : ""}Cboe delayed chain, fetched ${esc(i.updated_utc || i.date)}`;
+    feed.className = "odfeed" + (fst ? " stale" : ""); feed.innerHTML = `<i></i>${fst ? "Stale · " : ""}${i.src && i.src.text ? esc(i.src.text) : "Cboe delayed chain, fetched " + esc(i.updated_utc || i.date)}`;
     const capTxt = `${lab} · ${ser.ex < 0 ? "all expiries ≤ 60 days" : S().expiries[ser.ex].e} · ${S().units[cfg.greek]}${ser.note ? " · " + ser.note : ""}`;
     const wn = win(st.inst), off = [["call wall", L.cw], ["put wall", L.pw], ["flip", L.flip]].filter(x => x[1] != null && (x[1] < wn.lo || x[1] > wn.hi)).map(x => `${x[0]} ${fk(x[1])}`);
     const rt = winTxt(st.inst, wn) + (off.length ? " · outside range: " + off.join(", ") : "");
@@ -1689,7 +1921,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     if (bars) {
       const bh = Math.max(1.5, Math.min(14, (H - padT - padB) / w.n - 1.5));
       for (let i = w.i0; i <= w.i1; i++) { const k = ks[i]; if (!v[i]) continue; const x0 = Math.min(mid, x(v[i]));
-        const r = el("rect", { x: x0, y: y(k) - bh / 2, width: Math.max(0.5, Math.abs(x(v[i]) - mid)), height: bh, fill: v[i] > 0 ? "var(--up)" : "var(--down)", opacity: 0.85 }, svg);
+        const r = el("rect", { x: x0, y: y(k) - bh / 2, width: Math.max(0.5, Math.abs(x(v[i]) - mid)), height: bh, fill: v[i] > 0 ? "var(--call)" : "var(--put)", opacity: 0.85 }, svg);
         el("title", {}, r).textContent = `${F(k)}: ${money(v[i])}`; }
     } else {
       const pts = sm.map((a, g) => [x(a), y(kmin + span * g / (NS - 1)), a]);
@@ -1700,22 +1932,23 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
         pts.forEach((p, i) => { if (sel(p[2])) { if (!on) { d += `M${p[0]},${p[1]}`; on = true; } else { const a = pts[i - 1], cy = (a[1] + p[1]) / 2; d += `C${a[0]},${cy} ${p[0]},${cy} ${p[0]},${p[1]}`; } } else on = false; });
         if (d) el("path", { d, fill: "none", stroke: col, "stroke-width": 1.7, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg); };
       const path = (sel, col) => { el("path", { d: smoothPath(sel), fill: col, "fill-opacity": 0.28 }, svg); edge(sel, col); };
-      path(a => a > 0, "var(--up)"); path(a => a < 0, "var(--down)");
+      path(a => a > 0, "var(--call)"); path(a => a < 0, "var(--put)");
     }
     const gl = cfg.mode === "trad" ? cfg.greek : (cfg.mode === "eff" ? "eff. gamma" : "shadow gamma");
     el("text", { x: mid - 6, y: H - 6, "text-anchor": "end", fill: "var(--muted)" }, svg).textContent = "− " + gl;
     el("text", { x: mid + 6, y: H - 6, fill: "var(--muted)" }, svg).textContent = "+ " + gl;
     const phone = W < 560, nm = n => phone ? ({ "CALL WALL": "CALL W", "CALL WALL #2": "CALL W2", "PUT WALL": "PUT W", "PUT WALL #2": "PUT W2", "KING · PIN": "KING PIN", "KING · REPEL": "KING REP", "SCENARIO": "SCEN" }[n] || n) : n;
-    const items = [["CALL WALL", L.cw, "var(--up)"], ["CALL WALL #2", L.cw2, "var(--up)"], ["G-FLIP", L.flip, "var(--warn)"], ["PUT WALL", L.pw, "var(--down)"], ["PUT WALL #2", L.pw2, "var(--down)"],
+    const items = [["CALL WALL", L.cw, "var(--call)"], ["CALL WALL #2", L.cw2, "var(--call)"], ["G-FLIP", L.flip, "var(--warn)"], ["PUT WALL", L.pw, "var(--put)"], ["PUT WALL #2", L.pw2, "var(--put)"],
       [L.king ? (L.king.v > 0 ? "KING · PIN" : "KING · REPEL") : "", L.king && L.king.k, "var(--secondary)"], ["PRICE", spot, "var(--text)"]]
       .concat(cfg.mode !== "trad" ? [["SCENARIO", L.px, "var(--primary)"]] : [])
+      .concat(cfg.inst === st.inst && st.pin != null ? [["PIN", st.pin, "var(--text)"]] : [])
       .filter(a => a[0] && a[1] != null && a[1] >= kmin && a[1] <= kmax).map(a => ({ n: a[0], k: a[1], c: a[2], y0: y(a[1]) })).sort((a, b) => a.y0 - b.y0);
     const sg = O[cfg.inst].day_move;   // ±1σ day bracket on the left
     if (sg && spot - sg >= kmin && spot + sg <= kmax) { const a = y(spot + sg), b = y(spot - sg), bx = axX + 6;
       el("path", { d: `M${bx + 6},${a}H${bx}V${b}H${bx + 6}`, fill: "none", stroke: "var(--muted)" }, svg);
       el("text", { x: bx + 10, y: y(spot) - 5, fill: "var(--muted)", "font-size": 10 }, svg).textContent = "±1σ"; }
     const edge = { top: 0, bot: 0 };   // a wall outside the window gets an edge marker, so the spine still says where it is
-    [["call wall", L.cw, "var(--up)"], ["put wall", L.pw, "var(--down)"]].forEach(([n_, k, c]) => { if (k == null || (k >= kmin && k <= kmax)) return;
+    [["call wall", L.cw, "var(--call)"], ["put wall", L.pw, "var(--put)"]].forEach(([n_, k, c]) => { if (k == null || (k >= kmin && k <= kmax)) return;
       const topE = k > kmax, yy = topE ? padT + 9 + 14 * edge.top++ : H - padB - 5 - 14 * edge.bot++;
       el("text", { x: W - labW - 6, y: yy, "text-anchor": "end", fill: c, "font-weight": 600 }, svg).textContent = `${n_} ${F(k)} ${topE ? "↑" : "↓"}`; });
     const gap = 14; let last = -1e9; items.forEach(it => { it.y = Math.max(it.y0, last + gap, padT + 8); last = it.y; });
@@ -1767,7 +2000,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     }
     const { hh, ne, NC, NR, zl, m: mx } = terrain.c, span = w.hi - w.lo || 1;
     cvs.width = W * dpr; cvs.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-    const up = rgb(css("--up")), dn = rgb(css("--down")), bg = rgb(css("--surface")), line = css("--border-strong"), txt = css("--muted"), pri = css("--text");
+    const up = rgb(css("--call")), dn = rgb(css("--put")), bg = rgb(css("--surface")), line = css("--border-strong"), txt = css("--muted"), pri = css("--text");
     const dark = bg[0] + bg[1] + bg[2] < 384, base = mix(rgb(css("--surface-2")), rgb(css("--muted")), dark ? 0.25 : 0.45);
     let hmax = 0, hmin = 0; hh.forEach(r => r.forEach(v => { hmax = Math.max(hmax, v); hmin = Math.min(hmin, v); }));
     const XS = 2.0, ZS = phone ? 0.95 : 0.85, HS = 1.0, FLOOR = hmin - 0.08, CEIL = hmax + 0.12;
@@ -1828,7 +2061,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     // level markers: dashed line on the floor, pole up from the end that sits higher on screen, labels in rows along the top
     const uOf = k => ((k - w.lo) / span) * 2 - 1;
     const L = levels(cfg, series(cfg).vals), labs = [], nmT = phone ? { "call wall": "call", "put wall": "put" } : {};
-    [[spot, pri, "price"], [L.cw, css("--up"), "call wall"], [L.pw, css("--down"), "put wall"], [L.flip, css("--warn"), "flip"]].forEach(([k, c, n]) => {
+    [[spot, pri, "price"], [L.cw, css("--call"), "call wall"], [L.pw, css("--put"), "put wall"], [L.flip, css("--warn"), "flip"]].forEach(([k, c, n]) => {
       if (k == null || k < w.lo || k > w.hi) return;
       const p = P3(uOf(k), -1, FLOOR), q = P3(uOf(k), 1, FLOOR), top = p[1] < q[1] ? [-1, p] : [1, q];
       ctx.setLineDash([4, 3]); ctx.strokeStyle = c; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); ctx.setLineDash([]);
@@ -1888,7 +2121,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const SH = { "Call wall": "CW", "Call wall #2": "CW2", "Put wall": "PW", "Put wall #2": "PW2", "G-flip": "Flip", "King": "King" };
     const pill = k => { const p = [[L.cw, "Call wall", cPos], [L.cw2, "Call wall #2", cPos], [L.pw, "Put wall", cNeg], [L.pw2, "Put wall #2", cNeg], [L.flip != null ? ks.reduce((b, x) => Math.abs(x - L.flip) < Math.abs(b - L.flip) ? x : b, ks[0]) : null, "G-flip", "var(--warn)"], [L.king && L.king.k, "King", "var(--secondary)"]]
       .filter(x => x[0] === k).map(x => `<span class="pill" title="${x[1]} ${fk(k)}" style="background:color-mix(in srgb, ${x[2]} 22%, transparent);color:${x[2]}">${phone ? SH[x[1]] : x[1] + " " + fk(k)}</span>`); return p.join(" "); };
-    const tag = k => (k === L.cw ? `<span class="tagw" style="background:var(--up);color:var(--on-primary)">CW</span>` : k === L.pw ? `<span class="tagw" style="background:var(--down);color:var(--on-primary)">PW</span>` : L.king && k === L.king.k ? `<span class="tagw" style="background:var(--secondary);color:var(--on-primary)">K</span>` : "");
+    const tag = k => (k === L.cw ? `<span class="tagw" style="background:var(--call);color:var(--on-primary)">CW</span>` : k === L.pw ? `<span class="tagw" style="background:var(--put);color:var(--on-primary)">PW</span>` : L.king && k === L.king.k ? `<span class="tagw" style="background:var(--secondary);color:var(--on-primary)">K</span>` : "");
     const spotRow = ks.reduce((b, k, i) => Math.abs(k - spot) < Math.abs(ks[b] - spot) ? i : b, 0);
     let html = `<table><thead><tr><th>Strike</th>${phone ? "<th>Level</th>" : ""}${cols.map((c, ci) => `<th data-c="${ci}" class="${ci === selIdx ? "sel" : ""}">${c.n}</th>`).join("")}${phone ? "" : "<th>Level</th>"}</tr></thead><tbody>`;
     for (let r = w.i1; r >= w.i0; r--) {
@@ -1933,7 +2166,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const fn = fit(sm.p.filter(a => a[0] <= spot).concat(sm.c.filter(a => a[0] >= spot)).map(a => [Math.log(a[0] / spot), a[1]]));
     if (fn) { let d = ""; for (let i = 0; i <= 80; i++) { const k = x0 + (x1 - x0) * i / 80, v = fn(Math.log(k / spot)); if (v > yl && v < yh * 1.2) d += (d ? "L" : "M") + X(k).toFixed(1) + "," + Y(Math.min(v, yh)).toFixed(1); }
       if (d) el("path", { d, fill: "none", stroke: "var(--muted)", "stroke-width": 1.4 }, svg); }
-    [[sm.c, "var(--up)", "Call IV"], [sm.p, "var(--down)", "Put IV"]].forEach(([pts, col, n]) => {
+    [[sm.c, "var(--call)", "Call IV"], [sm.p, "var(--put)", "Put IV"]].forEach(([pts, col, n]) => {
       const q = pts.filter(a => a[1] <= yh && a[1] >= yl); if (!q.length) return;
       el("path", { d: q.map((a, i) => (i ? "L" : "M") + X(a[0]).toFixed(1) + "," + Y(a[1]).toFixed(1)).join(""), fill: "none", stroke: col, "stroke-width": 1.4 }, svg);
       const step = Math.max(1, Math.ceil(q.length / 40));
@@ -1990,7 +2223,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const front = t[0], back = t.find(x => x.dte >= 30) || t[t.length - 1];
     const shape = front && back && back !== front ? (front.atm > back.atm + 0.3 ? "Backwardation" : front.atm < back.atm - 0.3 ? "Contango" : "Flat") : "n/a";
     $("od-volstats").innerHTML = cell("30-day implied", pc(v.iv30), "ATM, interpolated") + cell("Realised 10 / 20 / 60d", `${pc(v.rv10)}`, `${pc(v.rv20)} · ${pc(v.rv60)}`)
-      + cell("Vol premium (IV30 − RV20)", v.vrp == null ? "n/a" : `<span class="${v.vrp > 0 ? "up" : "down"}">${v.vrp > 0 ? "+" : ""}${v.vrp.toFixed(1)} pts</span>`, v.vrp == null ? "" : v.vrp > 0 ? "options priced above recent moves" : "options priced below recent moves")
+      + cell("Vol premium (IV30 − RV20)", v.vrp == null ? "n/a" : `<span class="${v.vrp > 0 ? "pos" : "neg"}">${v.vrp > 0 ? "+" : ""}${v.vrp.toFixed(1)} pts</span>`, v.vrp == null ? "" : v.vrp > 0 ? "options priced above recent moves" : "options priced below recent moves")
       + cell("Term structure", shape, front && back ? `${pc(front.atm)} front → ${pc(back.atm)} ${back.dte}d` : "")
       + cell("25Δ risk reversal", front ? (front.rr25 > 0 ? "+" : "") + front.rr25.toFixed(1) + " pts" : "n/a", front ? "put IV − call IV, front expiry" : "");
     $("od-voln").textContent = v.rv_source ? "Realised vol from " + v.rv_source : "";
@@ -2010,7 +2243,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const V = O._vix, host = $("od-vix");
     if (!V) { host.closest(".card").style.display = "none"; return; }
     const r = V.ratio[V.ratio.length - 1], days = V.ratio.filter(x => x < 1).length;
-    $("od-vixread").innerHTML = `VIX3M ÷ VIX is <b>${r.toFixed(3)}</b> (VIX ${V.vix[V.vix.length - 1].toFixed(2)}, VIX3M ${V.vix3m[V.vix3m.length - 1].toFixed(2)}): ${r < 1 ? '<span class="down">inverted</span>, near-term stress is priced above the 3-month view' : r < 1.05 ? '<span style="color:var(--warn)">flat</span>, little buffer between near-term and 3-month vol' : '<span class="up">normal upward slope</span>'}. Below 1 on ${days} of the last ${V.ratio.length} days. `
+    $("od-vixread").innerHTML = `VIX3M ÷ VIX is <b>${r.toFixed(3)}</b> (VIX ${V.vix[V.vix.length - 1].toFixed(2)}, VIX3M ${V.vix3m[V.vix3m.length - 1].toFixed(2)}): ${r < 1 ? '<span class="neg">▼ inverted</span>, near-term stress is priced above the 3-month view' : r < 1.05 ? '<span style="color:var(--warn)">flat</span>, little buffer between near-term and 3-month vol' : '<span class="pos">▲ normal upward slope</span>'}. Below 1 on ${days} of the last ${V.ratio.length} days. `
       + `<span class="muted-text">In the ludovico-finance study (SPY, three years, exploratory), a lower VIX3M − VIX spread lined up with higher realised volatility over the next month (correlation about −0.49).</span>`;
     draw(host, { labels: V.dates, sets: [{ name: "VIX3M ÷ VIX", data: V.ratio, color: "var(--s1)" }], dec: 3, axDec: 2, shortX: mon, endLabels: true, title: "vix term" });
     const svg = host.querySelector("svg"); if (!svg) return;
@@ -2039,8 +2272,8 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   function replay() {
     const h = (I().history || []).filter(r => r.spot != null), host = $("od-replay");
     if (h.length < 2) { host.innerHTML = '<p class="quiet" style="padding:0 8px">Builds up one point per daily update; the chart appears from the second day.</p>'; $("od-rlg").innerHTML = ""; return; }
-    const sets = [{ name: "Price", data: h.map(r => r.spot), color: "var(--text)" }, { name: "Call wall", data: h.map(r => r.call_wall), color: "var(--up)", dash: "4 3" },
-      { name: "Put wall", data: h.map(r => r.put_wall), color: "var(--down)", dash: "4 3" }, { name: "Gamma flip", data: h.map(r => r.gamma_flip), color: "var(--warn)" }];
+    const sets = [{ name: "Price", data: h.map(r => r.spot), color: "var(--text)" }, { name: "Call wall", data: h.map(r => r.call_wall), color: "var(--call)", dash: "4 3" },
+      { name: "Put wall", data: h.map(r => r.put_wall), color: "var(--put)", dash: "4 3" }, { name: "Gamma flip", data: h.map(r => r.gamma_flip), color: "var(--warn)" }];
     $("od-rlg").innerHTML = sets.map(s => `<span><i style="border-color:${s.color}"></i>${s.name}</span>`).join("");
     draw(host, { labels: h.map(r => r.date), sets, dec: I().dec, axDec: I().dec, shortX: d => d.slice(5), title: "replay" });
   }
@@ -2065,14 +2298,510 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   function promptUI() { buttons($("od-pt"), PT, st.pt, v => { st.pt = v; promptUI(); }); $("od-prompt").value = promptText(); }
   $("od-pcopy").addEventListener("click", () => copy($("od-pcopy"), $("od-prompt").value, "Copy prompt"));
 
+  /* ================= desk grid: panels, freshness bars, new panels ================= */
+  const X = () => I().x || {}, SRC = () => I().src || null, GD = O._guide || {};
+  const BANDS = Array.isArray(O._hp_bands) && O._hp_bands.length ? O._hp_bands : [{ min: 0, max: 35, label: "Hedging tends to dampen moves" }, { min: 35, max: 65, label: "Dealer flow balanced" }, { min: 65, max: 100, label: "Hedging tends to amplify moves" }];
+  st.pin = null; st.lmode = "greeks"; st.wl = "gamma"; st.gv = { ex: "all", greek: "gamma", type: "bars", log: false, src: "greek" }; st.sf = { col: "iv", yaw: -0.6, pitch: 0.55, zoom: 1 };
+  const NOTE_NEEDS = "Needs data the snapshot does not have yet";
+  const na = t => `<p class="quiet" style="padding:0 16px 12px">${t}</p>`;
+  const smoney = v => v === 0 ? "$0" : (v > 0 ? "+" : "−") + money(Math.abs(v));
+  const nearIdx = (ks, k) => ks.reduce((b, x, i) => Math.abs(x - k) < Math.abs(ks[b] - k) ? i : b, 0);
+  const safe = (name, fn) => { try { fn(); } catch (e) { console.warn(name + " failed", e); } };
+  const pinChanged = () => { safe("ladder", ladder); safe("greeks", greeksView); safe("spine", () => spine($("od-spine"), Object.assign(cfgNow(), { sv: st.sv }))); };
+
+  /* ---------- freshness bars and guides ---------- */
+  function freshInfo(id) {
+    const i = I(), s = SRC(), upd = i.updated_utc || i.date;
+    let text = s && s.text ? s.text : `Cboe delayed chain · delayed · fetched ${upd}`;
+    let age = s && typeof s.age_days === "number" ? s.age_days : (i.date ? Math.round((Date.now() - Date.parse(i.date)) / 864e5) : 0);
+    const approx = !!(s && s.approx);
+    if (id === "vix") { const d = O._vix && O._vix.dates ? O._vix.dates[O._vix.dates.length - 1] : null; text = `FRED daily index (VIX3M and VIX) · last data ${d || "n/a"}`; age = d ? Math.round((Date.now() - Date.parse(d)) / 864e5) : 0; }
+    else if (id === "volidx") { const v = (O._volidx || {})[st.inst]; text = `FRED daily index (${v ? v.name : "30-day implied vol"}) · last data ${v ? v.date : "n/a"}`; age = v ? Math.round((Date.now() - Date.parse(v.date)) / 864e5) : 0; }
+    else if (id === "guide") { text = "Educational text · no market data"; age = 0; }
+    else if (id === "method") { text = "Written description · sources below are read from the snapshots"; age = 0; }
+    else if (id === "order_flow") { text = "No feed connected · nothing shown here is simulated"; age = 0; }
+    else if (id === "magnet" && X().ivr) text += ` · IV rank from FRED ${X().ivr.series_name || "30-day index"}`;
+    else if (id === "replay") text += " · daily snapshots saved by the dashboard";
+    const short = s && s.fetched_utc && TERM.has(id) ? `${String(s.source || "Cboe delayed").replace(/ chain$/, "")} · ${String(s.fetched_utc).slice(0, 10)} · ${age}d old${s.approx ? " · approx." : ""}` : null;
+    return { text, short, stale: (age > 4 || isStale(st.inst)) && id !== "guide" && id !== "method" && id !== "order_flow", approx: approx && ["guide", "method", "order_flow", "vix", "volidx"].indexOf(id) < 0 };
+  }
+  function freshAll() {
+    document.querySelectorAll("#odesk .dpanel").forEach(p => {
+      const id = p.dataset.panel, f = freshInfo(id); let b = p.querySelector(".dfresh");
+      if (!b) { b = document.createElement("div"); b.className = "dfresh"; const h = p.querySelector(".card-h"); h.insertAdjacentElement("afterend", b); }
+      b.classList.toggle("stale", f.stale); b.title = (GD.freshness && GD.freshness.meaning) || "Where this panel's numbers come from, how delayed they are and when they were fetched";
+      b.innerHTML = `<i aria-hidden="true"></i><span title="${esc(f.text)}">${esc(f.short || f.text)}</span>` + (f.stale ? '<span class="dbadge warn">stale</span>' : "") + (f.approx && !/approx/i.test(f.text) ? '<span class="dbadge">approximate</span>' : "");
+    });
+  }
+  function guides() {
+    document.querySelectorAll("#odesk .dpanel").forEach(p => {
+      const g = GD[p.dataset.panel]; if (!g || p.querySelector(".dguide")) return;
+      const d = document.createElement("details"); d.className = "dguide";
+      d.innerHTML = `<summary>${esc(g.label || "What this shows")}</summary>` + (g.meaning ? `<p><b>What it shows.</b> ${esc(g.meaning)}</p>` : "") + (g.so_what ? `<p><b>How to read it.</b> ${esc(g.so_what)}</p>` : "");
+      p.appendChild(d);
+    });
+  }
+
+  /* ---------- panel layout: collapse, move, drag, full screen, saved order ---------- */
+  const DEF = ["order_flow", "spine", "terrain", "grid", "smile", "stack", "guide", "vol", "vix", "volidx", "replay", "prompt", "method"];
+  const LKEY = "macro-desk-layout", dp = $("dpanels"), PN = {};
+  const TERM = new Set();   // terminal panels: fixed positions (collapse and full screen only); the lower grid can be reordered
+  $("dterm").querySelectorAll(".dpanel").forEach(p => { PN[p.dataset.panel] = p; TERM.add(p.dataset.panel); });
+  dp.querySelectorAll(".dpanel").forEach(p => { PN[p.dataset.panel] = p; });
+  const LOWER = () => Object.keys(PN).filter(x => !TERM.has(x));
+  const defLay = () => ({ v: 1, order: DEF.filter(x => PN[x] && !TERM.has(x)).concat(LOWER().filter(x => DEF.indexOf(x) < 0)), collapsed: [] });
+  function loadLay() {
+    try {
+      const o = JSON.parse(localStorage.getItem(LKEY) || "null");
+      if (o && o.v === 1 && Array.isArray(o.order)) { const order = o.order.filter((x, i, a) => PN[x] && !TERM.has(x) && a.indexOf(x) === i); /* older saves listed the terminal panels too: ignore those */ defLay().order.forEach(x => { if (order.indexOf(x) < 0) order.push(x); }); return { v: 1, order, collapsed: (Array.isArray(o.collapsed) ? o.collapsed : []).filter(x => PN[x]) }; }
+    } catch (e) {}
+    return defLay();
+  }
+  let lay = loadLay(), fullId = null;
+  const saveLay = () => { try { localStorage.setItem(LKEY, JSON.stringify(lay)); } catch (e) {} };
+  const kick = () => window.dispatchEvent(new Event("resize"));
+  function applyLay() {
+    lay.order.forEach(id => dp.appendChild(PN[id]));
+    Object.keys(PN).forEach(id => {
+      const p = PN[id], c = lay.collapsed.indexOf(id) >= 0, i = lay.order.indexOf(id), q = a => p.querySelector(`.dtools [data-a="${a}"]`);
+      p.classList.toggle("dcollapsed", c);
+      const cb = q("col"); cb.textContent = c ? "+" : "–"; cb.setAttribute("aria-expanded", String(!c)); cb.title = c ? "Expand panel" : "Collapse panel";
+      if (q("up")) { q("up").disabled = i === 0; q("down").disabled = i === lay.order.length - 1; }
+    });
+  }
+  function move(id, to) { const o = lay.order, i = o.indexOf(id); o.splice(i, 1); o.splice(Math.max(0, Math.min(o.length, to)), 0, id); saveLay(); applyLay(); }
+  function setFull(id) {
+    if (fullId) { const p = PN[fullId]; p.classList.remove("dfull"); p.removeAttribute("role"); p.removeAttribute("aria-modal"); p.removeAttribute("aria-label"); const b = p.querySelector('[data-a="full"]'); b.title = "Full screen"; b.textContent = "⤢"; document.body.classList.remove("tvlock"); }
+    const was = fullId; fullId = id && id !== was ? id : null;
+    if (fullId) {
+      const p = PN[fullId], h = document.querySelector(".stickyhead"), ci = lay.collapsed.indexOf(fullId);
+      if (ci >= 0) { lay.collapsed.splice(ci, 1); saveLay(); applyLay(); }
+      p.style.setProperty("--tvtop", (h ? Math.max(0, Math.round(h.getBoundingClientRect().bottom)) : 0) + "px");
+      p.classList.add("dfull"); document.body.classList.add("tvlock"); p.setAttribute("role", "dialog"); p.setAttribute("aria-modal", "true"); p.setAttribute("aria-label", (p.querySelector("h3") || {}).textContent || "Panel");
+      const b = p.querySelector('[data-a="full"]'); b.title = "Close full screen (Esc)"; b.textContent = "✕"; b.focus({ preventScroll: true });
+    }
+    kick();
+  }
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && fullId && $("tv-dlg").hidden) { e.preventDefault(); const b = PN[fullId].querySelector('[data-a="full"]'); setFull(null); b.focus({ preventScroll: true }); } });
+  window.addEventListener("hashchange", () => { if (fullId) setFull(null); });
+  const canDrag = window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  let dragId = null;
+  Object.keys(PN).forEach(id => {
+    const p = PN[id], h = p.querySelector(".card-h"), t = document.createElement("span"); t.className = "dtools"; t.setAttribute("role", "group"); t.setAttribute("aria-label", "Panel controls");
+    t.innerHTML = (TERM.has(id) ? "" : '<button type="button" data-a="up" title="Move up" aria-label="Move panel up">↑</button><button type="button" data-a="down" title="Move down" aria-label="Move panel down">↓</button>')
+      + '<button type="button" data-a="col" aria-label="Collapse or expand panel">–</button><button type="button" data-a="full" title="Full screen" aria-label="Full screen">⤢</button>';
+    h.insertBefore(t, h.firstChild);   // first in the DOM, shown last (flex order)
+    t.addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b || b.disabled) return; const a = b.dataset.a, i = lay.order.indexOf(id);
+      if (a === "up") move(id, i - 1); else if (a === "down") move(id, i + 1);
+      else if (a === "col") { const c = lay.collapsed.indexOf(id); if (c >= 0) lay.collapsed.splice(c, 1); else lay.collapsed.push(id); saveLay(); applyLay(); kick(); }
+      else if (a === "full") setFull(id);
+    });
+    if (canDrag && !TERM.has(id)) {
+      h.classList.add("dgrab");
+      h.addEventListener("mousedown", e => { if (!e.target.closest("button, select, a, input")) p.draggable = true; });
+      p.addEventListener("dragstart", e => { if (!p.draggable) return; dragId = id; p.classList.add("dragging"); try { e.dataTransfer.setData("text/plain", id); e.dataTransfer.effectAllowed = "move"; } catch (x) {} });
+      p.addEventListener("dragend", () => { p.draggable = false; p.classList.remove("dragging"); dragId = null; dp.querySelectorAll(".dover").forEach(x => x.classList.remove("dover")); });
+      p.addEventListener("dragover", e => { if (dragId && dragId !== id) { e.preventDefault(); p.classList.add("dover"); } });
+      p.addEventListener("dragleave", () => p.classList.remove("dover"));
+      p.addEventListener("drop", e => { if (!dragId || dragId === id) return; e.preventDefault(); const from = lay.order.indexOf(dragId), to = lay.order.indexOf(id); move(dragId, to > from ? to : to); });
+    }
+  });
+  window.addEventListener("mouseup", () => { Object.keys(PN).forEach(id => { if (!dragId) PN[id].draggable = false; }); });
+  $("od-reset").addEventListener("click", () => { if (fullId) setFull(null); lay = defLay(); try { localStorage.removeItem(LKEY); } catch (e) {} applyLay(); kick(); });
+  applyLay();
+
+  /* ---------- strike ladder ---------- */
+  const ONE = () => window.matchMedia && window.matchMedia("(min-width: 1200px)").matches;   // the terminal's ladder column is narrow: one Greek at a time, the one chosen in the Greeks view
+  const LCOLS = [["gamma", "GEX"], ["delta", "DEX"], ["vanna", "VEX"], ["charm", "CHEX"], ["theta", "TEX"], ["vega", "Vega"]];
+  function ladder() {
+    const s = S(), ks = s.strikes, spot = I().spot, w = win(st.inst), n = ks.length;
+    const hasOI = !!(s.oi && s.oi.c && s.oi.p && s.oi.c.length === n), hasVol = !!(s.volu && s.volu.c && s.volu.p && s.volu.c.length === n);
+    if ((st.lmode === "oi" && !hasOI) || (st.lmode === "vol" && !hasVol)) st.lmode = "greeks";
+    buttons($("dl-mode"), [["greeks", "Greeks"], ["oi", "OI"], ["vol", "Vol"]], st.lmode, v => { st.lmode = v; ladder(); }, v => (v === "oi" && !hasOI) || (v === "vol" && !hasVol));
+    $("dl-mode").querySelectorAll("button[disabled]").forEach(b => { b.title = NOTE_NEEDS; });
+    if (hasOI) $("dl-mode").querySelector('[data-v="oi"]').title = "Open interest, contracts"; if (hasVol) $("dl-mode").querySelector('[data-v="vol"]').title = "Volume, contracts";
+    let cols;
+    if (st.lmode === "oi") cols = [["Call OI", s.oi.c, "var(--call)"], ["Put OI", s.oi.p, "var(--put)"]];
+    else if (st.lmode === "vol") cols = [["Call vol", s.volu.c, "var(--call)"], ["Put vol", s.volu.p, "var(--put)"]];
+    else cols = LCOLS.filter(c => s.greeks[c[0]] && s.greeks[c[0]].all && (!ONE() || c[0] === st.gv.greek)).map(c => [c[1], s.greeks[c[0]].all, null, S().units[c[0]]]);
+    const L = levels({ inst: st.inst, greek: "gamma", ex: -1, mode: "trad", mv: null }, s.greeks.gamma.all), mk = {};
+    const put = (k, html) => { if (k == null) return; const j = nearIdx(ks, k); (mk[j] = mk[j] || []).push(html); };
+    put(spot, '<span class="dmk" style="color:var(--text)">PRICE</span>');
+    if (L.king) put(L.king.k, `<span class="dmk" style="color:var(--text)">KING ${L.king.v > 0 ? "▲ pin" : "▼ repel"}</span>`);
+    put(L.flip, '<span class="dmk" style="color:var(--warn)">FLIP</span>');
+    put(L.cw, '<span class="dmk" style="color:var(--call)">▲ CALL WALL</span>'); put(L.pw, '<span class="dmk" style="color:var(--put)">▼ PUT WALL</span>');
+    const mx = cols.map(c => { let m = 0; for (let i = w.i0; i <= w.i1; i++) m = Math.max(m, Math.abs(c[1][i] || 0)); return m || 1; }), spotRow = nearIdx(ks, spot);
+    let html = `<table><thead><tr><th>Strike</th>${cols.map(c => `<th title="${esc(c[3] || "")}">${c[0]}</th>`).join("")}<th style="text-align:left">Levels</th></tr></thead><tbody>`;
+    for (let r = w.i1; r >= w.i0; r--) {
+      html += `<tr data-k="${ks[r]}" class="${r === spotRow ? "spot" : ""}${st.pin === ks[r] ? " pinned" : ""}"><th title="${esc(fm(ks[r]) || fk(ks[r]))}">${fk(ks[r])}</th>`
+        + cols.map((c, ci) => { const v = c[1][r] || 0, col = c[2] || (v >= 0 ? "var(--call)" : "var(--put)"), int = Math.round(Math.sqrt(Math.abs(v) / mx[ci]) * 60);
+          return `<td style="--c:${col};--i:${int}" title="${fk(ks[r])} · ${c[0]}: ${st.lmode === "greeks" ? smoney(v) : Math.round(v).toLocaleString("en-US")}">${v ? (st.lmode === "greeks" ? smoney(v) : Math.round(v).toLocaleString("en-US")) : "·"}</td>`; }).join("")
+        + `<td class="mk">${(mk[r] || []).join(" ")}</td></tr>`;
+    }
+    const host = $("dl-body"), keep = host.scrollTop; host.innerHTML = html + "</tbody></table>";
+    host.querySelectorAll("tr[data-k]").forEach(tr => tr.addEventListener("click", () => { const k = +tr.dataset.k; st.pin = st.pin === k ? null : k; pinChanged(); }));
+    const sr = host.querySelector("tr.spot"); host.scrollTop = keep || (sr ? sr.offsetTop - host.clientHeight / 2 : 0);
+    if (ONE()) { $("dl-cap").textContent = (st.lmode === "greeks" ? `${cap(st.gv.greek)} (follows the Greeks view) · signed, all expiries ≤60d` : st.lmode === "oi" ? "Open interest per strike, contracts" : "Volume per strike, contracts") + " · click a row to pin"; return; }
+    $("dl-cap").textContent = (st.lmode === "greeks" ? (ONE() ? cap(st.gv.greek) + " (follows the Greeks view) · " : "") + "All expiries ≤60d · signed exposure per strike (+ calls side, − puts side) · " : (st.lmode === "oi" ? "Open interest per strike, contracts · " : "Volume per strike, contracts · ")) + winTxt(st.inst, w)
+      + (!hasOI || !hasVol ? " · " + (!hasOI && !hasVol ? "Open interest and volume per strike: " : !hasOI ? "Open interest per strike: " : "Volume per strike: ") + NOTE_NEEDS.toLowerCase() : "") + " · click a row to pin a strike";
+  }
+
+  /* ---------- greeks view ---------- */
+  const GV_EX = [["all", "All", null], ["0", "0DTE", 0], ["1w", "1W", 7], ["2w", "2W", 14], ["1m", "1M", 30]];
+  function gvIndex(key) { const t = (GV_EX.find(x => x[0] === key) || [])[2], ex = S().expiries || []; if (t == null || !ex.length) return -1; let b = 0; ex.forEach((e, i) => { if (Math.abs(e.dte - t) < Math.abs(ex[b].dte - t)) b = i; }); return b; }
+  function greeksView() {
+    const s = S(), ks = s.strikes, g = st.gv, w = win(st.inst), n = ks.length, hasOI = !!(s.oi && s.oi.c && s.oi.p && s.oi.c.length === n);
+    const exI = g.ex === "all" ? -1 : gvIndex(g.ex);
+    if (g.src === "oi" && !hasOI) g.src = "greek";
+    buttons($("gv-ex"), GV_EX.map(x => [x[0], x[1]]), g.ex, v => { g.ex = v; greeksView(); });
+    buttons($("gv-greek"), GREEKS.map(x => [x, cap(x)]), g.greek, v => { g.greek = v; greeksView(); safe("ladder", ladder); }, () => g.src !== "greek");
+    buttons($("gv-type"), [["bars", "Bars"], ["line", "Line"]], g.type, v => { g.type = v; greeksView(); });
+    buttons($("gv-opts"), [["log", "Log scale"], ["greek", "Greeks"], ["oi", "OI"], ["vol", "VOL"]], g.log ? "log" : g.src, v => { if (v === "log") g.log = !g.log; else g.src = v; greeksView(); }, v => v === "vol" || (v === "oi" && !hasOI));
+    $("gv-opts").querySelector('[data-v="log"]').setAttribute("aria-pressed", String(g.log)); $("gv-opts").querySelectorAll("button").forEach(b => { if (b.dataset.v !== "log") b.setAttribute("aria-pressed", String(b.dataset.v === g.src)); });
+    $("gv-opts").querySelectorAll("button[disabled]").forEach(b => { b.title = NOTE_NEEDS; });
+    const vals = g.src === "oi" ? s.oi.c.map((c, i) => c - s.oi.p[i]) : (exI < 0 ? s.greeks[g.greek].all : s.greeks[g.greek].ex[exI]);
+    const host = $("gv-box"); host.innerHTML = "";
+    const exLab = exI < 0 ? "all expiries ≤60d" : `${s.expiries[exI].e} (${s.expiries[exI].dte === 0 ? "0DTE" : s.expiries[exI].dte + "d"})`;
+    $("gv-cap").textContent = (g.src === "oi" ? "Open interest, calls minus puts, contracts" : `${cap(g.greek)} · ${s.units[g.greek]}`) + ` · ${exLab}${g.log ? " · log scale" : ""}` + (ONE() ? "" : ` · ${winTxt(st.inst, w)}`)
+      + (!hasOI && !ONE() ? " · OI and VOL: " + NOTE_NEEDS.toLowerCase() : "");
+    const idx = []; for (let i = w.i0; i <= w.i1; i++) idx.push(i);
+    const nz = idx.map(i => Math.abs(vals[i] || 0)).filter(x => x > 0), mxA = Math.max(0, ...nz), mnA = Math.min(Infinity, ...nz);
+    if (!nz.length) { host.innerHTML = '<p class="quiet">No exposure in this range for the chosen expiry.</p>'; return; }
+    const f = v => { if (!g.log) return v; const a = Math.abs(v); return a ? Math.sign(v) * Math.log10(1 + a / Math.max(mnA, mxA * 1e-6)) : 0; };
+    const sc = Math.max(...idx.map(i => Math.abs(f(vals[i] || 0)))) || 1;
+    const W = Math.max(260, host.clientWidth), H = host.clientHeight || 380, padL = 58, padR = 8, padT = 6, padB = 20, mid = padL + (W - padL - padR) / 2, half = (W - padL - padR) / 2 - 4;
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: "display:block;font:10px Inter,system-ui,sans-serif" }, host);
+    const rh = (H - padT - padB) / idx.length, y = j => padT + (idx.length - 1 - j) * rh, x = v => mid + f(v) / sc * half;
+    el("line", { x1: mid, y1: padT, x2: mid, y2: H - padB, stroke: "var(--border-strong)" }, svg);
+    const every = Math.max(1, Math.ceil(11 / rh));
+    idx.forEach((i, j) => { if (j % every === 0 || ks[i] === st.pin) el("text", { x: padL - 5, y: y(j) + rh / 2 + 3, "text-anchor": "end", fill: ks[i] === st.pin ? "var(--text)" : "var(--muted)", "font-weight": ks[i] === st.pin ? 700 : 400 }, svg).textContent = fk(ks[i]); });
+    if (g.type === "bars") idx.forEach((i, j) => {
+      const v = vals[i] || 0; if (!v) return; const r = el("rect", { x: Math.min(mid, x(v)), y: y(j) + Math.min(1, rh * 0.15), width: Math.max(0.6, Math.abs(x(v) - mid)), height: Math.max(1, rh - Math.min(2, rh * 0.3)), fill: v > 0 ? "var(--call)" : "var(--put)", opacity: ks[i] === st.pin ? 1 : 0.8 }, svg);
+      el("title", {}, r).textContent = `${fk(ks[i])}: ${g.src === "oi" ? Math.round(v).toLocaleString("en-US") : smoney(v)}`; });
+    else {
+      const pts = idx.map((i, j) => [x(vals[i] || 0), y(j) + rh / 2]);
+      [[v => v > mid + 0.2, "var(--call)"], [v => v < mid - 0.2, "var(--put)"]].forEach(([sel, col]) => {
+        let d = `M${mid},${pts[0][1]}`; pts.forEach(p => { d += `L${sel(p[0]) ? p[0] : mid},${p[1]}`; }); d += `L${mid},${pts[pts.length - 1][1]}Z`;
+        el("path", { d, fill: col, "fill-opacity": 0.28, stroke: col, "stroke-width": 1.4, "stroke-linejoin": "round" }, svg); });
+      idx.forEach((i, j) => { if (!vals[i]) return; const c = el("circle", { cx: pts[j][0], cy: pts[j][1], r: 2, fill: vals[i] > 0 ? "var(--call)" : "var(--put)", opacity: 0 }, svg); el("title", {}, c).textContent = `${fk(ks[i])}: ${g.src === "oi" ? Math.round(vals[i]).toLocaleString("en-US") : smoney(vals[i])}`; c.setAttribute("opacity", "0.01"); c.setAttribute("r", 4); });
+    }
+    const spotJ = idx.findIndex((i, j) => j === idx.length - 1 || ks[idx[j + 1]] > I().spot) ;
+    const ys = padT + (idx.length - 1 - (spotJ < 0 ? 0 : spotJ)) * rh + rh / 2;
+    el("line", { x1: padL, y1: ys, x2: W - padR, y2: ys, stroke: "var(--text)", "stroke-dasharray": "3 3", opacity: 0.6 }, svg);
+    el("text", { x: W - padR - 2, y: ys - 3, "text-anchor": "end", fill: "var(--muted)" }, svg).textContent = "price " + fk(I().spot);
+    const pj = idx.findIndex(i => ks[i] === st.pin);
+    if (pj >= 0) { el("rect", { x: padL, y: y(pj), width: W - padL - padR, height: Math.max(rh, 2), fill: "none", stroke: "var(--text)", "stroke-width": 1.2 }, svg); el("text", { x: padL + 4, y: y(pj) - 2, fill: "var(--text)", "font-weight": 600 }, svg).textContent = "PIN " + fk(st.pin); }
+    el("text", { x: mid - 6, y: H - 6, "text-anchor": "end", fill: "var(--muted)" }, svg).textContent = "− puts side";
+    el("text", { x: mid + 6, y: H - 6, fill: "var(--muted)" }, svg).textContent = "+ calls side";
+  }
+
+  /* ---------- major walls ---------- */
+  const WSW = [["gamma", "GEX"], ["delta", "DEX"], ["vanna", "VEX"], ["charm", "CHEX"], ["conc", "Conc."]];
+  function walls() {
+    buttons($("wl-sw"), WSW, st.wl, v => { st.wl = v; walls(); }); $("wl-sw").querySelector('[data-v="conc"]').title = "Concentration: the largest gross gamma strikes";
+    const W = (X().walls || {})[st.wl], host = $("wl-body");
+    if (!X().walls || !W) { host.innerHTML = na("Major walls are not available for this instrument yet."); return; }
+    const mxS = Math.max(0.0001, ...(W.pos || []).concat(W.neg || []).map(r => r.share || 0));
+    const list = (rows, pos) => !rows || !rows.length ? '<p class="quiet" style="margin:0">None in the data.</p>' : rows.map(r => {
+      const m = fm(r.k), sp = I().spot, side = sp == null ? "" : r.k > sp ? "above spot" : r.k < sp ? "below spot" : "at spot"; return `<div class="dwrow" style="--c:${pos ? "var(--call)" : "var(--put)"}"><div><b>${pos ? "▲" : "▼"} ${fk(r.k)}</b><small>${esc([side, m].filter(Boolean).join(" · "))}</small></div><div class="bar" role="img" aria-label="${(r.share * 100).toFixed(1)}% of the total"><i style="width:${Math.max(2, r.share / mxS * 100).toFixed(0)}%"></i></div><div title="${(r.share * 100).toFixed(1)}% of the total">${st.wl === "conc" ? "" : smoney(r.v)}<span class="dshare">${st.wl === "conc" ? "" : " · "}${(r.share * 100).toFixed(1)}%</span></div></div>`; }).join("");
+    host.innerHTML = `<div><h4>${st.wl === "conc" ? "Largest gross gamma strikes" : "Calls (+)"}</h4>${list(W.pos, true)}</div>` + (st.wl === "conc" ? "" : `<div><h4>Puts (−)</h4>${list(W.neg, false)}</div>`)
+      + `<p class="note" style="margin:0">Share = this strike's size as a fraction of the total across all strikes. Rankings span all strikes, so a wall can sit above or below spot. ${S().units[st.wl === "conc" ? "gamma" : st.wl] || ""}.</p>`;
+  }
+
+  /* ---------- hedging pressure gauge ---------- */
+  function hedging() {
+    const h = X().hp, host = $("hp-body");
+    if (!h) { host.innerHTML = na("Hedging pressure is not available for this instrument yet."); return; }
+    const cx = 110, cy = 104, r = 84, pt = (sc, rr) => { const a = Math.PI * (1 - sc / 100); return [cx + rr * Math.cos(a), cy - rr * Math.sin(a)]; };
+    let d = "";
+    BANDS.forEach((b, i) => { const p0 = pt(b.min, r), p1 = pt(b.max, r), col = i === 0 ? "var(--call)" : i === BANDS.length - 1 ? "var(--put)" : "var(--muted)";
+      d += `<path d="M${p0[0].toFixed(1)},${p0[1].toFixed(1)}A${r},${r} 0 0 1 ${p1[0].toFixed(1)},${p1[1].toFixed(1)}" fill="none" stroke="${col}" stroke-width="14" opacity="${i === 0 || i === BANDS.length - 1 ? 0.6 : 0.35}"><title>${esc(b.label)} (${b.min}–${b.max})</title></path>`; });
+    const nd = pt(h.score, r - 20), band = BANDS.find(b => h.score >= b.min && h.score <= b.max) || BANDS[BANDS.length - 1], bi = BANDS.indexOf(band);
+    const arrow = bi === 0 ? "▲ " : bi === BANDS.length - 1 ? "▼ " : "";
+    host.innerHTML = `<svg viewBox="0 0 220 138" role="img" aria-label="Hedging pressure ${h.score} out of 100: ${esc(band.label)}">${d}<line x1="${cx}" y1="${cy}" x2="${nd[0].toFixed(1)}" y2="${nd[1].toFixed(1)}" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="5" fill="var(--text)"/>`
+      + `<text x="${cx - r}" y="${cy + 16}" text-anchor="middle" fill="var(--muted)" font-size="10">0</text><text x="${cx + r}" y="${cy + 16}" text-anchor="middle" fill="var(--muted)" font-size="10">100</text><text x="${cx}" y="${cy + 32}" text-anchor="middle" fill="var(--text)" font-size="22" font-weight="700">${h.score}<tspan font-size="11" fill="var(--muted)" font-weight="400"> /100</tspan></text></svg>`
+      + `<div class="gs"><b class="${bi === 0 ? "pos" : bi === BANDS.length - 1 ? "neg" : ""}" style="font-size:14px">${arrow}${esc(band.label)}</b>`
+      + `<div>Gamma balance ${h.balance >= 0 ? "+" : "−"}${Math.abs(h.balance).toFixed(2)} · ${h.n} strikes from ${fk(h.lo)} to ${fk(h.hi)}</div>`
+      + `<div style="margin-top:6px">score = 50 × (1 − balance), balance = Σ gamma ÷ Σ |gamma| over strikes within price ± 2 one-day moves. 0 means positive gamma dominates, 100 means negative gamma dominates.</div></div>`;
+  }
+
+  /* ---------- 0DTE magnet, expected range, IV rank ---------- */
+  function magnet() {
+    const m = X().magnet, v = X().ivr, host = $("mg-body"), i = I();
+    let html = "";
+    if (m) {
+      const dl = m.dte === 0 ? "0DTE magnet" : `Nearest-expiry magnet (${m.dte}d, no 0DTE in the data)`, sgn = m.dist >= 0 ? "▲ +" : "▼ −", mapped = fm(m.magnet);
+      html += `<div class="sub" style="margin-top:0">${dl} · ${esc(m.expiry)}</div><div class="dm"><div><div class="kl">Magnet strike</div><div class="v">${fk(m.magnet)}</div><div class="m">${esc(mapped) || "&nbsp;"}</div></div>`
+        + `<div><div class="kl">Distance from price</div><div class="v"><span class="${m.dist >= 0 ? "pos" : "neg"}">${sgn}${fk(Math.abs(m.dist))}</span></div><div class="m">${m.dist_pct >= 0 ? "+" : "−"}${Math.abs(m.dist_pct).toFixed(2)}%</div></div>`
+        + `<div><div class="kl">Expected range ±1σ</div><div class="v">${fk(m.points[1])} – ${fk(m.points[3])}</div><div class="m">σ ${fk(m.sigma)} · ${esc(m.basis)}</div></div></div>`;
+      const W = 300, H = 64, lo = m.points[0], hi = m.points[4], X_ = k => 8 + (k - lo) / ((hi - lo) || 1) * (W - 16);
+      const lab = (k, t, a, yy) => `<text x="${X_(k).toFixed(1)}" y="${yy}" text-anchor="${a || "middle"}" fill="var(--muted)" font-size="9">${t}</text>`;
+      html += `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Price, expected range and magnet strike"><rect x="${X_(m.points[0])}" y="22" width="${X_(m.points[4]) - X_(m.points[0])}" height="14" rx="3" fill="var(--muted)" opacity=".18"/><rect x="${X_(m.points[1])}" y="22" width="${X_(m.points[3]) - X_(m.points[1])}" height="14" rx="3" fill="var(--muted)" opacity=".35"/>`
+        + `<line x1="${X_(m.points[2])}" y1="16" x2="${X_(m.points[2])}" y2="42" stroke="var(--text)" stroke-width="2"/>`
+        + (m.magnet >= lo && m.magnet <= hi ? `<path d="M${X_(m.magnet) - 5},50 L${X_(m.magnet) + 5},50 L${X_(m.magnet)},40 Z" fill="var(--warn)"><title>Magnet ${fk(m.magnet)}</title></path>` : "")
+        + lab(m.points[0], "−2σ", "start", 58) + lab(m.points[1], "−1σ", "middle", 58) + lab(m.points[2], "price", "middle", 12) + lab(m.points[3], "+1σ", "middle", 58) + lab(m.points[4], "+2σ", "end", 58) + `</svg>`;
+    } else {
+      const sg = i.day_move || (i.spot && i.atm_iv ? i.spot * i.atm_iv / 100 * Math.sqrt(1 / 252) : null);
+      if (i.spot != null && sg) html += `<div class="sub" style="margin-top:0">Expected range</div><div class="dm"><div><div class="kl">Expected range ±1σ</div><div class="v">${fk(i.spot - sg)} – ${fk(i.spot + sg)}</div><div class="m">σ ${fk(sg)} · ATM IV, 1 trading day</div></div></div>` + na("No 0DTE or nearest-expiry magnet strike was found within ±2σ.");
+      else html += na("0DTE magnet and expected range are not available for this instrument yet.");
+    }
+    html += `<div class="sub">IV rank (proxy)</div>`;
+    if (v) {
+      html += `<div class="dm"><div><div class="kl">IV rank</div><div class="v">${Math.round(v.rank)}<small> /100</small></div><div class="m">${ord(v.pct)} percentile</div></div><div><div class="kl">${esc(v.series_name || "30-day index")} (30-day)</div><div class="v">${v.last.toFixed(2)}</div><div class="m">${v.n}-day range ${v.lo.toFixed(1)} – ${v.hi.toFixed(1)}</div></div></div>`
+        + `<svg viewBox="0 0 300 26" role="img" aria-label="IV rank ${Math.round(v.rank)} of 100"><rect x="2" y="9" width="296" height="8" rx="4" fill="var(--surface-2)" stroke="var(--border-strong)"/><rect x="2" y="9" width="${(296 * v.rank / 100).toFixed(1)}" height="8" rx="4" fill="var(--muted)" opacity=".6"/><circle cx="${(2 + 296 * v.rank / 100).toFixed(1)}" cy="13" r="5" fill="var(--text)"/></svg>`;
+    } else html += na("IV rank needs the 30-day vol index history (FRED); it is not available for this instrument.");
+    html += `<p class="meth">Magnet = the strike with the largest absolute gamma in the nearest expiry, searched within price ± 2σ. σ = the one-day expected move from ATM implied vol (price × IV ÷ 100 × √(1/252)). IV rank is a proxy: where the ${v ? esc(v.series_name || "30-day index") : "30-day index"} sits in its own last ${v ? v.window : 252} trading days (0 = the low, 100 = the high). Context, not a forecast.</p>`;
+    host.innerHTML = html;
+  }
+
+  /* ---------- IV skew by expiry ---------- */
+  function skew() {
+    const rows = X().skew, host = $("sk-chart");
+    host.innerHTML = ""; $("sk-leg").innerHTML = ""; $("sk-tab").innerHTML = "";
+    if (!rows || !rows.length || !rows.some(r => (r.iv || []).some(x => x != null))) { host.innerHTML = '<p class="quiet">IV skew is not available for this instrument yet.</p>'; return; }
+    const use = rows.filter(r => (r.iv || []).some(x => x != null)).slice(0, 6), pal = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--s1)"], dsh = ["", "", "", "", "", "5 3"];
+    $("sk-leg").innerHTML = use.map((r, k) => `<span><i style="border-color:${pal[k]};border-top-style:${dsh[k] ? "dashed" : "solid"}"></i>${esc(r.e.slice(5))} · ${r.dte === 0 ? "0DTE" : r.dte + "d"}</span>`).join("");
+    const at = (r, m) => { const j = r.m.findIndex(x => Math.abs(x - m) < 1e-6); return j < 0 ? null : r.iv[j]; }, p1 = v => v == null ? "n/a" : v.toFixed(1) + "%";
+    $("sk-tab").innerHTML = `<table><thead><tr><th>Expiry</th><th>DTE</th><th title="IV at 95% of price (put side)">IV 95%</th><th title="IV at 105% of price (call side)">IV 105%</th><th title="IV at 95% minus IV at 105%, in vol points">Skew</th></tr></thead><tbody>`
+      + use.map(r => { const s = r.skew_95_105; return `<tr><td>${esc(r.e)}</td><td>${r.dte == null ? "" : r.dte}</td><td>${p1(at(r, 0.95))}</td><td>${p1(at(r, 1.05))}</td><td>${s == null ? "n/a" : `<span class="${s > 0 ? "neg" : s < 0 ? "pos" : ""}">${s > 0 ? "▼ puts richer " : s < 0 ? "▲ calls richer " : ""}${s > 0 ? "+" : s < 0 ? "−" : ""}${Math.abs(s).toFixed(1)}</span>`}</td></tr>`; }).join("") + `</tbody></table><p class="note" style="margin:6px 0 0">Skew = IV at 95% of price minus IV at 105%, in vol points, from the out-of-the-money quotes (puts below price, calls above). Blank = outside the quoted strikes.</p>`;
+    const ms = use[0].m, all = [].concat(...use.map(r => r.iv.filter(x => x != null))), lo0 = Math.min(...all), hi0 = Math.max(...all), yl = Math.max(0, Math.floor(lo0 * 0.9)), yh = Math.ceil(hi0 * 1.08) || 1;
+    const W = Math.max(240, host.clientWidth), H = host.clientHeight || 250, pl = 36, pr = 20, pt = 8, pb = 22, X_ = m => pl + (m - ms[0]) / (ms[ms.length - 1] - ms[0] || 1) * (W - pl - pr), Y = v => pt + (1 - (v - yl) / (yh - yl || 1)) * (H - pt - pb);
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: "display:block;font:10px Inter,system-ui,sans-serif" }, host);
+    niceTicks(yl, yh, 4).forEach(t => { if (t < yl || t > yh) return; el("line", { x1: pl, y1: Y(t), x2: W - pr, y2: Y(t), stroke: "var(--grid)" }, svg); el("text", { x: pl - 4, y: Y(t) + 3, "text-anchor": "end", fill: "var(--muted)" }, svg).textContent = t + "%"; });
+    ms.forEach(m => el("text", { x: X_(m), y: H - 7, "text-anchor": "middle", fill: m === 1 ? "var(--text)" : "var(--muted)" }, svg).textContent = Math.round(m * 100) + "%");
+    el("line", { x1: X_(1), y1: pt, x2: X_(1), y2: H - pb, stroke: "var(--text)", "stroke-dasharray": "3 3", opacity: 0.5 }, svg);
+    use.forEach((r, k) => {
+      let d = "", on = false; r.iv.forEach((v, j) => { if (v == null) { on = false; return; } d += (on ? "L" : "M") + X_(r.m[j]).toFixed(1) + "," + Y(v).toFixed(1); on = true; });
+      if (d) el("path", { d, fill: "none", stroke: pal[k], "stroke-width": 1.6, "stroke-linejoin": "round", "stroke-dasharray": dsh[k] || null }, svg);
+      r.iv.forEach((v, j) => { if (v == null) return; const c = el("circle", { cx: X_(r.m[j]), cy: Y(v), r: 2.4, fill: pal[k] }, svg); el("title", {}, c).textContent = `${r.e} · ${Math.round(r.m[j] * 100)}% of price: IV ${v.toFixed(1)}%`; });
+    });
+  }
+
+  /* ---------- IV surface (3D, same projection and drag/zoom as the terrain) ---------- */
+  const sfc = $("sf-cv"), sfx = sfc.getContext("2d");
+  const SFC = [["iv", "IV"], ["diff", "IV − RV20"], ["flat", "Neutral"]];
+  /* smooth mesh: monotone cubic (PCHIP) along strike inside each expiry's quoted range, then along sqrt(time) between expiries.
+     Nothing is extrapolated and gaps wider than two steps stay blank (NaN). Built once per snapshot, drawn many times. */
+  function pchip(x, y) {
+    const n = x.length, h = [], d = [], m = new Array(n);
+    for (let i = 0; i < n - 1; i++) { h[i] = x[i + 1] - x[i]; d[i] = (y[i + 1] - y[i]) / h[i]; }
+    if (n === 2) { m[0] = m[1] = d[0]; }
+    else {
+      for (let i = 1; i < n - 1; i++) { if (d[i - 1] * d[i] <= 0) m[i] = 0; else { const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1]; m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]); } }
+      const end = (h0, h1, d0, d1) => { let v = ((2 * h0 + h1) * d0 - h0 * d1) / (h0 + h1); if (v * d0 <= 0) v = 0; else if (d0 * d1 <= 0 && Math.abs(v) > 3 * Math.abs(d0)) v = 3 * d0; return v; };
+      m[0] = end(h[0], h[1], d[0], d[1]); m[n - 1] = end(h[n - 2], h[n - 3], d[n - 2], d[n - 3]);
+    }
+    let k = 0;
+    return q => { while (k > 0 && q < x[k]) k--; while (k < n - 2 && q > x[k + 1]) k++; const t = (q - x[k]) / h[k], t2 = t * t, t3 = t2 * t;
+      return (2 * t3 - 3 * t2 + 1) * y[k] + (t3 - 2 * t2 + t) * h[k] * m[k] + (-2 * t3 + 3 * t2) * y[k + 1] + (t3 - t2) * h[k] * m[k + 1]; };
+  }
+  const SMESH = new WeakMap();
+  function ivMesh(S3) {
+    const hit = SMESH.get(S3); if (hit) return hit;
+    const ne = S3.iv.length, nc = S3.m.length, NU = 150, NT = 64, GAP = 3;
+    let cmin = nc, cmax = -1; S3.iv.forEach(row => row.forEach((v, c) => { if (v != null && isFinite(v)) { if (c < cmin) cmin = c; if (c > cmax) cmax = c; } })); if (cmax < cmin) { cmin = 0; cmax = nc - 1; }
+    const m0 = S3.m[cmin], m1 = S3.m[cmax], tt = S3.dte.map(d => Math.sqrt(Math.max(0, d)));
+    const t0 = tt[0], t1 = tt[ne - 1], us = [], ts = [];
+    for (let j = 0; j < NU; j++) us.push(m0 + (m1 - m0) * j / (NU - 1));
+    for (let i = 0; i < NT; i++) ts.push(t0 + (t1 - t0) * i / (NT - 1));
+    // 1. along strike, one pass per quoted expiry
+    const rowv = S3.iv.map(row => {
+      const ix = []; row.forEach((v, c) => { if (v != null && isFinite(v)) ix.push(c); });
+      const out = new Float64Array(NU).fill(NaN); if (ix.length < 2) return out;
+      const segs = []; let cur = [ix[0]]; for (let a = 1; a < ix.length; a++) { if (ix[a] - ix[a - 1] <= GAP) cur.push(ix[a]); else { segs.push(cur); cur = [ix[a]]; } } segs.push(cur);
+      segs.forEach(sg => { if (sg.length < 2) return; const f = pchip(sg.map(c => S3.m[c]), sg.map(c => row[c])), lo = S3.m[sg[0]], hi = S3.m[sg[sg.length - 1]];
+        for (let j = 0; j < NU; j++) if (us[j] >= lo - 1e-9 && us[j] <= hi + 1e-9) out[j] = f(Math.min(hi, Math.max(lo, us[j]))); });
+      return out;
+    });
+    // 2. along sqrt(time), one pass per fine strike
+    const vals = new Float64Array(NT * NU).fill(NaN);
+    for (let j = 0; j < NU; j++) {
+      const ix = []; for (let r = 0; r < ne; r++) if (isFinite(rowv[r][j]) && (!ix.length || tt[r] > tt[ix[ix.length - 1]] + 1e-9)) ix.push(r);
+      if (ix.length < 2) continue;
+      const segs = []; let cur = [ix[0]]; for (let a = 1; a < ix.length; a++) { if (ix[a] - ix[a - 1] <= GAP) cur.push(ix[a]); else { segs.push(cur); cur = [ix[a]]; } } segs.push(cur);
+      segs.forEach(sg => { if (sg.length < 2) return; const f = pchip(sg.map(r => tt[r]), sg.map(r => rowv[r][j])), lo = tt[sg[0]], hi = tt[sg[sg.length - 1]];
+        for (let i = 0; i < NT; i++) if (ts[i] >= lo - 1e-9 && ts[i] <= hi + 1e-9) vals[i * NU + j] = f(Math.min(hi, Math.max(lo, ts[i]))); });
+    }
+    const res = { NU, NT, us, ts, vals, t0, t1, m0, m1 }; SMESH.set(S3, res); return res;
+  }
+  const SBUF = { n: 0, x: null, y: null, z: null, c: null };
+  function ivsurf() {
+    const S3 = X().ivs, dpr = window.devicePixelRatio || 1, W = sfc.clientWidth, H = sfc.clientHeight, rv = (I().vol || {}).rv20;
+    if (st.sf.col === "diff" && rv == null) st.sf.col = "iv";
+    buttons($("sf-col"), SFC, st.sf.col, v => { st.sf.col = v; ivsurf(); }, v => v === "diff" && rv == null);
+    $("sf-col").querySelectorAll("button[disabled]").forEach(b => { b.title = "Needs 20-day realised vol, which is not in this snapshot"; });
+    sfc.width = Math.max(1, W * dpr); sfc.height = Math.max(1, H * dpr); sfx.setTransform(dpr, 0, 0, dpr, 0, 0); sfx.clearRect(0, 0, W, H);
+    const msg = t => { sfx.fillStyle = css("--muted"); sfx.font = "12px Inter, system-ui, sans-serif"; sfx.fillText(t, 12, 24); $("sf-leg").innerHTML = ""; $("sf-cap").textContent = ""; };
+    if (!S3 || !S3.iv || S3.iv.length < 2 || !S3.m || S3.m.length < 3) { msg("IV surface is not available for this instrument yet (needs at least two expiries)."); return; }
+    const M = ivMesh(S3), NU = M.NU, NT = M.NT, col = st.sf.col, V = M.vals;
+    const val = i => { const v = V[i]; return isNaN(v) ? NaN : (col === "diff" ? v - rv : v); };
+    let lo = Infinity, hi = -Infinity; for (let i = 0; i < V.length; i++) { const v = val(i); if (v === v) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+    if (!isFinite(lo)) { msg("IV surface has no quotes in range."); return; }
+    const ab = Math.max(Math.abs(lo), Math.abs(hi)) || 1, hOf = v => (col === "diff" ? v / ab : (v - lo) / ((hi - lo) || 1)) * 0.9 * HS;
+    const bg = rgb(css("--surface")), dark = bg[0] + bg[1] + bg[2] < 384, base = mix(rgb(css("--surface-2")), rgb(css("--muted")), dark ? 0.25 : 0.45), cU = rgb(css("--call")), cD = rgb(css("--put")), line = css("--border-strong"), txt = css("--muted"), tx = rgb(css("--text"));
+    const heat = [base, rgb(css("--primary")), rgb(css("--secondary")), rgb(css("--warn"))], heatAt = t => { t = Math.min(1, Math.max(0, t)) * 3; const k = Math.min(2, Math.floor(t)); return mix(heat[k], heat[k + 1], t - k); };
+    const HS = Math.min(2.6, Math.max(1, (H - 70) / (W * 0.5))), XS = 2.0, ZS = 0.85, FL = col === "diff" ? -HS : -0.05, CE = HS, phone = W < 520;   // tall, narrow panels: stretch the height a little so the relief fills the space
+    const view = (X0, Y0, Z0, yaw, pitch) => { const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch), x1 = X0 * cy - Z0 * sy, z1 = X0 * sy + Z0 * cy; return [x1, Y0 * cp - z1 * sp, Y0 * sp + z1 * cp]; };
+    const { yaw, pitch, zoom } = st.sf; let bx0 = 1e9, bx1 = -1e9, by0 = 1e9, by1 = -1e9;
+    [-1, 1].forEach(u => [-1, 1].forEach(z => [FL, CE].forEach(h => { const p = view(u * XS, h, z * ZS, yaw, pitch); bx0 = Math.min(bx0, p[0]); bx1 = Math.max(bx1, p[0]); by0 = Math.min(by0, p[1]); by1 = Math.max(by1, p[1]); })));
+    const sidePad = phone ? 10 : 18, topPad = 14, botPad = 34, aw = W - 2 * sidePad - (phone ? 30 : 46), ah = H - topPad - botPad, sc = Math.min(aw / (bx1 - bx0), ah / (by1 - by0)) * zoom;
+    const ox = sidePad + aw / 2 - (bx0 + bx1) / 2 * sc, oy = topPad + ah / 2 + (by0 + by1) / 2 * sc;
+    const P3 = (u, z, h) => { const p = view(u * XS, h, z * ZS, yaw, pitch); return [ox + p[0] * sc, oy - p[1] * sc, p[2]]; };
+    const Uf = j => j / (NU - 1) * 2 - 1, Zf = i => 1 - i / (NT - 1) * 2;   // nearest expiry at the front
+    const tz = d => 1 - (Math.sqrt(Math.max(0, d)) - M.t0) / ((M.t1 - M.t0) || 1) * 2;
+    sfx.strokeStyle = line; sfx.lineWidth = 0.6; sfx.globalAlpha = 0.8;
+    for (let a = -1; a <= 1.001; a += 0.25) { let p = P3(a, -1, FL), q = P3(a, 1, FL); sfx.beginPath(); sfx.moveTo(p[0], p[1]); sfx.lineTo(q[0], q[1]); sfx.stroke(); p = P3(-1, a, FL); q = P3(1, a, FL); sfx.beginPath(); sfx.moveTo(p[0], p[1]); sfx.lineTo(q[0], q[1]); sfx.stroke(); }
+    sfx.globalAlpha = 1;
+    // vertices: projected position, then a colour that blends the height colour with light from the surface slope (smooth, per vertex)
+    const N = NU * NT; if (SBUF.n < N) { SBUF.n = N; SBUF.x = new Float32Array(N); SBUF.y = new Float32Array(N); SBUF.z = new Float32Array(N); SBUF.c = new Uint8ClampedArray(N * 3); }
+    const bx = SBUF.x, by = SBUF.y, bz = SBUF.z, bc = SBUF.c, hs = new Float32Array(N), dU = 2 * XS / (NU - 1), dZ = 2 * ZS / (NT - 1);
+    for (let i = 0; i < N; i++) { const v = val(i); hs[i] = v === v ? hOf(v) : NaN; }
+    const cy_ = Math.cos(yaw), sy_ = Math.sin(yaw), cp_ = Math.cos(pitch), sp_ = Math.sin(pitch), LX = -0.38, LY = 0.72, LZ = 0.58, ll = Math.hypot(LX, LY, LZ);
+    for (let i = 0; i < NT; i++) for (let j = 0; j < NU; j++) {
+      const k = i * NU + j, h = hs[k]; if (h !== h) { bx[k] = NaN; continue; }
+      const p = P3(Uf(j), Zf(i), h); bx[k] = p[0]; by[k] = p[1]; bz[k] = p[2];
+      const hl = hs[j > 0 ? k - 1 : k], hr = hs[j < NU - 1 ? k + 1 : k], hb = hs[i > 0 ? k - NU : k], hf = hs[i < NT - 1 ? k + NU : k];
+      const gx = ((hr === hr ? hr : h) - (hl === hl ? hl : h)) / (dU * ((j > 0 ? 1 : 0) + (j < NU - 1 ? 1 : 0))), gz = ((hf === hf ? hf : h) - (hb === hb ? hb : h)) / (dZ * ((i > 0 ? 1 : 0) + (i < NT - 1 ? 1 : 0)));   // dh/dx, dh/d(row): row index grows toward the back (Zf falls), so z-slope is -gz
+      const nx0 = -gx, ny0 = 1, nz0 = gz, nl = Math.hypot(nx0, ny0, nz0), nx = nx0 / nl, ny = ny0 / nl, nz = nz0 / nl;
+      const cx = nx * cy_ - nz * sy_, cz0 = nx * sy_ + nz * cy_, cyy = ny * cp_ - cz0 * sp_, czz = ny * sp_ + cz0 * cp_;
+      const dif = Math.max(0, (cx * LX + cyy * LY + czz * LZ) / ll), kk = (dark ? 0.62 : 0.78) + (dark ? 0.62 : 0.5) * dif;
+      let cl; const hv = h / HS; if (col === "iv") cl = heatAt(hv / 0.9); else if (col === "diff") cl = mix(base, hv >= 0 ? cU : cD, Math.min(1, Math.abs(hv) / 0.9 * 1.2)); else cl = mix(base, tx, 0.18 + 0.25 * hv / 0.9);
+      bc[k * 3] = cl[0] * kk; bc[k * 3 + 1] = cl[1] * kk; bc[k * 3 + 2] = cl[2] * kk;
+    }
+    // painter's order: walk away-to-near along the axis the camera looks along most
+    const dzu = P3(1, 0, FL)[2] - P3(-1, 0, FL)[2], dzt = P3(0, -1, FL)[2] - P3(0, 1, FL)[2];   // depth change toward growing column / growing row
+    const iA = [], jA = []; for (let i = 0; i < NT - 1; i++) iA.push(i); for (let j = 0; j < NU - 1; j++) jA.push(j);
+    if (dzt < 0) iA.reverse(); if (dzu < 0) jA.reverse();
+    sfx.lineJoin = "round"; sfx.lineWidth = 0.8;
+    const quad = (i, j) => {
+      const a = i * NU + j, b = a + 1, c = b + NU, d = a + NU; if (bx[a] !== bx[a] || bx[b] !== bx[b] || bx[c] !== bx[c] || bx[d] !== bx[d]) return;
+      const r = (bc[a * 3] + bc[b * 3] + bc[c * 3] + bc[d * 3]) >> 2, g = (bc[a * 3 + 1] + bc[b * 3 + 1] + bc[c * 3 + 1] + bc[d * 3 + 1]) >> 2, bl = (bc[a * 3 + 2] + bc[b * 3 + 2] + bc[c * 3 + 2] + bc[d * 3 + 2]) >> 2, s = `rgb(${r},${g},${bl})`;
+      sfx.fillStyle = s; sfx.strokeStyle = s; sfx.beginPath(); sfx.moveTo(bx[a], by[a]); sfx.lineTo(bx[b], by[b]); sfx.lineTo(bx[c], by[c]); sfx.lineTo(bx[d], by[d]); sfx.closePath(); sfx.fill(); sfx.stroke();
+    };
+    if (Math.abs(dzt) >= Math.abs(dzu)) iA.forEach(i => jA.forEach(j => quad(i, j))); else jA.forEach(j => iA.forEach(i => quad(i, j)));
+    sfx.font = "10px Inter, system-ui, sans-serif"; sfx.lineJoin = "round"; sfx.lineWidth = 3; sfx.strokeStyle = css("--surface");
+    const lab = (t, x, y) => { sfx.strokeText(t, x, y); sfx.fillStyle = txt; sfx.fillText(t, x, y); };
+    const near = P3(0, 1, FL)[1] > P3(0, -1, FL)[1] ? 1 : -1, nc = S3.m.length, ne = S3.dte.length;
+    [0, 0.5, 1].forEach(f => { const p = P3(f * 2 - 1, near * 1.14, FL), t = Math.round((M.m0 + (M.m1 - M.m0) * f) * 100) + "% of price", tw = sfx.measureText(t).width; lab(t, Math.max(2, Math.min(W - tw - 2, p[0] - tw / 2)), Math.min(H - 6, p[1] + 10)); });
+    const side = P3(1, 0, FL)[0] > P3(-1, 0, FL)[0] ? 1 : -1;
+    [0, Math.floor((ne - 1) / 2), ne - 1].forEach((r, ii, a) => { if (ii && a[ii - 1] === r) return; const t = (S3.dte[r] === 0 ? "0DTE" : S3.dte[r] + "d"), p = P3(side * 1.3, tz(S3.dte[r]), FL), tw = sfx.measureText(t).width; lab(t, Math.max(2, Math.min(W - tw - 2, side > 0 ? p[0] : p[0] - tw)), p[1] + 3); });
+    $("sf-leg").innerHTML = col === "iv" ? `<span>${lo.toFixed(1)}%</span><i style="background:linear-gradient(90deg, ${heat.map(c => `rgb(${c})`).join(",")})"></i><span>${hi.toFixed(1)}% implied vol</span>`
+      : col === "diff" ? `<span>${lo < 0 ? "−" : ""}${Math.abs(lo).toFixed(1)} pts puts-colour: IV below RV20</span><i style="background:linear-gradient(90deg, rgb(${cD}), rgb(${base}), rgb(${cU}))"></i><span>+${hi.toFixed(1)} pts calls-colour: IV above RV20</span>` : `<span>height = implied vol ${lo.toFixed(1)}% to ${hi.toFixed(1)}%</span>`;
+    $("sf-leg").innerHTML += `<span style="margin-left:auto">depth: √time to expiry, nearest at front · width: % of price · drag to rotate, wheel to zoom</span>`;
+    $("sf-cap").textContent = `Implied vol on out-of-the-money quotes, smoothed between quoted strikes and expiries (monotone cubic, nothing drawn outside the quotes)${col === "diff" ? ` · minus 20-day realised vol ${rv.toFixed(1)}%` : ""}`;
+  }
+  { let dg = null;
+    sfc.addEventListener("pointerdown", e => { dg = [e.clientX, e.clientY, st.sf.yaw, st.sf.pitch]; sfc.setPointerCapture(e.pointerId); });
+    sfc.addEventListener("pointermove", e => { if (!dg) return; st.sf.yaw = dg[2] + (e.clientX - dg[0]) * 0.008; st.sf.pitch = Math.max(0.30, Math.min(1.20, dg[3] + (e.clientY - dg[1]) * 0.006)); requestAnimationFrame(() => safe("surface", ivsurf)); });
+    sfc.addEventListener("pointerup", () => { dg = null; });
+    sfc.addEventListener("wheel", e => { e.preventDefault(); st.sf.zoom = Math.max(0.5, Math.min(3, st.sf.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); requestAnimationFrame(() => safe("surface", ivsurf)); }, { passive: false });
+    const rst = () => { st.sf.yaw = -0.6; st.sf.pitch = 0.55; st.sf.zoom = 1; safe("surface", ivsurf); };
+    sfc.addEventListener("dblclick", rst); $("sf-reset").addEventListener("click", rst); }
+
+  /* ---------- order flow placeholder + adapter stub ---------- */
+  /* window.VelourOrderFlow.register(adapter): adapter = { name: string, source: string, delay: string, subscribe(cb): unsubscribe? }.
+     Phase 3 will render an adapter's trades here. In Phase 1 nothing is connected and the panel shows no numbers. */
+  window.VelourOrderFlow = window.VelourOrderFlow || (() => { const list = []; return {
+    register(adapter) { if (!adapter || typeof adapter.name !== "string" || typeof adapter.source !== "string" || typeof adapter.delay !== "string" || typeof adapter.subscribe !== "function") return false; list.push(adapter); try { orderFlow(); } catch (e) {} return true; },
+    adapters() { return list.map(a => ({ name: a.name, source: a.source, delay: a.delay })); } }; })();
+  function orderFlow() {
+    const a = window.VelourOrderFlow.adapters();
+    $("of-body").innerHTML = `<p class="note">Needs a trade/order-book feed we do not have; nothing here is simulated.</p>`
+      + `<div class="sketch" aria-hidden="true"><div>Trade tape and flow imbalance: design sketch, no data</div><div>Book depth</div><div>Cumulative delta</div></div>`
+      + (a.length ? `<p class="note">Adapter registered: ${esc(a.map(x => `${x.name} (${x.source}, ${x.delay})`).join("; "))}. Drawing its data is not built in this version.</p>` : `<p class="note">No feed is connected.</p><details><summary class="note">For developers</summary><p class="note">A future feed plugs in through <code>VelourOrderFlow.register({ name, source, delay, subscribe(cb) })</code>.</p></details>`);
+  }
+
+  /* ---------- methodology and licence notes ---------- */
+  function method() {
+    const M = Array.isArray(O._method) ? O._method : [], built = [["Hedging pressure", "balance = Σ gamma ÷ Σ |gamma| over strikes within price ± 2 one-day moves; score = 50 × (1 − balance). 0 = positive gamma dominates, 100 = negative gamma dominates."],
+      ["Expected range and 0DTE magnet", "Range = price ± σ, with σ the one-day move from ATM implied vol. Magnet = the strike with the largest absolute gamma in the nearest expiry within ± 2σ."],
+      ["IV rank (proxy)", "Where the 30-day vol index from FRED (VIX, VXN, VXD, RVX, GVZ) sits in its own last 252 trading days."],
+      ["Skew", "IV at 95% of price minus IV at 105%, in vol points, from out-of-the-money quotes."], ["Dealer side", "Dealers are assumed to hold the opposite side of customer positions: long customer calls and puts are dealer-short options. A common simplification, not a measurement."]];
+    const rowsM = (M.length ? M.map(x => [x.title, x.text]) : built);
+    const src = keys.map(k => { const s = O[k].src; return `<tr><td data-l="Instrument">${esc(O[k].title)}</td><td data-l="Source">${esc(s ? s.text : "Cboe delayed chain · fetched " + (O[k].updated_utc || O[k].date))}</td><td data-l="Licence note">${esc(s ? s.licence_note : "Cboe data: permission for public display pending")}</td></tr>`; }).join("");
+    $("mt-body").innerHTML = rowsM.map(r => `<h4>${esc(r[0])}</h4><p>${esc(r[1])}</p>`).join("")
+      + `<h4>Source and licence by instrument</h4><table class="srctab"><thead><tr><th>Instrument</th><th>Source</th><th>Licence note</th></tr></thead><tbody>${src}</tbody></table>`
+      + `<p style="margin-top:8px">Educational context, not advice.</p>`;
+  }
+
+  /* ---------- Copy levels for TradingView ---------- */
+  { const dlg = $("tv-dlg"), ta = $("tv-dlg-ta"); let tvTab = "pine", opener = null;
+    const fill = () => { const t = I().tv; $("tv-dlg-tabs").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === tvTab)));
+      ta.value = t && t[tvTab] ? t[tvTab] : "Levels for TradingView are not available for this instrument."; $("tv-dlg-dl").disabled = !(t && t.csv); $("tv-dlg-copy").disabled = !(t && t[tvTab]);
+      const s = SRC(); $("tv-dlg-src").textContent = `${I().title} · ${s && s.text ? s.text : "Cboe delayed chain · fetched " + (I().updated_utc || I().date)}`;
+      $("tv-dlg-note").textContent = (GD.tv_levels && GD.tv_levels.so_what) || "Paste the Pine script into TradingView's Pine Editor. Levels are from delayed open interest; educational, not advice."; };
+    const close = () => { dlg.hidden = true; document.body.classList.remove("dlock"); if (opener) opener.focus(); };
+    $("od-tv").addEventListener("click", e => { opener = e.currentTarget; tvTab = "pine"; fill(); dlg.hidden = false; document.body.classList.add("dlock"); $("tv-dlg-x").focus(); });
+    $("tv-dlg-x").addEventListener("click", close); dlg.addEventListener("click", e => { if (e.target === dlg) close(); });
+    $("tv-dlg-tabs").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { tvTab = b.dataset.v; fill(); }));
+    $("tv-dlg-copy").addEventListener("click", () => copy($("tv-dlg-copy"), ta.value, "Copy"));
+    $("tv-dlg-dl").addEventListener("click", () => { const t = I().tv; if (!t || !t.csv) return; const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([t.csv], { type: "text/csv" })); a.download = `velour-levels-${st.inst}.csv`; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); });
+    document.addEventListener("keydown", e => { if (dlg.hidden) return;
+      if (e.key === "Escape") { e.preventDefault(); close(); }
+      else if (e.key === "Tab") { const f = [...dlg.querySelectorAll("button:not(:disabled), textarea")]; if (!f.length) return; const i = f.indexOf(document.activeElement); if (i < 0 || (e.shiftKey && i === 0) || (!e.shiftKey && i === f.length - 1)) { e.preventDefault(); (e.shiftKey ? f[f.length - 1] : f[0]).focus(); } } });
+  }
+
+  /* ---------- price chart with levels (the Velour chart engine, a second instance; levels in the chart's own price units) ---------- */
+  st.pc = { range: "6M", h: null, sym: null, failed: false };
+  const PC_R = [["1M", "1M"], ["3M", "3M"], ["6M", "6M"], ["1Y", "1Y"], ["All", "All"]];
+  function pcUnits(sym, k) {   // option-chain price -> the chart's price units, the same mapping the stat strip uses (COMEX ratio for gold; index options are already in index points; DJX is quoted at 1/100 of the Dow)
+    if (k == null || !isFinite(k)) return null;
+    if (sym.optUnits === "index") return k;
+    if (sym.optUnits === "x100") return k * 100;
+    if (sym.optUnits === "mapped") { const v = mapI(st.inst, k); return v == null ? null : v; }
+    return null;
+  }
+  function deskChart() {
+    const host = $("pc-box"), msg = $("pc-msg"), cap = $("pc-cap"), leg = $("pc-leg"), VC = window.VelourChart;
+    buttons($("pc-rng"), PC_R, st.pc.range, v => { st.pc.range = v; deskChart(); });
+    if (!$("dterm").offsetWidth) return;   // desk page not showing: mount when it opens
+    const show = (title, sub) => { msg.hidden = false; host.style.display = "none"; msg.innerHTML = `<b>${esc(title)}</b>${esc(sub || "")}`; };
+    const sym = VC && VC.deskSymbol ? VC.deskSymbol(st.inst) : null, i = I(), cfg = cfgNow(), ser = series(cfg), L = levels(cfg, ser.vals), src = SRC();
+    leg.innerHTML = ""; msg.hidden = true; host.style.display = "";
+    if (!VC || !VC.mountDesk) { cap.textContent = ""; show(document.readyState === "complete" ? "Chart not available in this build." : "Loading chart…", ""); return; }
+    if (!sym) { cap.textContent = ""; show(`No price series for ${i.title} in the dashboard.`, " The levels are still on the stat strip, the ladder and the Replay panel."); return; }
+    const sg = i.day_move, defs = [["cw", "Call wall", L.cw, "primary", "solid", 1.5], ["pw", "Put wall", L.pw, "secondary", "solid", 1.5], ["flip", "Gamma flip", L.flip, "warn", "dash", 1.5], ["mp", "Max pain", i.max_pain, "text", "dash", 1],
+      ["s1u", "1-day +1σ", sg != null && i.spot != null ? i.spot + sg : null, "muted", "dot", 1], ["s1d", "1-day −1σ", sg != null && i.spot != null ? i.spot - sg : null, "muted", "dot", 1]];
+    const phone = host.clientWidth < 440, lv0 = defs.map(d => ({ id: d[0], label: d[1], raw: d[2], value: pcUnits(sym, d[2]), ck: d[3], dash: d[4], w: d[5] })).filter(d => d.value != null);
+    const lv = lv0.map(d => phone ? Object.assign({}, d, { label: "" }) : d);   // narrow screens: no on-line labels, the legend below names every line
+    const cv = { primary: "var(--primary)", secondary: "var(--secondary)", warn: "var(--warn)", text: "var(--text)", muted: "var(--muted)" }, nf = v => Number(v).toLocaleString("en-US", { minimumFractionDigits: sym.dec, maximumFractionDigits: sym.dec });
+    leg.innerHTML = lv0.map(d => `<span style="--c:${cv[d.ck]}"><i class="${d.dash === "solid" ? "" : d.dash === "dot" ? "dot" : "dsh"}"></i>${esc(d.label)} ${nf(d.value)}</span>`).join("") + (lv0.length ? "" : '<span>No levels for this selection.</span>');
+    const srcTxt = src && src.fetched_utc ? `${String(src.source || "Cboe delayed").replace(/ chain$/, "")} · fetched ${src.fetched_utc}${src.approx ? " · approximate" : ""}` : `fetched ${i.updated_utc || i.date}`;
+    const uTxt = sym.optUnits === "index" ? "levels in index points (the stat strip shows futures-equivalent prices)" : sym.optUnits === "x100" ? "levels in index points (DJX quote × 100)" : "levels converted to the chart's price units, as on the stat strip";
+    const snapD = i.date || (src && src.fetched_utc ? String(src.fetched_utc).slice(0, 10) : null), gap = snapD && sym.lastDate && sym.lastDate > snapD;
+    const gapTxt = gap ? ` · Levels are from the ${snapD} snapshot and predate the latest close (${sym.lastDate}${i.spot != null && sym.lastClose != null && pcUnits(sym, i.spot) ? `, ${nf(sym.lastClose)} vs snapshot price ${nf(pcUnits(sym, i.spot))}` : ""})` : "";
+    cap.textContent = `${sym.name} · daily closes (${sym.src || sym.delay}) · last close ${sym.lastDate}${sym.partial ? ", latest point may be intraday" : ""} · levels from ${srcTxt}, drawn across the whole chart, not at the dates they applied · ${uTxt} · 1-day ±1σ is centred on the snapshot price${gapTxt}`;
+    cap.title = cap.textContent;
+    if (st.pc.failed && (st.pc.reopen || st.pc.failInst !== st.inst)) { st.pc.failed = false; st.pc.h = null; }   // retry after a library failure when the panel is reopened or the instrument changes
+    st.pc.reopen = false;
+    if (st.pc.failed) { show("The chart library could not be loaded.", " It comes from a CDN and needs internet; the levels are listed below. Reopen the panel or switch instrument to retry."); return; }
+    if (!st.pc.h) {
+      const h = VC.mountDesk(host, sym.id, lv, { range: st.pc.range }); st.pc.h = h;
+      h.ready.catch(() => { if (st.pc.h !== h) return; st.pc.failed = true; st.pc.failInst = st.inst; st.pc.h = null; try { deskChart(); } catch (e) {} });
+    } else st.pc.h.update(sym.id, lv, { range: st.pc.range });
+  }
+  window.addEventListener("hashchange", () => setTimeout(() => { st.pc.reopen = true; safe("price chart", deskChart); }, 60));
+  window.addEventListener("load", () => safe("price chart", deskChart));   // the chart script is inlined after this one
+
+  function desk2() {
+    if (st.pin != null && S().strikes.indexOf(st.pin) < 0) st.pin = null;
+    [["freshness", freshAll], ["ladder", ladder], ["greeks", greeksView], ["walls", walls], ["hedging", hedging], ["magnet", magnet], ["skew", skew], ["surface", ivsurf], ["price chart", deskChart], ["order flow", orderFlow], ["method", method]].forEach(([n, f]) => safe(n, f));
+    if (!desk2.r) desk2.r = requestAnimationFrame(() => { desk2.r = 0; [["greeks", greeksView], ["skew", skew], ["surface", ivsurf], ["price chart", deskChart]].forEach(([n, f]) => safe(n, f)); });   // panels sized from flex space: draw again once the freshness bars have taken theirs
+  }
+  guides();
+
   function paint() {
+    if (st.pin != null && S().strikes.indexOf(st.pin) < 0) st.pin = null;
     controls(); stats(); spine($("od-spine"), Object.assign(cfgNow(), { sv: st.sv })); try { terrain(); } catch (e) { console.warn("terrain failed", e); } grid(); smile(); guide(); vol(); replay(); volidx(); promptUI();
+    desk2();
   }
   paint(); panes.forEach(pane); vix();
-  let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { spine($("od-spine"), Object.assign(cfgNow(), { sv: st.sv })); terrain(); smile(); vol(); vix(); replay(); volidx(); panes.forEach(pane); }, 120); });
-  new MutationObserver(() => terrain()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => terrain());
+  let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { spine($("od-spine"), Object.assign(cfgNow(), { sv: st.sv })); terrain(); smile(); vol(); vix(); replay(); volidx(); panes.forEach(pane); desk2(); }, 120); });
+  new MutationObserver(() => { terrain(); desk2(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { terrain(); desk2(); });
 })();
+/*OPTDESK:END*/
 
 /* Collapsible panels: open on desktop, closed on phones (where marked); open everything for printing */
 (function () {
@@ -2089,5 +2818,6 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   if (window.ResizeObserver) new ResizeObserver(set).observe(h); if (document.fonts) document.fonts.ready.then(set); })();
 
 </script>
+<script>/*__CHART_KLINE_JS__*/</script>
 </body>
 </html>

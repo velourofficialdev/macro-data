@@ -784,6 +784,79 @@ def news_date(feed: dict | None) -> str | None:
     return (pubs[-1] if pubs else str(feed.get("news_updated") or "")[:10]) or None
 
 
+SNAP_CAPS = {"history_rows": 400, "snapshot_days": 30, "snapshot_files": 500, "chart_points": 3000}
+
+
+def _cap_chart_json(obj, n: int) -> int:
+    """Trim chart JSON in place to its newest n points; returns points removed. Understands a list, or {c, dd, t0} (day-gap
+    encoding, t0 moved forward so dates stay right), or a dict holding such things under "symbols"."""
+    cut = 0
+    if isinstance(obj, dict):
+        c, dd = obj.get("c"), obj.get("dd")
+        if isinstance(c, list) and isinstance(dd, list) and len(c) == len(dd) and len(c) > n:
+            k = len(c) - n
+            t0 = pd.Timestamp(obj["t0"]) + pd.Timedelta(days=int(sum(dd[: k + 1])))
+            obj["t0"], obj["c"], obj["dd"] = t0.strftime("%Y-%m-%d"), c[k:], [0] + dd[k + 1:]
+            cut += k
+        for v in obj.get("symbols", []) if isinstance(obj.get("symbols"), list) else []:
+            cut += _cap_chart_json(v, n)
+    return cut
+
+
+def cap_snapshots(data_dir: Path, rules: dict | None = None) -> dict[str, int]:
+    """Rolling caps so stored options/chart files cannot grow without limit. Returns what was removed per rule
+    (rows or files). Fails soft: a problem with one file is skipped, never raised."""
+    rules = {**SNAP_CAPS, **(rules or {})}
+    removed = {"history_rows": 0, "oi_rows": 0, "snapshot_files": 0, "chart_points": 0}
+    opt = Path(data_dir) / "options"
+    for hp in sorted(opt.glob("*_history.csv")):
+        try:
+            df = pd.read_csv(hp)
+            if len(df) > rules["history_rows"] and "date" in df.columns:
+                keep = df.sort_values("date", kind="stable").tail(rules["history_rows"])
+                keep.to_csv(hp, index=False)
+                removed["history_rows"] += len(df) - len(keep)
+        except Exception:  # noqa: BLE001
+            continue
+    for op in sorted(opt.glob("*_oi.csv")):
+        try:
+            df = pd.read_csv(op)
+            if "strike" in df.columns:
+                dedup = df.drop_duplicates("strike", keep="last")
+                if len(dedup) < len(df):
+                    dedup.to_csv(op, index=False)
+                    removed["oi_rows"] += len(df) - len(dedup)
+        except Exception:  # noqa: BLE001
+            continue
+    try:   # reserved for hourly snapshots: newest N days and at most M files
+        files = [f for f in (opt / "snapshots").rglob("*") if f.is_file()]
+        files.sort(key=lambda f: (f.stat().st_mtime, str(f)), reverse=True)
+        cutoff = time.time() - rules["snapshot_days"] * 86400
+        drop = [f for i, f in enumerate(files) if i >= rules["snapshot_files"] or f.stat().st_mtime < cutoff]
+        for f in drop:
+            try:
+                f.unlink()
+                removed["snapshot_files"] += 1
+            except OSError:
+                pass
+    except Exception:  # noqa: BLE001
+        pass
+    for cp in sorted((Path(data_dir) / "chart").glob("*.json")):
+        try:
+            obj = json.loads(cp.read_text())
+            if isinstance(obj, list) and len(obj) > rules["chart_points"]:
+                removed["chart_points"] += len(obj) - rules["chart_points"]
+                write_json_atomic(cp, obj[-rules["chart_points"]:])
+            else:
+                k = _cap_chart_json(obj, rules["chart_points"])
+                if k:
+                    removed["chart_points"] += k
+                    write_json_atomic(cp, obj)
+        except Exception:  # noqa: BLE001
+            continue
+    return removed
+
+
 def main(fast: bool | None = None) -> int:
     fast = is_fast() if fast is None else fast
     slow = not fast
@@ -968,9 +1041,14 @@ def main(fast: bool | None = None) -> int:
     except Exception as exc:  # noqa: BLE001
         record("OPT_SPX", False, error=f"{type(exc).__name__}: {exc}"[:200])
 
+    try:
+        capped = cap_snapshots(DATA)
+        cap_note = "caps removed: " + ", ".join(f"{k} {v}" for k, v in capped.items() if v) if any(capped.values()) else "caps: nothing to remove"
+    except Exception as exc:  # noqa: BLE001
+        cap_note = f"caps failed: {type(exc).__name__}"
     status["RUN_MODE"] = {"ok": True, "checked_utc": now, "last_data_date": None, "error": None, "mode": "fast" if fast else "full",
-                          "note": "fast run: news, Fed odds, options and prices only; other sources keep their last full-run entries" if fast
-                          else "full run: all sources"}
+                          "note": ("fast run: news, Fed odds, options and prices only; other sources keep their last full-run entries" if fast
+                                   else "full run: all sources") + "; " + cap_note}
     write_json_atomic(DATA / "status.json", status, indent=2)
     print(f"RUN_MODE {'fast' if fast else 'full'}: {sum(ran.values())} of {len(ran)} sources ok")
     return 0 if any(ran.values()) else 1   # 1 only when every source this run touched failed

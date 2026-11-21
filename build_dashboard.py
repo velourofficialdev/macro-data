@@ -13,6 +13,7 @@ import argparse
 import html
 import json
 import math
+import os
 import re
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -1406,6 +1407,8 @@ def build_status(data: dict, today: date) -> str:
     rows = []
     st = data["status"]
     for name, info in sorted(st.items()):
+        if not OPTIONS_DESK_PUBLIC and str(name).startswith("OPT_"):
+            continue   # public build: no options sources listed
         last = info.get("last_data_date") or "-"
         if name == "RUN_MODE":
             mode = info.get("mode") or ("fast" if str(info.get("note") or "").startswith("fast") else "full")
@@ -1477,8 +1480,13 @@ def _opt_mapper(s: dict, meta: dict):
     return lambda k: None if k is None else k * ratio
 
 
-def opt_payload(data: dict) -> dict:
+def opt_payload(data: dict, playbook: dict | None = None, today: date | None = None) -> dict:
     out = {}
+    today = today or datetime.now(timezone.utc).date()
+    try:
+        import options_levels as _ol
+    except Exception:  # noqa: BLE001
+        _ol = None
     for key, meta in OPT_META.items():
         s = (data.get("options") or {}).get(key)
         if not s or not s.get("surface"):
@@ -1492,6 +1500,15 @@ def opt_payload(data: dict) -> dict:
                     "net_gex_bn": s.get("net_gex_bn"), "max_pain": s.get("max_pain"), "front_move": s.get("front_move"), "king": s.get("king"),
                     "oi_changes": s.get("oi_changes") or [], "vol": s.get("vol") or {}, "history": s.get("history_full") or [],
                     "map": mapping, "surface": s["surface"]}
+        # desk additions: source label, derived panels, TradingView levels. Each part fails soft to None / absent.
+        for name, fn, args in (("src", "source_info", (s, key, today)), ("x", "desk_extras", (s, today)), ("tv", "tv_levels", (key, s, (dict(mapping, symbol=(getattr(_ol, "TV_SYMBOL", {}) or {}).get(key, key)) if mapping else None)))):
+            try:
+                out[key][name] = getattr(_ol, fn)(*args) if _ol is not None and hasattr(_ol, fn) else None
+            except Exception as exc:  # noqa: BLE001
+                print(f"WARN options {key}.{name}: {type(exc).__name__}: {exc}")
+                out[key][name] = None
+        if not isinstance(out[key].get("x"), dict):
+            out[key]["x"] = {}
     vi = (data.get("options") or {}).get("_vol_idx")
     if out and vi is not None and len(vi) > 60:
         idx_map = {"SPX": ("VIXCLS", "VIX"), "NDX": ("VXNCLS", "VXN"), "DJX": ("VXDCLS", "VXD"), "RUT": ("RVXCLS", "RVX"), "GOLD": ("GVZCLS", "GVZ")}
@@ -1507,6 +1524,12 @@ def opt_payload(data: dict) -> dict:
             chg5 = float(last - ser.iloc[-6]) if len(ser) > 5 else None
             pct = float((yr < last).mean() * 100)
             t260 = ser.tail(260)
+            if k in out and hasattr(_ol, "iv_rank"):   # IV-rank proxy from the FRED 30-day index, window 252
+                try:
+                    ivr = _ol.iv_rank([float(v) for v in ser.values], 252)
+                    out[k]["x"]["ivr"] = dict(ivr, series_name=name, series_date=ser.index[-1].strftime("%Y-%m-%d")) if ivr else None
+                except Exception as exc:  # noqa: BLE001
+                    print(f"WARN iv_rank {k}: {type(exc).__name__}: {exc}")
             pay[k] = {"name": name, "last": r(last, 2), "date": ser.index[-1].strftime("%Y-%m-%d"), "chg5": r(chg5, 2) if chg5 is not None else None,
                       "pct1y": r(pct, 0), "lo1y": r(float(yr.min()), 2), "hi1y": r(float(yr.max()), 2), "avg1y": r(float(yr.mean()), 2),
                       "dates": [d.strftime("%Y-%m-%d") for d in t260.index], "vals": [r(v, 2) for v in t260]}
@@ -1516,6 +1539,11 @@ def opt_payload(data: dict) -> dict:
         t = vt.tail(260)
         out["_vix"] = {"dates": [d.strftime("%Y-%m-%d") for d in t.index], "vix": [r(v, 2) for v in t["VIXCLS"]], "vix3m": [r(v, 2) for v in t["VXVCLS"]],
                        "ratio": [r(v, 3) for v in t["VXVCLS"] / t["VIXCLS"]]}
+    if out:
+        od = (playbook or {}).get("options_desk") or {}
+        out["_guide"] = od.get("panels") or {}
+        out["_hp_bands"] = od.get("hedging_bands") or [{"min": 0, "max": 35, "label": "Hedging tends to dampen moves"}, {"min": 35, "max": 65, "label": "Dealer flow balanced"}, {"min": 65, "max": 100, "label": "Hedging tends to amplify moves"}]
+        out["_method"] = od.get("methodology") or []
     return out
 
 
@@ -1621,7 +1649,7 @@ def build_options(data: dict, today: date) -> str:
             if v is None:
                 return ""
             pct = (v / spot - 1) * 100
-            return f'<span class="{"up" if pct > 0 else "down" if pct < 0 else "muted-text"}">{pct:+.2f}%</span>'
+            return f'<span class="{"pos" if pct > 0 else "neg" if pct < 0 else "muted-text"}">{"▲ " if pct > 0 else "▼ " if pct < 0 else ""}{pct:+.2f}%</span>'
         fm = s.get("front_move") or {}
         lv = [("Call wall", s.get("call_wall"), "largest call gamma above price"),
               ("Expected move, high", fm.get("high"), f"front expiry {fm.get('expiry', '')} straddle"),
@@ -1637,8 +1665,8 @@ def build_options(data: dict, today: date) -> str:
                       + (f"<td><b>{f(conv(v), dm)}</b></td>" if conv else "")
                       + f'<td>{"" if n == "Price" else dist(v)}</td><td class="muted-text">{esc(why)}</td></tr>' for n, v, why in lv)
         pos = s.get("regime") == "positive"
-        badge_ = (f'<span class="badge" style="color:var(--up);background:color-mix(in srgb,var(--up) 14%,transparent)">Positive gamma</span>' if pos
-                  else f'<span class="badge" style="color:var(--down);background:color-mix(in srgb,var(--down) 14%,transparent)">Negative gamma</span>')
+        badge_ = (f'<span class="badge" style="color:var(--call);background:color-mix(in srgb,var(--call) 14%,transparent)">▲ Positive gamma</span>' if pos
+                  else f'<span class="badge" style="color:var(--put);background:color-mix(in srgb,var(--put) 14%,transparent)">▼ Negative gamma</span>')
         flip = s.get("gamma_flip")
         if flip:
             where = "above" if spot > flip else "below"
@@ -1654,8 +1682,8 @@ def build_options(data: dict, today: date) -> str:
         ch = s.get("oi_changes") or []
         if ch:
             chg = "".join(f'<tr><td>{f(c["k"], d0)}{f" <span class=muted-text>({f(conv(c["k"]), dm)})</span>" if conv else ""}</td>'
-                          f'<td class="{"up" if c["dc"] > 0 else "down" if c["dc"] < 0 else ""}">{c["dc"]:+,}</td>'
-                          f'<td class="{"up" if c["dp"] > 0 else "down" if c["dp"] < 0 else ""}">{c["dp"]:+,}</td></tr>' for c in ch)
+                          f'<td class="{"pos" if c["dc"] > 0 else "neg" if c["dc"] < 0 else ""}">{"▲ " if c["dc"] > 0 else "▼ " if c["dc"] < 0 else ""}{c["dc"]:+,}</td>'
+                          f'<td class="{"pos" if c["dp"] > 0 else "neg" if c["dp"] < 0 else ""}">{"▲ " if c["dp"] > 0 else "▼ " if c["dp"] < 0 else ""}{c["dp"]:+,}</td></tr>' for c in ch)
             chg = f'<table class="opttab"><thead><tr><th>Strike</th><th>Call OI chg</th><th>Put OI chg</th></tr></thead><tbody>{chg}</tbody></table>'
         else:
             chg = '<p class="quiet">Needs a snapshot from an earlier day; shows from the next day&#39;s first update.</p>'
@@ -1679,6 +1707,16 @@ def build_options(data: dict, today: date) -> str:
             f'<div class="card" style="--w:5"><div class="card-h"><h3>{meta["title"]}: biggest open-interest changes</h3><p class="note">Contracts, vs the previous update</p></div><div class="card-b scroll">{chg}</div></div>'
             f'<div class="card" style="--w:12"><div class="card-h"><h3>{meta["title"]}: levels over the last 10 updates</h3><p class="note">In {esc(meta["src"].split()[0])} units</p></div><div class="card-b scroll">{htab or "<p class=quiet>Builds up one row per update.</p>"}</div></div></div></details>')
     return "".join(html)
+
+# Options desk switch: False = public build (no desk, no options numbers anywhere); True = internal build.
+# Env OPTIONS_DESK_PUBLIC in {1,true,on} turns it on; the CLI flag --options-desk on|off wins over the env.
+# NOTE: the name is historical (kept from the brief). True = INTERNAL desk build (options desk shown); False = public build.
+OPTIONS_DESK_PUBLIC = False
+
+
+def _truthy(v: str | None) -> bool:
+    return str(v or "").strip().lower() in ("1", "true", "on", "yes")
+
 
 TEMPLATE = (ROOT / "template.html").read_text(encoding="utf-8") if (ROOT / "template.html").exists() else None
 
@@ -1986,7 +2024,41 @@ def read_fx_feed(data_dir: Path) -> dict | None:
         return None
 
 
-def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict | None) -> str:
+def strip_desk(page: str, internal: bool) -> str:
+    """Public build: remove every OPTDESK block (HTML, CSS and JS). Internal build: drop only the marker comments."""
+    for b, e in ((r"<!--OPTDESK:BEGIN-->", r"<!--OPTDESK:END-->"), (r"/\*OPTDESK:BEGIN\*/", r"/\*OPTDESK:END\*/")):
+        page = re.sub(b + "|" + e, "", page) if internal else re.sub(b + r".*?" + e, "", page, flags=re.S)
+    return page
+
+
+def inject_chart(page: str, data_dir: Path) -> str:
+    """Chart card: inline the chart CSS / JS (files from the chart package) and the daily chart feed. Both builds. Fails soft."""
+    def read(name: str) -> str:
+        try:
+            return (ROOT / name).read_text(encoding="utf-8")
+        except OSError:
+            return ""
+    feed = {"v": 1, "symbols": []}
+    try:
+        import chart_feed
+        try:
+            feed = chart_feed.build_chart_feed(data_dir, include_opt_keys=OPTIONS_DESK_PUBLIC)
+        except TypeError:  # older chart_feed without the keyword
+            feed = chart_feed.build_chart_feed(data_dir)
+        if not isinstance(feed, dict) or not isinstance(feed.get("symbols"), list):
+            feed = {"v": 1, "symbols": []}
+    except Exception as exc:  # noqa: BLE001
+        print(f"WARN chart feed skipped: {type(exc).__name__}: {exc}")
+    css_ = re.sub(r"</style", r"<\\/style", read("chart_kline.css"), flags=re.I)
+    js_ = re.sub(r"</script", r"<\\/script", read("chart_kline.js"), flags=re.I)
+    feed_s = json.dumps(feed, separators=(",", ":")).replace("</", "<\\/")
+    # callables, so backslashes and "\1"-style text in the files are never read as replacement escapes
+    for token, val in (("/*__CHART_KLINE_CSS__*/", css_), ("/*__CHART_KLINE_JS__*/", js_), ("__CHART_FEED__", feed_s)):
+        page = page.replace(token, val)
+    return page
+
+
+def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict | None, data_dir: str | None = None) -> str:
     metrics = computed["metrics"]
     fired = eval_cross_signals(playbook, metrics)
     rows, fam = build_watch(playbook, data, computed)
@@ -2016,10 +2088,12 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
                                  "dec": 3 if r_["label"] == "USDJPY" else 2 if r_["label"] in INSTR_NAMES else 5} for r_ in irows]},
                "fxdefault": [x for x in ("FX:EURUSD", "FX:USDJPY", "FX:XAUUSD", "FX:ES", "FX:NQ") if any(r_["id"] == x for r_ in irows)],
                "edefault": [x for x in ("E:CPIAUCSL", "E:CPILFESL", "E:PCEPI", "E:PCEPILFE") if any(e["id"] == x for e in erows)],
-               "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed, data), "curve": curve_payload(data), "cot": build_cot_charts(data), "opt": opt_payload(data),
+               "default": default_sel, "fed": fedp, "zq": zqp, "matrix": matrix_payload(computed, data), "curve": curve_payload(data), "cot": build_cot_charts(data),
                "dec": {"fx": 2, "spreads": 3, "yields": 3, "dxy": 2, "gold": 2, "e_yoy": 2, "e_rate": 1, "e_k": 0},
                "unit": {"fx": "%", "spreads": " pp", "yields": "%", "dxy": "", "gold": "", "e_yoy": "%", "e_rate": "%", "e_k": "k"}}
 
+    if OPTIONS_DESK_PUBLIC:
+        payload["opt"] = opt_payload(data, playbook, today)
     page = TEMPLATE
     rep = {
         "__ASOF__": esc(as_of), "__BUILT__": esc(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
@@ -2028,11 +2102,13 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
         "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__FXPICK__": fx.get("picker", ""), "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]), "__NEWSCHK__": build_news_checked(feed),
-        "__STATUS__": build_status(data, today), "__FOOTER__": build_footer(data), "__OPTIONS__": build_options(data, today), "__OPTSTALE__": build_opt_stale(data, today), "__FINGERPRINT__": build_fingerprint(data),
+        "__STATUS__": build_status(data, today), "__FOOTER__": build_footer(data), "__OPTIONS__": build_options(data, today) if OPTIONS_DESK_PUBLIC else "", "__OPTSTALE__": build_opt_stale(data, today) if OPTIONS_DESK_PUBLIC else "", "__FINGERPRINT__": build_fingerprint(data),
     }
     for k, v in rep.items():
         page = page.replace(k, v)
-    return page.replace("__PAYLOAD__", json.dumps(payload, separators=(",", ":")).replace("</", "<\\/"))
+    page = strip_desk(page, OPTIONS_DESK_PUBLIC)
+    page = page.replace("__PAYLOAD__", json.dumps(payload, separators=(",", ":")).replace("</", "<\\/"))
+    return inject_chart(page, Path(data_dir) if data_dir else ROOT / "data")
 
 
 def main() -> int:
@@ -2040,11 +2116,14 @@ def main() -> int:
     ap.add_argument("--data-dir", default=str(ROOT / "data"))
     ap.add_argument("--out", default=str(ROOT / "docs" / "index.html"))
     ap.add_argument("--playbook", default=str(ROOT / "playbook.json"))
+    ap.add_argument("--options-desk", choices=["on", "off"], default=None, help="on = internal build with the options desk; off = public build (default; env OPTIONS_DESK_PUBLIC=1 turns it on)")
     ap.add_argument("--today", default=None, help="override today's date (YYYY-MM-DD) for staleness checks")
     a = ap.parse_args()
 
     if TEMPLATE is None:
         raise SystemExit("template.html is missing")
+    global OPTIONS_DESK_PUBLIC
+    OPTIONS_DESK_PUBLIC = (a.options_desk == "on") if a.options_desk else (_truthy(os.environ.get("OPTIONS_DESK_PUBLIC")) or OPTIONS_DESK_PUBLIC)
     playbook = json.loads(Path(a.playbook).read_text(encoding="utf-8"))
     data = load_everything(Path(a.data_dir))
     if not data["yields"] and data["dxy"] is None and not any(data["cot"].values()):
@@ -2053,13 +2132,14 @@ def main() -> int:
     today = datetime.strptime(a.today, "%Y-%m-%d").date() if a.today else datetime.now(timezone.utc).date()
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render(playbook, data, computed, today, read_fx_feed(Path(a.data_dir))), encoding="utf-8")
+    out.write_text(render(playbook, data, computed, today, read_fx_feed(Path(a.data_dir)), a.data_dir), encoding="utf-8")
     try:   # Excel copy of every number on the page; the page itself never depends on this
         import export_excel
-        export_excel.export(out.parent / "Macro_Dashboard.xlsx", playbook, data, computed)
+        export_excel.export(out.parent / "Macro_Dashboard.xlsx", playbook, data, computed, options_desk=OPTIONS_DESK_PUBLIC, today=today)
         print(f"wrote {out.parent / 'Macro_Dashboard.xlsx'}")
     except Exception as exc:  # noqa: BLE001
         print(f"WARN Excel export skipped: {type(exc).__name__}: {exc}")
+    print(f"options desk: {'internal' if OPTIONS_DESK_PUBLIC else 'public'}")
     print(f"wrote {out} ({out.stat().st_size / 1024:.0f} KB); metrics: {', '.join(sorted(computed['metrics']))}")
     return 0
 
