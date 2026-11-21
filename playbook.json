@@ -499,7 +499,7 @@
    },
    "walls": {
     "label": "Major walls",
-    "meaning": "The strikes with the largest positive and negative exposure for the chosen Greek, with each one's share of the total. Call and put walls are usually the largest gamma strikes above and below spot.",
+    "meaning": "The strikes with the largest positive and negative exposure for the chosen Greek, with each one's share of the total. This list ranks all strikes by call-side and put-side gamma, so a top wall can sit on either side of spot and can differ from the call wall and put wall in the stat strip, which are the largest gamma strikes above and below spot.",
     "so_what": "A high share means exposure is concentrated in few strikes. Walls are reference levels that price sometimes pauses near, not barriers."
    },
    "hedging": {
@@ -590,11 +590,11 @@
    },
    {
     "title": "The chart",
-    "text": "The chart uses daily closes stored by the dashboard; it is not live and has no intraday data. Candles and bars are drawn close-to-close, so they show no intraday high or low. It is a charting tool, not advice."
+    "text": "The chart uses daily closes stored by the dashboard; the latest point may be an intraday price until the session closes. It is not live. Candles and bars are drawn close-to-close, so they show no intraday high or low. It is a charting tool, not advice."
    }
   ],
   "chart": {
-   "close_only_note": "Daily closes stored by the dashboard; not live. Candles are drawn close-to-close, with no intraday high or low.",
+   "close_only_note": "Daily closes; the latest point may be an intraday price until the session closes. Not live. Candles are drawn close-to-close, with no intraday high or low.",
    "persistence_note": "Drawings and indicators are saved on this device. Use Export to keep a copy."
   }
  }
