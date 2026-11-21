@@ -29,9 +29,10 @@ import options_levels as ol  # noqa: E402
 import update_data as ud  # noqa: E402
 
 
-def fake_chain(root: str, spot: float, step: float, lo: float, hi: float, call_peak: float, put_peak: float, base_iv: float, seed: int) -> dict:
+def fake_chain(root: str, spot: float, step: float, lo: float, hi: float, call_peak: float, put_peak: float, base_iv: float, seed: int, greeks: bool = False) -> dict:
     """Tradier-shaped option rows (chains endpoint: symbol, root_symbol, strike, option_type, expiration_date, open_interest,
-    volume, bid, ask, last, greeks.mid_iv / smv_vol) plus the underlying price for the quotes endpoint."""
+    volume, bid, ask, last) plus the underlying price for the quotes endpoint. Like the real sandbox there are NO greeks
+    unless greeks=True (production shape: greeks.mid_iv / smv_vol). Prices are Black-Scholes prices at the row's vol."""
     rng = np.random.default_rng(seed)
     today = pd.Timestamp.now("UTC").normalize().tz_localize(None)
     opts = []
@@ -45,22 +46,25 @@ def fake_chain(root: str, spot: float, step: float, lo: float, hi: float, call_p
                 oi = int(2000 * np.exp(-((k - peak) / (spot * 0.02)) ** 2) + 300 * np.exp(-((k - spot) / (spot * 0.05)) ** 2) + rng.integers(0, 50))
                 iv = base_iv * (1 + 1.5 * max(0, (spot - k) / spot)) + 0.01
                 intrinsic = max(0, (k - spot) if cp == "P" else (spot - k))
-                px = intrinsic + spot * iv * np.sqrt(max(d, 1) / 365) * 0.4 * np.exp(-abs(k - spot) / (spot * 0.03))
+                t = max(((exp + pd.Timedelta(hours=20, minutes=30)) - pd.Timestamp.now("UTC").tz_localize(None)).total_seconds() / (365 * 86400), 1 / (365 * 24))
+                px = max(float(ol.bs_price(spot, k, t, iv, cp == "C")), intrinsic)
                 sym = f"{root}{exp.strftime('%y%m%d')}{cp}{int(round(k * 1000)):08d}"
                 opts.append({"symbol": sym, "root_symbol": root, "strike": float(k), "option_type": "call" if cp == "C" else "put",
                              "expiration_date": exp.strftime("%Y-%m-%d"), "open_interest": oi, "volume": int(oi * 0.2),
                              "bid": round(px * 0.98, 2), "ask": round(px * 1.02, 2), "last": round(px, 2),
-                             "greeks": {"mid_iv": round(iv, 4), "smv_vol": round(iv * 1.01, 4)}})
+                             **({"greeks": {"mid_iv": round(iv, 4), "smv_vol": round(iv * 1.01, 4)}} if greeks else {})})
     return {"spot": spot, "options": opts}
 
 
-CHAINS = {   # Tradier symbol -> fake_chain args
-    "SPX": ("SPXW", 5800, 5, 5000, 6600, 6000, 5600, 0.15, 1),
-    "NDX": ("NDXP", 21000, 10, 18000, 24000, 21800, 20200, 0.19, 3),
-    "DJX": ("DJX", 430, 1, 380, 480, 440, 420, 0.13, 4),
-    "RUT": ("RUTW", 2250, 5, 1900, 2600, 2350, 2150, 0.22, 5),
+CHAINS = {   # Tradier symbol -> fake_chain args. The sandbox has no indexes: the desks read the ETF chains (SPY/QQQ/DIA/IWM, GLD).
+    "SPY": ("SPY", 580, 0.5, 500, 660, 600, 560, 0.15, 1),
+    "QQQ": ("QQQ", 510, 2.5, 440, 580, 530, 490, 0.19, 3),
+    "DIA": ("DIA", 431, 1, 380, 480, 440, 420, 0.13, 4),
+    "IWM": ("IWM", 225, 1, 190, 260, 235, 215, 0.22, 5),
     "GLD": ("GLD", 380, 1, 320, 440, 395, 365, 0.18, 2),
 }
+INDEX_SYMS = ("SPX", "NDX", "DJX", "RUT")   # must never be requested from Tradier
+INDEX_PX = {"^GSPC": 5800.0, "^NDX": 21000.0, "^DJI": 43120.0, "^RUT": 2250.0}   # last index closes (Yahoo 5d chart)
 FAKE_TOKEN = "fx-not-real-token"   # check: not-a-secret
 MAPPED = {"ES=F": 5832.25, "GC=F": 4140.0, "NQ=F": 21110.5, "YM=F": 43120.0, "RTY=F": 2258.4}
 
@@ -79,7 +83,8 @@ class _Resp:
 
 def _tradier_fake(chains: dict, url: str, params: dict, headers: dict, log: list | None, fail: dict | None):
     """Answer Tradier sandbox calls the way the real API shapes them. Missing/wrong Authorization header -> 401.
-    `fail` can force a status for a path suffix ({"/chains": 429}); an empty chain list gives {"options": null}."""
+    `fail` can force a status (or (status, body text)) for a path suffix ({"/chains": 429} or {"/chains": (400, "Quota
+    Violation")}); an empty chain list gives {"options": null}."""
     params, headers = params or {}, headers or {}
     if log is not None:
         log.append((url, dict(params), dict(headers)))
@@ -88,7 +93,8 @@ def _tradier_fake(chains: dict, url: str, params: dict, headers: dict, log: list
     path = url.split("/v1", 1)[1]
     for suffix, code in (fail or {}).items():
         if path.endswith(suffix):
-            return _Resp({}, status=code)
+            code, text = code if isinstance(code, tuple) else (code, None)
+            return _Resp({}, text=text, status=code)
     if path == "/markets/quotes":
         sym = params["symbols"]
         if sym not in chains or not chains[sym]["options"] and not chains[sym].get("spot"):
@@ -111,9 +117,12 @@ def install(chains: dict, log: list | None = None, fail: dict | None = None) -> 
     os.environ["TRADIER_TOKEN"] = FAKE_TOKEN
     ol.MIN_INTERVAL = 0.0
 
-    def fake_get(url, params=None, headers=None, timeout=None):
+    def fake_get(url, params=None, headers=None, timeout=None, **kw):
         if "tradier.com" in url:
             return _tradier_fake(chains, url, params, headers, log, fail)
+        for y, px in INDEX_PX.items():
+            if url.endswith(y) and (params or {}).get("range") == "5d":
+                return _Resp({"chart": {"result": [{"indicators": {"quote": [{"close": [px * 0.99, px]}]}}]}})
         for y, px in MAPPED.items():
             if url.endswith(y):
                 return _Resp({"chart": {"result": [{"indicators": {"quote": [{"close": [px - 5, px]}]}}]}})
@@ -142,8 +151,8 @@ def run(out: Path) -> dict:
         h = pd.read_csv(hp)
         h["date"] = (pd.Timestamp.now("UTC").normalize().tz_localize(None) - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
         h.to_csv(hp, index=False)
-    for o in chains["SPX"]["options"]:   # day 2: open interest moves at one strike
-        if "C05900000" in o["symbol"]:
+    for o in chains["SPY"]["options"]:   # day 2: open interest moves at one strike
+        if "C00590000" in o["symbol"]:
             o["open_interest"] += 500
     return ol.update(out)
 
@@ -422,8 +431,8 @@ def fast_mode_checks(work: Path) -> dict:
         if st()["RUN_MODE"].get("mode") != "full": bad["run mode full"] = str(st().get("RUN_MODE"))
         # B3: next day (history last date moved back): the first run diffs against the held baseline, then replaces it
         n5900 = 0
-        for o in chains["SPX"]["options"]:
-            if "C05900000" in o["symbol"]:
+        for o in chains["SPY"]["options"]:
+            if "C00590000" in o["symbol"]:
                 o["open_interest"] += 300
                 n5900 += 1
         install(chains)
@@ -473,21 +482,31 @@ def tradier_checks(work: Path) -> dict:
     chains = {k: fake_chain(*v) for k, v in CHAINS.items()}
     shutil.rmtree(work, ignore_errors=True)
     try:
-        # 1. parse + fields (token present)
+        # 1. parse + fields (token present); the sandbox has no greeks, so IV is computed from option mid prices
         log: list = []
         install(chains, log)
-        df, spot, stamp = ol.fetch_chain("SPX")
+        df, spot, stamp = ol.fetch_chain("SPY")
         need = {"root", "expiry", "type", "strike", "oi", "volume", "iv", "bid", "ask", "last"}
-        if not need <= set(df.columns) or set(df["type"]) != {"C", "P"} or not (df["iv"] > 0).all() or spot != 5800 or not stamp.endswith("UTC"):
+        if not need <= set(df.columns) or set(df["type"]) != {"C", "P"} or not (df["iv"] > 0).all() or spot != 580 or not stamp.endswith("UTC"):
             bad["parse"] = f"columns {sorted(df.columns)} types {set(df['type'])} spot {spot} stamp {stamp!r}"
-        if abs(df["iv"].iloc[0] - chains["SPX"]["options"][0]["greeks"]["smv_vol"]) > 1e-9: bad["iv field"] = "iv must come from greeks.smv_vol (mid_iv as fallback)"
+        if df.attrs.get("iv_source") != ol.IV_COMPUTED: bad["iv source computed"] = str(df.attrs.get("iv_source"))
+        atm = df[(df["strike"] - 580).abs() < 3]
+        if atm.empty or not ((atm["iv"] > 0.10) & (atm["iv"] < 0.30)).all(): bad["computed iv range"] = f"atm iv {atm['iv'].describe().to_dict() if len(atm) else 'none'}"
         d1 = work / "d1"
         with quiet():
             res = ol.update(d1, fast=True)
         snap = json.loads((d1 / "options" / "SPX.json").read_text())
+        gold = json.loads((d1 / "options" / "GOLD.json").read_text())
         if not res["SPX"][0] or snap.get("source") != "Tradier sandbox, 15 min delayed" or snap.get("source_delay") != "15 min": bad["source"] = f"{res['SPX']} {snap.get('source')!r} {snap.get('source_delay')!r}"
-        if "proxy" not in snap or snap["proxy"] is not None or snap.get("proxy_ratio") is not None: bad["proxy null"] = f"proxy {snap.get('proxy')!r} ratio {snap.get('proxy_ratio')!r}"
-        if "Tradier" not in (res["SPX"][3] or "") or "proxy" in (res["SPX"][3] or ""): bad["note"] = str(res["SPX"][3])
+        if snap.get("licence_note") != "personal/internal use only": bad["licence note"] = str(snap.get("licence_note"))
+        if snap.get("iv_source") != ol.IV_COMPUTED or ol.IV_COMPUTED not in (res["SPX"][3] or ""): bad["iv_source snapshot/note"] = f"{snap.get('iv_source')!r} {res['SPX'][3]}"
+        if snap.get("proxy") != "SPY" or abs((snap.get("proxy_ratio") or 0) - 10.0) > 1e-6 or abs(snap["spot"] - 5800) > 1e-6: bad["index proxy"] = f"proxy {snap.get('proxy')!r} ratio {snap.get('proxy_ratio')!r} spot {snap.get('spot')}"
+        if not (5000 <= (snap.get("call_wall") or 0) <= 6600) or "proxy" not in (res["SPX"][3] or "") or not snap.get("atm_iv") or not (10 < snap["atm_iv"] < 30): bad["proxy scale"] = f"wall {snap.get('call_wall')} iv {snap.get('atm_iv')} note {res['SPX'][3]}"
+        if "proxy" not in gold or gold["proxy"] is not None or gold.get("proxy_ratio") is not None: bad["gold proxy null"] = f"proxy {gold.get('proxy')!r}: GLD is its own chain"
+        if not all(res[k][0] for k in ("SPX", "NDX", "DJX", "RUT", "GOLD")): bad["all desks"] = str({k: v[:3] for k, v in res.items() if k in INDEX_SYMS + ("GOLD",)})[:300]
+        # the sandbox has no indexes: no call may ask for SPX/NDX/DJX/RUT (chains, expirations or quotes)
+        asked = {str(prm.get("symbol") or prm.get("symbols")) for _, prm, _ in log}
+        if asked & set(INDEX_SYMS) or not {"SPY", "QQQ", "DIA", "IWM", "GLD"} <= asked: bad["no index calls"] = f"symbols asked {sorted(asked)}"
         # token only in the Authorization header: never in a URL, a query parameter, another header, status text or the saved files
         if not log: bad["calls"] = "no Tradier calls were made"
         for url, prm, hdr in log:
@@ -496,29 +515,49 @@ def tradier_checks(work: Path) -> dict:
             if not url.startswith("https://sandbox.tradier.com/v1/") or "User-Agent" in hdr: bad["request shape"] = f"{url} {sorted(hdr)}"
         blob = "".join(p_.read_text() for p_ in (d1 / "options").glob("*") if p_.suffix in (".json", ".csv")) + json.dumps({k: list(v) for k, v in res.items()})
         if FAKE_TOKEN in blob: bad["token in files"] = "token text found in options files or status tuples"
-        # 2. proxy: SPX chain empty -> SPY chain rescaled by index price / ETF price, labelled
-        ch2 = {k: v for k, v in chains.items()}
-        ch2["SPX"] = {"spot": 5800.0, "options": []}
-        ch2["SPY"] = fake_chain("SPY", 580, 0.5, 500, 660, 600, 560, 0.15, 7)
-        install(ch2)
-        d2 = work / "d2"
-        with quiet():
-            res2 = ol.update(d2, fast=True)
-        s2 = json.loads((d2 / "options" / "SPX.json").read_text())
-        if not res2["SPX"][0] or s2.get("proxy") != "SPY" or abs((s2.get("proxy_ratio") or 0) - 10.0) > 1e-6: bad["proxy"] = f"{res2['SPX']} proxy {s2.get('proxy')} ratio {s2.get('proxy_ratio')}"
-        if abs(s2["spot"] - 5800) > 1e-6 or not (5000 <= (s2.get("call_wall") or 0) <= 6600) or "proxy" not in (res2["SPX"][3] or ""): bad["proxy scale"] = f"spot {s2['spot']} wall {s2.get('call_wall')} note {res2['SPX'][3]}"
-        if s2.get("source") != ol.SOURCE: bad["proxy source"] = str(s2.get("source"))
-        if json.loads((d2 / "options" / "GOLD.json").read_text()).get("proxy") is not None: bad["gold proxy"] = "GLD is its own chain, never a proxy"
-        ch2["SPX"] = {"options": []}   # index has no quote either: the last index close from Yahoo scales the proxy
-        install(ch2)
-        with quiet():
-            res2b = ol.update(work / "d2b", fast=True)
-        if not res2b["SPX"][0] or json.loads((work / "d2b" / "options" / "SPX.json").read_text()).get("proxy") != "SPY": bad["proxy no quote"] = str(res2b["SPX"])
-        del ch2["SPY"]   # empty index chain and no proxy chain: fails soft, others still run
+        # 2. fail soft: no Yahoo index price -> that desk fails, GOLD still runs; no proxy chain -> same
+        install(chains)
+        saved_last = ol.fetch_last_close
+        ol.fetch_last_close = lambda sym: None if sym == "^GSPC" else saved_last(sym)
+        try:
+            with quiet():
+                res2 = ol.update(work / "d2", fast=True)
+        finally:
+            ol.fetch_last_close = saved_last
+        if res2["SPX"][0] or not res2["GOLD"][0] or not res2["NDX"][0]: bad["no index price fail soft"] = str({k: v[:3] for k, v in res2.items()})[:300]
+        ch2 = {k: v for k, v in chains.items() if k != "SPY"}   # no SPY chain at all
         install(ch2)
         with quiet():
             res2c = ol.update(work / "d2c", fast=True)
         if res2c["SPX"][0] or not res2c["GOLD"][0]: bad["no proxy fail soft"] = str({k: v[:1] for k, v in res2c.items()})
+        # 2b. greeks present (production token later): they win over the computed IV
+        chg = {k: fake_chain(*v, greeks=True) for k, v in CHAINS.items()}
+        install(chg)
+        dfg, _, _ = ol.fetch_chain("SPY")
+        if dfg.attrs.get("iv_source") != ol.IV_GREEKS or abs(dfg["iv"].iloc[0] - chg["SPY"]["options"][0]["greeks"]["smv_vol"]) > 1e-9: bad["greeks iv"] = f"{dfg.attrs.get('iv_source')} {dfg['iv'].iloc[0]}"
+        # 2c. computed-IV round trip: price with Black-Scholes at a known vol, feed the mid, recover the vol
+        ks = np.array([4800.0, 5400.0, 5800.0, 6200.0, 6800.0, 5000.0, 5600.0, 5800.0])
+        tt = np.array([2 / 365, 7 / 365, 30 / 365, 60 / 365, 90 / 365, 1 / 365, 14 / 365, 45 / 365])
+        cp = np.array([True, False, True, False, True, False, True, False])
+        vols = np.array([0.45, 0.22, 0.15, 0.18, 0.12, 0.60, 0.30, 0.20])
+        for q in (0.0, 0.012):
+            mids = ol.bs_price(5800.0, ks, tt, vols, cp, q)
+            rec = ol.implied_vol(mids, 5800.0, ks, tt, cp, q)
+            if np.isnan(rec).any() or np.abs(rec - vols).max() > 1e-4: bad[f"iv round trip q={q}"] = f"max err {np.nanmax(np.abs(rec - vols)):.2e} rec {np.round(rec, 4).tolist()}"
+        junk = ol.implied_vol(np.array([0.0, np.nan, 1e-9, 9e9]), 5800.0, np.array([5800.0] * 4), np.array([0.1] * 4), np.array([True] * 4))
+        if not np.isnan(junk).all(): bad["iv unusable price"] = f"no-price / impossible price must give NaN, got {junk.tolist()}"
+        # 2d. the token is never sent to another host
+        install(chains)
+        logh: list = []
+        install(chains, logh)
+        saved_url = ol.TRADIER_URL
+        ol.TRADIER_URL = "https://evil.example.com/v1"
+        try:
+            with quiet():
+                resh = ol.update(work / "dh", fast=True)
+        finally:
+            ol.TRADIER_URL = saved_url
+        if logh or any(v[0] for v in resh.values()) or "refusing" not in (resh["SPX"][2] or ""): bad["host guard"] = f"requests {len(logh)} {str({k: v[:3] for k, v in resh.items()})[:200]}"
         # 3. no token: skip, nothing fetched, previous files kept, status says what to add
         install(chains)
         before = _tree_hashes(d1, (), ())
@@ -549,6 +588,14 @@ def tradier_checks(work: Path) -> dict:
         n_chain = sum(1 for u, _, _ in log5 if u.endswith("/chains"))
         if n_chain != 1 or any(v[0] for v in res5.values()) or "429" not in (res5["SPX"][2] or "") or "skipped" not in (res5["NDX"][2] or ""): bad["429"] = f"chain calls {n_chain} {str({k: v[:3] for k, v in res5.items()})[:240]}"
         if _tree_hashes(d1, (), ()) != before: bad["429 files"] = "files changed after a 429"
+        # 6. HTTP 400 with a "Quota Violation" body is a rate limit too (Tradier does not send 429): stop, keep files, soft status
+        log6: list = []
+        install(chains, log6, {"/chains": (400, "Quota Violation")})
+        with quiet():
+            res6 = ol.update(d1, fast=True)
+        n_chain6 = sum(1 for u, _, _ in log6 if u.endswith("/chains"))
+        if n_chain6 != 1 or any(v[0] for v in res6.values()) or "quota" not in (res6["SPX"][2] or "").lower() or "skipped" not in (res6["NDX"][2] or ""): bad["400 quota"] = f"chain calls {n_chain6} {str({k: v[:3] for k, v in res6.items()})[:240]}"
+        if _tree_hashes(d1, (), ()) != before: bad["400 quota files"] = "files changed after a quota violation"
     finally:
         requests.get, ol.MIN_INTERVAL = saved_get, saved_iv
         if saved_tok is None:
@@ -595,7 +642,7 @@ def main() -> int:
         bad["tradier " + k] = v
         print("FAIL tradier " + k + ": " + v)
     if not any(k.startswith("tradier") for k in bad):
-        print("OK   tradier (parse, source/proxy fields, ETF proxy rescale, no-token skip, 401/429 stop early, token header-only)")
+        print("OK   tradier (no index calls, computed IV + round trip, greeks win, licence/iv_source fields, ETF proxy rescale, fail soft, no-token skip, 401/429/400-quota stop early, token header-only, sandbox-host guard)")
     for k, v in fast_mode_checks(out / "fast-run").items():
         bad["fast_mode " + k] = v
         print("FAIL fast_mode " + k + ": " + v)

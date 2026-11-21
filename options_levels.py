@@ -4,7 +4,10 @@ Source: Tradier sandbox option chains (free developer account, token in env TRAD
 Authorization header): https://sandbox.tradier.com/v1/markets/options/{expirations,chains}. Data is 15 minutes delayed.
 Refreshed hourly in fast mode from update_data.py; open interest is the figure last published (once per day, from the
 prior session) and prices are delayed last prices, not a close. If the token is missing the desk is skipped and the previous
-files stay. If Tradier has no index chain, the ETF proxy (SPY/QQQ/DIA/IWM) is rescaled to the index price and labelled "proxy".
+files stay. The Tradier sandbox has no index data (SPX/NDX/DJX/RUT) and no greeks, so index desks use the ETF chain
+(SPY/QQQ/DIA/IWM) rescaled to the last index close and labelled "proxy", and implied volatility is computed here by
+inverting Black-Scholes on option mid prices (European approximation, flat rate, ETF dividend yield; American-style ETF
+options are therefore approximate). Tradier greeks are used if present (production token). Terms: personal/internal use only.
 
 What is computed (from open interest and delayed last prices, so a positioning map, not a live trade tape):
 - Net gamma exposure (GEX) by strike, in $ per 1% move of the underlying. Uses the common
@@ -34,8 +37,15 @@ import numpy as np
 import pandas as pd
 import requests
 
-TRADIER_URL = "https://sandbox.tradier.com/v1"   # sandbox: 15 min delayed; the token is read from env TRADIER_TOKEN only
+# SAFETY: only the SANDBOX token belongs in the TRADIER_TOKEN secret. A production token is full account access
+# (it can trade), so _tradier_get refuses to send any token anywhere except this hard-coded sandbox host.
+TRADIER_HOST = "https://sandbox.tradier.com"
+TRADIER_URL = TRADIER_HOST + "/v1"   # sandbox: 15 min delayed; the token is read from env TRADIER_TOKEN only
 SOURCE = "Tradier sandbox, 15 min delayed"
+LICENCE_NOTE = "personal/internal use only"
+IV_COMPUTED = "computed from option mid prices"
+IV_GREEKS = "Tradier greeks"
+DIV_YIELD = {"SPY": 0.012, "QQQ": 0.006, "DIA": 0.018, "IWM": 0.012, "GLD": 0.0}   # approximate documented defaults
 SOURCE_DELAY = "15 min"
 MIN_INTERVAL = 1.05   # seconds between Tradier calls (about 57 a minute, under the sandbox limit)
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
@@ -60,13 +70,13 @@ INSTRUMENTS = {
     "RUT": ("RUT", "RUT", "RTY (E-mini Russell 2000 future)", "RTY=F", 0.08),
     "GOLD": ("GLD", "GLD", "Gold future (GC)", "GC=F", 0.08),
 }
-PROXY = {"SPX": "SPY", "NDX": "QQQ", "DJX": "DIA", "RUT": "IWM", "GOLD": None}   # ETF stand-in when Tradier has no index chain
+PROXY = {"SPX": "SPY", "NDX": "QQQ", "DJX": "DIA", "RUT": "IWM", "GOLD": None}   # ETF used instead of the index (the sandbox has no indexes)
 MAX_STRIKES = 150   # bigger chains are grouped into wider strike buckets so the page stays light
 
 
 # ---------------------------------------------------------------- fetch
 class TradierHalt(Exception):
-    """Token missing/rejected (401/403) or rate limited (429): stop asking Tradier for the rest of this run."""
+    """Token missing/rejected (401/403) or rate limited (429, or 400 "Quota Violation"): stop asking Tradier for the rest of this run."""
 
 
 class TradierEmpty(ValueError):
@@ -81,17 +91,20 @@ def _tradier_get(path: str, params: dict) -> dict:
     token = (os.environ.get("TRADIER_TOKEN") or "").strip()
     if not token:
         raise TradierHalt("not configured: add secret TRADIER_TOKEN")
+    url = TRADIER_URL + path
+    if not url.startswith("https://sandbox.tradier.com/") or not TRADIER_URL.startswith("https://sandbox.tradier.com/"):
+        raise TradierHalt("refusing to send the Tradier token to a host other than sandbox.tradier.com")
     wait = _last_call[0] + MIN_INTERVAL - time.monotonic()   # sandbox allows about 60 requests a minute
     if wait > 0:
         time.sleep(wait)
     _last_call[0] = time.monotonic()
-    r = requests.get(TRADIER_URL + path, params=params,
+    r = requests.get(url, params=params, allow_redirects=False,
                      headers={"Authorization": f"Bearer {token}", "Accept": "application/json"}, timeout=TIMEOUT)
     code = getattr(r, "status_code", 200)
     if code in (401, 403):
         raise TradierHalt(f"Tradier rejected the token (HTTP {code}); check the TRADIER_TOKEN secret")
-    if code == 429:
-        raise TradierHalt("Tradier rate limit (HTTP 429); stopped for this run")
+    if code == 429 or (code == 400 and "quota violation" in str(getattr(r, "text", "") or "").lower()):
+        raise TradierHalt(f"Tradier rate limit (HTTP {code}, quota violation); stopped for this run")
     if code >= 400:
         raise requests.HTTPError(f"Tradier HTTP {code} for {path}")
     return r.json() or {}
@@ -124,11 +137,11 @@ def fetch_chain(sym: str) -> tuple[pd.DataFrame, float, str]:
     far = [e for e in exps if MAX_DTE < (e - today).days <= 120][:2]   # two more for the volatility term structure
     rows = []
     for e in near + far:
-        cj = _tradier_get("/markets/options/chains", {"symbol": sym, "expiration": e.strftime("%Y-%m-%d"), "greeks": "true"})
+        cj = _tradier_get("/markets/options/chains", {"symbol": sym, "expiration": e.strftime("%Y-%m-%d"), "greeks": "false"})
         for o in _as_list((cj.get("options") or {}).get("option")):
             if not isinstance(o, dict) or str(o.get("option_type", "")).lower() not in ("call", "put"):
                 continue
-            g = o.get("greeks") or {}
+            g = o.get("greeks") if isinstance(o.get("greeks"), dict) else {}
             m = OPT_RE.match(str(o.get("symbol", "")))
             rows.append({
                 "root": str(o.get("root_symbol") or (m["root"] if m else sym)), "expiry": pd.Timestamp(o.get("expiration_date") or e),
@@ -140,35 +153,37 @@ def fetch_chain(sym: str) -> tuple[pd.DataFrame, float, str]:
     df = pd.DataFrame(rows)
     if df.empty or (df["strike"] <= 0).all():
         raise TradierEmpty(f"Tradier returned no option rows for {sym}")
+    n_greeks = int((df["iv"] > 0).sum())
+    if n_greeks < len(df):   # no greeks (sandbox): solve the implied vol from the option's own price
+        asof = pd.Timestamp(datetime.now(timezone.utc).replace(tzinfo=None))
+        mid = np.where((df["bid"] > 0) & (df["ask"] >= df["bid"]), (df["bid"] + df["ask"]) / 2.0, df["last"])
+        t = ((df["expiry"] + pd.Timedelta(hours=20, minutes=30)) - asof).dt.total_seconds() / (365.0 * 86400)
+        solved = implied_vol(mid, spot, df["strike"].values, t.clip(lower=1.0 / (365 * 24)).values,
+                             (df["type"] == "C").values, DIV_YIELD.get(sym.upper(), 0.0))
+        df["iv"] = np.where(df["iv"] > 0, df["iv"], np.nan_to_num(solved, nan=0.0))
+        df = df[df["iv"] > 0].reset_index(drop=True)   # contracts with no usable price / unsolvable IV are dropped
+        if df.empty:
+            raise TradierEmpty(f"no usable option prices to compute implied volatility for {sym}")
+    n_comp = len(df) - n_greeks
+    df.attrs["iv_source"] = IV_GREEKS if n_comp <= 0 else IV_COMPUTED if n_greeks == 0 else IV_GREEKS + " (gaps computed from option mid prices)"
     return df, spot, stamp
 
 
 def fetch_with_proxy(key: str, sym: str, proxy: str | None) -> tuple[pd.DataFrame, float, str, dict]:
-    """Chain for the instrument itself; if Tradier has none and an ETF proxy exists, use the ETF chain rescaled to the
-    instrument's price (strikes, prices and spot multiplied by index / ETF; open interest and IV unchanged)."""
-    meta = {"proxy": None, "proxy_ratio": None}
-    try:
+    """Chain for the instrument. The sandbox has no indexes, so with an ETF proxy the index chain is never tried: the ETF
+    chain is rescaled to the last index close from Yahoo (strikes, prices and spot multiplied by index / ETF; open interest
+    and IV unchanged). The ratio uses the delayed ETF price against the last index close, so intraday it is approximate."""
+    if not proxy:
         df, spot, stamp = fetch_chain(sym)
-        return df, spot, stamp, meta
-    except TradierHalt:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        if not proxy:
-            raise
-        first = f"{type(exc).__name__}: {exc}"[:120]
+        return df, spot, stamp, {"proxy": None, "proxy_ratio": None, "iv_source": df.attrs.get("iv_source")}
     df, etf_spot, stamp = fetch_chain(proxy)
-    try:
-        idx_spot, _ = fetch_quote(sym)
-    except TradierHalt:
-        raise
-    except Exception:  # noqa: BLE001 - index quote missing too: fall back to the last index close from Yahoo
-        idx_spot = fetch_last_close(RV_SOURCE[key][0])
+    idx_spot = fetch_last_close(RV_SOURCE[key][0])
     if not idx_spot or idx_spot <= 0:
-        raise TradierEmpty(f"no {sym} price to scale the {proxy} proxy ({first})")
+        raise TradierEmpty(f"no {sym} index price (Yahoo) to scale the {proxy} proxy")
     ratio = float(idx_spot) / etf_spot
     for c in ("strike", "bid", "ask", "last"):
         df[c] = df[c] * ratio
-    meta = {"proxy": proxy, "proxy_ratio": round(ratio, 6)}
+    meta = {"proxy": proxy, "proxy_ratio": round(ratio, 6), "iv_source": df.attrs.get("iv_source")}
     return df, float(idx_spot), stamp, meta
 
 
@@ -191,6 +206,31 @@ def bs_gamma(spot, strike, t, iv):
         d1 = (np.log(spot / strike) + (RATE + 0.5 * iv * iv) * t) / sd
         g = np.exp(-0.5 * d1 * d1) / (np.sqrt(2 * np.pi) * spot * sd)
     return np.nan_to_num(g, nan=0.0, posinf=0.0, neginf=0.0)
+
+
+def bs_price(spot, strike, t, vol, is_call, q=0.0):
+    """European Black-Scholes price, vectorised (flat RATE, continuous dividend yield q)."""
+    sd = vol * np.sqrt(t)
+    d1 = (np.log(spot / strike) + (RATE - q + 0.5 * vol * vol) * t) / sd
+    d2 = d1 - sd
+    c = spot * np.exp(-q * t) * _ncdf(d1) - strike * np.exp(-RATE * t) * _ncdf(d2)
+    p = c - spot * np.exp(-q * t) + strike * np.exp(-RATE * t)   # put-call parity
+    return np.where(is_call, c, p)
+
+
+def implied_vol(price, spot, strike, t, is_call, q=0.0, lo=0.01, hi=5.0, iters=60):
+    """Invert Black-Scholes by bisection (price is increasing in vol). European approximation: American-style ETF options
+    are slightly mispriced by it. NaN where the price is missing or outside what vol in [lo, hi] can produce."""
+    price, strike, t = (np.asarray(x, dtype=float) for x in (price, strike, t))
+    is_call = np.asarray(is_call, dtype=bool)
+    a, b = np.full(price.shape, lo), np.full(price.shape, hi)
+    with np.errstate(all="ignore"):
+        ok = (price > 0) & (strike > 0) & (t > 0) & (bs_price(spot, strike, t, a, is_call, q) <= price) & (price <= bs_price(spot, strike, t, b, is_call, q))
+        for _ in range(iters):
+            m = 0.5 * (a + b)
+            up = bs_price(spot, strike, t, m, is_call, q) < price
+            a, b = np.where(up, m, a), np.where(up, b, m)
+    return np.where(ok, 0.5 * (a + b), np.nan)
 
 
 def prepare(df: pd.DataFrame, asof: pd.Timestamp) -> pd.DataFrame:
@@ -313,7 +353,7 @@ _erf = np.frompyfunc(math.erf, 1, 1)
 
 
 def _ncdf(x):
-    return 0.5 * (1.0 + _erf(np.asarray(x, dtype=float) / math.sqrt(2.0)).astype(float))
+    return 0.5 * (1.0 + np.asarray(_erf(np.asarray(x, dtype=float) / math.sqrt(2.0)), dtype=float))
 
 
 GREEKS = ("gamma", "delta", "vanna", "charm", "theta", "vega")
@@ -637,7 +677,7 @@ def update(data_dir: Path, fast: bool = False) -> dict[str, tuple[bool, str | No
             mapped = fetch_last_close(ysym)
             snap = {"key": key, "label": label, "mapped_label": mapped and mlabel, "mapped_price": mapped,
                     "mapped_ratio": round(mapped / spot, 6) if mapped else None,
-                    "date": day, "source": SOURCE, "source_delay": SOURCE_DELAY, **pmeta, "source_time": stamp, "updated_utc": asof.strftime("%Y-%m-%d %H:%M UTC"),
+                    "date": day, "source": SOURCE, "source_delay": SOURCE_DELAY, "licence_note": LICENCE_NOTE, **pmeta, "source_time": stamp, "updated_utc": asof.strftime("%Y-%m-%d %H:%M UTC"),
                     "oi_changes": changes, **a}
             try:   # the interactive Greek views; the level table above still works if this part fails
                 snap["surface"] = build_surface(raw, spot, asof, window)
@@ -667,7 +707,7 @@ def update(data_dir: Path, fast: bool = False) -> dict[str, tuple[bool, str | No
                                  "iv30": (snap.get("vol") or {}).get("iv30"), "rv20": (snap.get("vol") or {}).get("rv20")}])
             hist = pd.concat([pd.read_csv(hp), row], ignore_index=True) if hp.exists() else row
             hist.drop_duplicates("date", keep="last").sort_values("date").tail(400).to_csv(hp, index=False)
-            note = f"{SOURCE} chain {pmeta['proxy'] or sym}" + (f" (proxy for {sym}, rescaled x{pmeta['proxy_ratio']})" if pmeta["proxy"] else "") + f", {a['contracts']} contracts in {a['expiries']} expiries" + ("; OI change held from the first run of the day" if carry is not None else "") + ("" if mapped else f"; {ysym} price unavailable, levels shown in {label} units only")
+            note = f"{SOURCE} chain {pmeta['proxy'] or sym}" + (f" (proxy for {sym}, rescaled x{pmeta['proxy_ratio']})" if pmeta["proxy"] else "") + f", implied vol {pmeta['iv_source']}" + f", {a['contracts']} contracts in {a['expiries']} expiries" + ("; OI change held from the first run of the day" if carry is not None else "") + ("" if mapped else f"; {ysym} price unavailable, levels shown in {label} units only")
             result[key] = (True, day, None, note)
         except TradierHalt as exc:   # token rejected or rate limited: keep previous files, skip the rest
             halt = f"{exc}; remaining instruments skipped this run"
