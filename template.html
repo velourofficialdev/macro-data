@@ -2541,7 +2541,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   function orderFlow() {
     const a = window.VelourOrderFlow.adapters();
     $("of-body").innerHTML = `<p class="note">Needs a trade/order-book feed we do not have; nothing here is simulated.</p>`
-      + `<div class="sketch" aria-hidden="true"><div>Trade tape and buy/sell imbalance: design sketch, no data</div><div>Book depth</div><div>Cumulative delta</div></div>`
+      + `<div class="sketch" aria-hidden="true"><div>Trade tape and flow imbalance: design sketch, no data</div><div>Book depth</div><div>Cumulative delta</div></div>`
       + (a.length ? `<p class="note">Adapter registered: ${esc(a.map(x => `${x.name} (${x.source}, ${x.delay})`).join("; "))}. Drawing its data is not built in this version.</p>` : `<p class="note">No feed is connected. A future feed plugs in through <code>VelourOrderFlow.register({ name, source, delay, subscribe(cb) })</code>.</p>`);
   }
 
@@ -2555,7 +2555,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const src = keys.map(k => { const s = O[k].src; return `<tr><td>${esc(O[k].title)}</td><td>${esc(s ? s.text : "Cboe delayed chain · fetched " + (O[k].updated_utc || O[k].date))}</td><td>${esc(s ? s.licence_note : "Cboe data: permission for public display pending")}</td></tr>`; }).join("");
     $("mt-body").innerHTML = rowsM.map(r => `<h4>${esc(r[0])}</h4><p>${esc(r[1])}</p>`).join("")
       + `<h4>Source and licence by instrument</h4><div class="scroll"><table><thead><tr><th>Instrument</th><th>Source</th><th>Licence note</th></tr></thead><tbody>${src}</tbody></table></div>`
-      + `<p style="margin-top:8px">Educational context, not advice. Nothing here is a recommendation or a price target.</p>`;
+      + `<p style="margin-top:8px">Educational context, not advice.</p>`;
   }
 
   /* ---------- Copy levels for TradingView ---------- */
