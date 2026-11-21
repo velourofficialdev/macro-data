@@ -859,10 +859,10 @@ def tv_levels(key: str, snap: dict, mapping: dict | None = None) -> dict:
             f"// Velour options levels {key}. Educational, not advice.",
             f"// Source: {src['text']}",
             f"// As of: {asof}. Levels are from delayed open interest, not live prices.",
-            f"// Values are in {unit}" + ((f"; the toggle adds the futures basis {basis:.2f} ({label}): level + basis." if add else f"; the toggle multiplies by {ratio:.6g} ({label}): level * ratio.") if ok_map else "; no mapped price was available."),
+            f"// Values are in {unit}" + ((f"; the toggle adds the futures basis {basis:.4f} ({label}): level + basis." if add else f"; the toggle multiplies by {ratio:.8g} ({label}): level * ratio.") if ok_map else "; no mapped price was available."),
             f'indicator("Velour options levels {key}", overlay=true)',
             f'useMapped = input.bool(false, "Show in {label} units")',
-            (f"basis = {basis:.2f}" if add else f"ratio = {ratio:.6g}") if ok_map else "ratio = 1.0"]
+            (f"basis = {basis:.4f}" if add else f"ratio = {ratio:.8g}") if ok_map else "ratio = 1.0"]
     for _id, title, v, col, style in lv:
         pine.append(f'hline(useMapped ? {v:.2f} {"+ basis" if add and ok_map else "* ratio"} : {v:.2f}, "{title}", color={col}, linestyle={style}, linewidth=2)')
     buf = io.StringIO()
