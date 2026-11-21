@@ -2763,7 +2763,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     if (!sym) { cap.textContent = ""; show(`No price series for ${i.title} in the dashboard.`, " The levels are still on the stat strip, the ladder and the Replay panel."); return; }
     const sg = i.day_move, defs = [["cw", "Call wall", L.cw, "primary", "solid", 1.5], ["pw", "Put wall", L.pw, "secondary", "solid", 1.5], ["flip", "Gamma flip", L.flip, "warn", "dash", 1.5], ["mp", "Max pain", i.max_pain, "text", "dash", 1],
       ["s1u", "1-day +1σ", sg != null && i.spot != null ? i.spot + sg : null, "muted", "dot", 1], ["s1d", "1-day −1σ", sg != null && i.spot != null ? i.spot - sg : null, "muted", "dot", 1]];
-    const phone = host.clientWidth < 600, lv0 = defs.map(d => ({ id: d[0], label: d[1], raw: d[2], value: pcUnits(sym, d[2]), ck: d[3], dash: d[4], w: d[5] })).filter(d => d.value != null);
+    const phone = host.clientWidth < 440, lv0 = defs.map(d => ({ id: d[0], label: d[1], raw: d[2], value: pcUnits(sym, d[2]), ck: d[3], dash: d[4], w: d[5] })).filter(d => d.value != null);
     const lv = lv0.map(d => phone ? Object.assign({}, d, { label: "" }) : d);   // narrow screens: no on-line labels, the legend below names every line
     const cv = { primary: "var(--primary)", secondary: "var(--secondary)", warn: "var(--warn)", text: "var(--text)", muted: "var(--muted)" }, nf = v => Number(v).toLocaleString("en-US", { minimumFractionDigits: sym.dec, maximumFractionDigits: sym.dec });
     leg.innerHTML = lv0.map(d => `<span style="--c:${cv[d.ck]}"><i class="${d.dash === "solid" ? "" : d.dash === "dot" ? "dot" : "dsh"}"></i>${esc(d.label)} ${nf(d.value)}</span>`).join("") + (lv0.length ? "" : '<span>No levels for this selection.</span>');
