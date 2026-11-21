@@ -87,7 +87,7 @@
     try { raw = localStorage.getItem(KEY); } catch (e) { raw = mem; }
     if (!raw) return;
     wrote = true;   // a stored layout existed when the page opened
-    var v = validate(raw);   // same allowlist and caps as an import; anything wrong starts a fresh layout
+    var v = validate(raw, true);   // same allowlist and caps as an import; anything wrong starts a fresh layout
     if (v.ok) { state = v.ok; } else { state = freshState(); }
   }
   function dropKid(k, v) { return k === "kid" ? undefined : v; }
@@ -96,7 +96,7 @@
   function saveNow() {
     clearTimeout(saveT); saveT = 0;
     try { snapshotCur(); } catch (e) { /* keep the previous snapshot */ }
-    var s = JSON.stringify(state, dropKid), chk = validate(s);
+    var s = JSON.stringify(state, dropKid), chk = validate(s, true);
     mem = s;
     if (!chk.ok) { say("Layout not saved on this device (" + chk.error + "). Use Export to keep a copy.", true); }
     else {
@@ -548,7 +548,7 @@
     var data = chart.getDataList(), prev = idx > 0 ? data[idx - 1] : null, ch = prev ? d.close - prev.close : 0, pc = prev && prev.close ? ch / prev.close * 100 : 0;
     var dec = s.dec, u = s.unit === "$" ? "$" : "";
     readEl.textContent = "";
-    readEl.appendChild(document.createTextNode(iso(d.timestamp) + " \u00B7 Close "));
+    readEl.appendChild(document.createTextNode(iso(d.timestamp) + " \u00B7 " + (s.partial && idx === chart.getDataList().length - 1 ? "Latest " : "Close ")));
     readEl.appendChild(el("b", "", u + fmtNum(d.close, dec)));
     if (s.ohlc) readEl.appendChild(document.createTextNode(" \u00B7 O " + fmtNum(d.open, dec) + " H " + fmtNum(d.high, dec) + " L " + fmtNum(d.low, dec)));
     if (prev) { var sp = el("span", ch > 0 ? "kl-pos" : ch < 0 ? "kl-neg" : "", " \u00B7 " + arrow(ch) + sgn(ch, dec) + " (" + sgn(pc, 2, "%") + ")"); readEl.appendChild(sp); }
@@ -924,7 +924,7 @@
     } catch (e) { say("Export failed in this browser.", true); }
   }
   function validNum(x) { return fin(x) && Math.abs(x) < 1e15; }
-  function validate(text) {
+  function validate(text, lenient) {   // lenient (saved layout only): entries for symbols missing from today's feed are checked and kept, never drawn
     var o; if (typeof text !== "string" || text.length > 2e6) return { error: "not a layout file" };
     try { o = JSON.parse(text); } catch (e) { return { error: "not valid JSON" }; }
     if (!isObj(o)) return { error: "not a layout object" };
@@ -934,7 +934,7 @@
     if (!ids.length) return { error: "no symbols in the file" };
     for (i = 0; i < ids.length; i++) {
       var id = ids[i], s = o.symbols[id];
-      if (!byId[id]) return { error: "unknown symbol \"" + id.slice(0, 20) + "\"" };
+      if (!byId[id] && !(lenient && /^[\w.\-^=]{1,40}$/.test(id) && id !== "__proto__" && ids.length <= 200)) return { error: "unknown symbol \"" + id.slice(0, 20) + "\"" };
       if (!isObj(s)) return { error: "bad data for " + id };
       var n = freshSym();
       if (s.interval === "D" || s.interval === "W") n.interval = s.interval;
@@ -962,7 +962,7 @@
           var d = INDS[q.n], p = Array.isArray(q.p) ? q.p.slice(0, d.params.length) : d.params.slice();
           if (p.length !== d.params.length || !p.every(function (x) { return fin(x) && x >= 1 && x <= 400; })) p = d.params.slice();
           var ir = { n: q.n, p: p, vis: q.vis !== false };
-          if (q.n === "VL_CMP") { if (!byId[q.sym]) return { error: "bad compare symbol in " + id }; ir.sym = q.sym; }
+          if (q.n === "VL_CMP") { if (!byId[q.sym] && !(lenient && typeof q.sym === "string" && /^[\w.\-^=]{1,40}$/.test(q.sym))) return { error: "bad compare symbol in " + id }; ir.sym = q.sym; }
           n.indicators.push(ir);
         }
       }
