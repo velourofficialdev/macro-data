@@ -1572,26 +1572,31 @@ def build_opt_stale(data: dict, today: date) -> str:
     bad = [k for k in OPT_META if isinstance((st.get(f"OPT_{k}")), dict) and st[f"OPT_{k}"].get("ok") is False]
     if not bad:
         return ""
-    parts, n403 = [], 0
+    groups, n403 = {}, 0   # as-of text -> instrument titles, so equal dates collapse into one sentence
     for k in bad:
         err = str(st[f"OPT_{k}"].get("error") or "")
         n403 += bool(re.search(r"\b403\b", err))
-        name = f"{re.sub('&amp;', '&', OPT_META[k]['title'])} ({OPT_META[k]['src'].replace(' options', '')})"
+        name = re.sub("&amp;", "&", OPT_META[k]["title"])
         s = opts.get(k) if isinstance(opts.get(k), dict) else {}
         raw = str(s.get("source_time") or s.get("date") or "")[:10]
         try:
             d = datetime.strptime(raw, "%Y-%m-%d").date()
             n = (today - d).days
-            parts.append(f"{name} options data is as of {d.strftime('%d %b %Y')}" + (f", {n} day{'s' if n != 1 else ''} old" if n >= 0 else ""))
+            when = f"as of {d.strftime('%d %b %Y')}" + (f", {n} day{'s' if n != 1 else ''} old" if n >= 0 else "")
         except ValueError:
-            parts.append(f"{name} has no saved options data yet")
+            when = "has no saved options data yet"
+        groups.setdefault(when, []).append(name)
+    def join(ns):
+        return ns[0] if len(ns) == 1 else ", ".join(ns[:-1]) + " and " + ns[-1]
+    parts = [f"{join(ns)}: {w}" if w.startswith("as of") else f"{join(ns)} {w}" for w, ns in groups.items()]
+    names = join([n for ns in groups.values() for n in ns])
     refused = n403 == len(bad)   # wording only when every failing source reports HTTP 403
     whole = len(bad) == len(OPT_META)
     head = "Options data is not updating." if whole else "Some options data is not updating."
-    why = ("The data provider is currently refusing automated downloads" if refused else "They could not be refreshed on the latest update")
+    why = ("The data provider is currently refusing automated downloads" if refused else f"{names} could not be refreshed on the latest update")
     tail = ("Levels below show where positioning stood on those dates, not today." if whole
             else "Other instruments passed their latest check; levels for the ones listed show where positioning stood on their date, not today.")
-    return (f'<div class="optstale" id="opt-stale" role="status"><b>{head}</b> '
+    return (f'<div class="optstale" id="opt-stale" data-stale="{",".join(bad)}" role="status"><b>{head}</b> '
             + esc("; ".join(parts)) + f". {why}. {tail}</div>")
 
 

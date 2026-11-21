@@ -1516,9 +1516,11 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   if (!keys.length) { desk.style.display = "none"; return; }
   const GREEKS = ["gamma", "delta", "vanna", "charm", "theta", "vega"];
   const MODES = [["trad", "Traditional"], ["eff", "Effective"], ["shadow", "Shadow"]];
-  const OPT_STALE = !!document.getElementById("opt-stale");   // banner built server-side when a Cboe chain source failed
+  const OPT_STALE_EL = document.getElementById("opt-stale");   // banner built server-side; data-stale lists the instrument keys whose Cboe chain source failed
+  const STALE_KEYS = OPT_STALE_EL ? (OPT_STALE_EL.dataset.stale || "").split(",").filter(Boolean) : [];
+  const isStale = inst => STALE_KEYS.indexOf(inst) >= 0;
   const MODE_NOTE = {
-    trad: OPT_STALE ? "Traditional: exposure at the last price on the desk, as the book stood then." : "Traditional: exposure at today's price, as the book stands.",
+    trad: inst => isStale(inst) ? "Traditional: exposure at the last price on the desk, as the book stood then." : "Traditional: exposure at today's price, as the book stands.",
     eff: "Effective: gamma re-priced as if price had already moved by the chosen amount, each option keeping its own implied vol. Shows how the hedging picture changes once price gets there. Gamma only.",
     shadow: "Shadow: only the extra part of that re-priced gamma that comes from implied vol sliding along the smile with price (sticky moneyness minus sticky strike). Usually small; matters most near the money. Gamma only.",
   };
@@ -1613,7 +1615,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     buttons($("od-rng"), RNG, st.rng, v => { st.rng = v; paint(); panes.forEach(pane); });
     $("od-mvw").style.display = st.mode === "trad" ? "none" : "";
     if (sc) $("od-mv").innerHTML = sc.moves.map(m => `<option value="${m}"${m === st.mv ? " selected" : ""}>${mvLabel(st.inst, m)}</option>`).join("");
-    $("od-mnote").textContent = MODE_NOTE[st.mode];
+    { const mn = MODE_NOTE[st.mode]; $("od-mnote").textContent = typeof mn === "function" ? mn(st.inst) : mn; }
     $("od-sv").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === st.sv)));
   }
   $("od-ex").addEventListener("change", e => { st.ex = +e.target.value; paint(); });
@@ -1658,7 +1660,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const reg = $("od-reg"); reg.style.setProperty("--c", R.pos ? "var(--up)" : "var(--down)");
     reg.innerHTML = `<b>● ${R.name}</b><span>${R.pos ? "Positive" : "Negative"} gamma: ${R.why}.</span>`;
     const age = i.date ? Math.round((Date.now() - Date.parse(i.date)) / 864e5) : 0, feed = $("od-feed");
-    const fst = age > 4 || OPT_STALE;
+    const fst = age > 4 || isStale(st.inst);
     feed.className = "odfeed" + (fst ? " stale" : ""); feed.innerHTML = `<i></i>${fst ? "Stale · " : ""}Cboe delayed chain, fetched ${esc(i.updated_utc || i.date)}`;
     const capTxt = `${lab} · ${ser.ex < 0 ? "all expiries ≤ 60 days" : S().expiries[ser.ex].e} · ${S().units[cfg.greek]}${ser.note ? " · " + ser.note : ""}`;
     const wn = win(st.inst), off = [["call wall", L.cw], ["put wall", L.pw], ["flip", L.flip]].filter(x => x[1] != null && (x[1] < wn.lo || x[1] > wn.hi)).map(x => `${x[0]} ${fk(x[1])}`);
