@@ -337,7 +337,7 @@
   },
   "GOLD_PRICE": {
     "ok": true,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": "2026-11-20",
     "error": null,
     "note": "source: Yahoo GC=F"
@@ -477,35 +477,35 @@
   },
   "IDX_ES": {
     "ok": true,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": "2026-11-20",
     "error": null,
     "note": "Yahoo ^GSPC"
   },
   "IDX_NQ": {
     "ok": true,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": "2026-11-20",
     "error": null,
     "note": "Yahoo ^NDX"
   },
   "IDX_US30": {
     "ok": true,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": "2026-11-20",
     "error": null,
     "note": "Yahoo ^DJI"
   },
   "FED_ZQ": {
     "ok": true,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": "2026-11-20",
     "error": null,
     "note": "ZQ via Yahoo Finance (manual prices in data/fed/zq_manual.csv override)"
   },
   "FED_ODDS": {
     "ok": true,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": "2026-11-21",
     "error": null,
     "note": "Kalshi, 10 meetings"
@@ -519,35 +519,35 @@
   },
   "OPT_SPX": {
     "ok": false,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": null,
     "error": "HTTPError: 403 Client Error: Forbidden for url: https://cdn-api.cboe.com/api/global/delayed_quotes/options/_SPX.json",
     "note": null
   },
   "OPT_NDX": {
     "ok": false,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": null,
     "error": "HTTPError: 403 Client Error: Forbidden for url: https://cdn-api.cboe.com/api/global/delayed_quotes/options/_NDX.json",
     "note": null
   },
   "OPT_DJX": {
     "ok": false,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": null,
     "error": "HTTPError: 403 Client Error: Forbidden for url: https://cdn-api.cboe.com/api/global/delayed_quotes/options/_DJX.json",
     "note": null
   },
   "OPT_RUT": {
     "ok": false,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": null,
     "error": "HTTPError: 403 Client Error: Forbidden for url: https://cdn-api.cboe.com/api/global/delayed_quotes/options/_RUT.json",
     "note": null
   },
   "OPT_GOLD": {
     "ok": false,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": null,
     "error": "HTTPError: 403 Client Error: Forbidden for url: https://cdn-api.cboe.com/api/global/delayed_quotes/options/GLD.json",
     "note": null
@@ -568,10 +568,17 @@
   },
   "RUN_MODE": {
     "ok": true,
-    "checked_utc": "2026-11-21 05:23 UTC",
+    "checked_utc": "2026-11-21 05:25 UTC",
     "last_data_date": null,
     "error": null,
-    "mode": "full",
-    "note": "full run: all sources"
+    "mode": "fast",
+    "note": "fast run: news, Fed odds, options and prices only; other sources keep their last full-run entries"
+  },
+  "FX_NEWS": {
+    "ok": true,
+    "checked_utc": "2026-11-21 05:25 UTC",
+    "last_data_date": "2026-11-20",
+    "error": null,
+    "note": "8 headlines (Google News RSS); numbers unchanged until the full run"
   }
 }
