@@ -299,6 +299,7 @@
   .dwalls h4 { margin: 0 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
   .dwrow { display: grid; grid-template-columns: minmax(70px, auto) 1fr auto; gap: 8px; align-items: center; font-size: 12px; padding: 2px 0; font-variant-numeric: tabular-nums; }
   .dwrow .bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; } .dwrow .bar i { display: block; height: 100%; background: var(--c); }
+  .dwrow b { white-space: nowrap; }
   .dwrow small { color: var(--muted); display: block; font-size: 10px; }
   .dgauge, .dmag, .dflow { padding: 4px 16px 14px; }
   .dgauge svg { width: 100%; max-width: 360px; display: block; margin: 0 auto; }
@@ -334,13 +335,13 @@
   .dterm .dpanel.dfull { height: auto; }
   .dterm .dpanel:not(.dfull) .dguide { display: none; }
   .dterm .dpanel:not(.dfull) .card-h { padding: 6px 6px 4px 8px; min-height: 30px; gap: 4px 6px; flex-wrap: nowrap; }
-  .dterm .dpanel:not(.dfull) .card-h h3 { flex: 0 0 auto; max-width: 100%; } .dterm .dpanel[data-panel="magnet"]:not(.dfull) .card-h h3 { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .dterm .dpanel:not(.dfull) .card-h h3 { flex: 0 0 auto; max-width: 100%; } .dterm .dpanel[data-panel="magnet"]:not(.dfull) .card-h h3 { flex: 0 1 auto; min-width: 0; white-space: normal !important; line-height: 1.25; }
   .dterm .dpanel:not(.dfull) .card-h .ranges { flex: 0 1 auto; min-width: 0; justify-content: flex-end; }
   .dterm .dpanel:not(.dfull) .card-h h3 { font-size: 10px; letter-spacing: .09em; white-space: nowrap; }
   .dterm .dpanel:not(.dfull) .ranges { gap: 1px; } .dterm .dpanel:not(.dfull) .ranges button { font-size: 10.5px; padding: 2px 6px; }
   .dterm .dpanel:not(.dfull) .dtools button { min-width: 20px; height: 20px; padding: 0 4px; font-size: 11px; }
   .dterm .dpanel:not(.dfull) .dfresh { padding: 0 8px 3px; font-size: 10px; gap: 4px 6px; }
-  .dterm .dpanel:not(.dfull) .dfresh > span:first-of-type { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dterm .dpanel:not(.dfull) .dfresh > span:first-of-type { white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
   .dterm .dpanel:not(.dfull) .dfresh i { width: 6px; height: 6px; margin-top: 3px; }
   .dterm .dpanel:not(.dfull) .odcap { padding: 0 8px; font-size: 10px; min-height: 0; line-height: 1.35; }
   .dterm .dpanel:not(.dfull) .dctl { padding: 0 8px 2px; gap: 3px 8px; }
@@ -356,7 +357,6 @@
   .dterm .dpanel:not(.dfull) .dwrow { grid-template-columns: 1fr auto; font-size: 11px; padding: 1px 0; gap: 4px; }
   .dterm .dpanel:not(.dfull) .dwrow .bar, .dterm .dpanel:not(.dfull) .dwrow small, .dterm .dpanel:not(.dfull) .dshare, .dterm .dpanel:not(.dfull) .dwalls > .note, .dterm .dpanel:not(.dfull) .dwalls .note { display: none; }
   .dterm .dpanel:not(.dfull) .dwrow > div:last-child { white-space: nowrap; font-size: 10.5px; }
-  .dterm .dpanel:not(.dfull) .dwalls > div:last-child:not(:only-child) { }
   .dterm .dgauge { padding: 0 8px 6px; flex: 1 1 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; }
   .dterm .dpanel:not(.dfull) .dgauge svg { max-height: 104px; flex: none; } .dterm .dpanel:not(.dfull) .dgauge .gs { margin-top: 0; } .dterm .dpanel:not(.dfull) .dgauge .gs div + div { display: none; }
   .dterm .dpanel:not(.dfull) .dgauge .gs div { font-size: 10.5px; }
@@ -386,6 +386,7 @@
     .dterm .dcol.c2 > .dpanel[data-panel="greeks_view"] { flex: 3 1 0; } .dterm .dcol.c2 > .dpanel[data-panel="magnet"] { flex: 2 1 0; }
     .dterm .dcol.c4 > .dpanel[data-panel="skew"] { flex: 5 1 0; } .dterm .dcol.c4 > .dpanel[data-panel="surface"] { flex: 6 1 0; }
     .dterm .dpanel.dcollapsed { flex: none !important; height: auto; }
+    .dterm .drow2:has(> .dcollapsed) { align-items: start; } .dterm .drow2:has(> .dcollapsed) > .dpanel:not(.dcollapsed) { height: 226px; }
     .dterm .dpanel.dfull { flex: none; height: auto; }
     .dterm .dpanel[data-panel="surface"] .odbox { min-height: 160px; }
   }
@@ -927,7 +928,7 @@
           <div class="card dpanel" data-panel="greeks_view"><div class="card-h"><h3>Greeks view</h3><div class="ranges" id="gv-type" role="group" aria-label="Bars or line"></div></div>
             <div class="dctl"><div class="ranges" id="gv-ex" role="group" aria-label="Expiry"></div><div class="ranges" id="gv-greek" role="group" aria-label="Greek"></div><div class="ranges" id="gv-opts" role="group" aria-label="Options"></div></div>
             <div class="odcap" id="gv-cap"></div><div class="odbox dbox2" id="gv-box" role="img" aria-label="Exposure by strike, horizontal bars"></div></div>
-          <div class="card dpanel" data-panel="magnet"><div class="card-h"><h3>0DTE magnet · expected range · IV rank</h3></div><div class="dmag" id="mg-body"></div></div>
+          <div class="card dpanel" data-panel="magnet"><div class="card-h"><h3 title="0DTE magnet · expected range · IV rank">0DTE magnet · expected range · IV rank</h3></div><div class="dmag" id="mg-body"></div></div>
         </div>
         <div class="dcol c3">
           <div class="drow2">
@@ -2761,20 +2762,26 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     if (!VC || !VC.mountDesk) { cap.textContent = ""; show(document.readyState === "complete" ? "Chart not available in this build." : "Loading chart…", ""); return; }
     if (!sym) { cap.textContent = ""; show(`No price series for ${i.title} in the dashboard.`, " The levels are still on the stat strip, the ladder and the Replay panel."); return; }
     const sg = i.day_move, defs = [["cw", "Call wall", L.cw, "primary", "solid", 1.5], ["pw", "Put wall", L.pw, "secondary", "solid", 1.5], ["flip", "Gamma flip", L.flip, "warn", "dash", 1.5], ["mp", "Max pain", i.max_pain, "text", "dash", 1],
-      ["s1u", "+1σ", sg != null && i.spot != null ? i.spot + sg : null, "muted", "dot", 1], ["s1d", "−1σ", sg != null && i.spot != null ? i.spot - sg : null, "muted", "dot", 1]];
-    const lv = defs.map(d => ({ id: d[0], label: d[1], raw: d[2], value: pcUnits(sym, d[2]), ck: d[3], dash: d[4], w: d[5] })).filter(d => d.value != null);
+      ["s1u", "1-day +1σ", sg != null && i.spot != null ? i.spot + sg : null, "muted", "dot", 1], ["s1d", "1-day −1σ", sg != null && i.spot != null ? i.spot - sg : null, "muted", "dot", 1]];
+    const phone = host.clientWidth < 600, lv0 = defs.map(d => ({ id: d[0], label: d[1], raw: d[2], value: pcUnits(sym, d[2]), ck: d[3], dash: d[4], w: d[5] })).filter(d => d.value != null);
+    const lv = lv0.map(d => phone ? Object.assign({}, d, { label: "" }) : d);   // narrow screens: no on-line labels, the legend below names every line
     const cv = { primary: "var(--primary)", secondary: "var(--secondary)", warn: "var(--warn)", text: "var(--text)", muted: "var(--muted)" }, nf = v => Number(v).toLocaleString("en-US", { minimumFractionDigits: sym.dec, maximumFractionDigits: sym.dec });
-    leg.innerHTML = lv.map(d => `<span style="--c:${cv[d.ck]}"><i class="${d.dash === "solid" ? "" : d.dash === "dot" ? "dot" : "dsh"}"></i>${esc(d.label)} ${nf(d.value)}</span>`).join("") + (lv.length ? "" : '<span>No levels for this selection.</span>');
+    leg.innerHTML = lv0.map(d => `<span style="--c:${cv[d.ck]}"><i class="${d.dash === "solid" ? "" : d.dash === "dot" ? "dot" : "dsh"}"></i>${esc(d.label)} ${nf(d.value)}</span>`).join("") + (lv0.length ? "" : '<span>No levels for this selection.</span>');
     const srcTxt = src && src.fetched_utc ? `${String(src.source || "Cboe delayed").replace(/ chain$/, "")} · fetched ${src.fetched_utc}${src.approx ? " · approximate" : ""}` : `fetched ${i.updated_utc || i.date}`;
-    cap.textContent = `${sym.name} · daily closes (${sym.src || sym.delay}) · last close ${sym.lastDate}${sym.partial ? ", latest point may be intraday" : ""} · levels from ${srcTxt}, drawn across the whole chart, not at the dates they applied`;
+    const uTxt = sym.optUnits === "index" ? "levels in index points (the stat strip shows futures-equivalent prices)" : sym.optUnits === "x100" ? "levels in index points (DJX quote × 100)" : "levels converted to the chart's price units, as on the stat strip";
+    const snapD = i.date || (src && src.fetched_utc ? String(src.fetched_utc).slice(0, 10) : null), gap = snapD && sym.lastDate && sym.lastDate > snapD;
+    const gapTxt = gap ? ` · Levels are from the ${snapD} snapshot and predate the latest close (${sym.lastDate}${i.spot != null && sym.lastClose != null && pcUnits(sym, i.spot) ? `, ${nf(sym.lastClose)} vs snapshot price ${nf(pcUnits(sym, i.spot))}` : ""})` : "";
+    cap.textContent = `${sym.name} · daily closes (${sym.src || sym.delay}) · last close ${sym.lastDate}${sym.partial ? ", latest point may be intraday" : ""} · levels from ${srcTxt}, drawn across the whole chart, not at the dates they applied · ${uTxt} · 1-day ±1σ is centred on the snapshot price${gapTxt}`;
     cap.title = cap.textContent;
-    if (st.pc.failed) { show("The chart library could not be loaded.", " It comes from a CDN and needs internet; the levels are listed below."); return; }
+    if (st.pc.failed && (st.pc.reopen || st.pc.failInst !== st.inst)) { st.pc.failed = false; st.pc.h = null; }   // retry after a library failure when the panel is reopened or the instrument changes
+    st.pc.reopen = false;
+    if (st.pc.failed) { show("The chart library could not be loaded.", " It comes from a CDN and needs internet; the levels are listed below. Reopen the panel or switch instrument to retry."); return; }
     if (!st.pc.h) {
-      st.pc.h = VC.mountDesk(host, sym.id, lv, { range: st.pc.range });
-      st.pc.h.ready.catch(() => { st.pc.failed = true; st.pc.h = null; try { deskChart(); } catch (e) {} });
+      const h = VC.mountDesk(host, sym.id, lv, { range: st.pc.range }); st.pc.h = h;
+      h.ready.catch(() => { if (st.pc.h !== h) return; st.pc.failed = true; st.pc.failInst = st.inst; st.pc.h = null; try { deskChart(); } catch (e) {} });
     } else st.pc.h.update(sym.id, lv, { range: st.pc.range });
   }
-  window.addEventListener("hashchange", () => setTimeout(() => safe("price chart", deskChart), 60));
+  window.addEventListener("hashchange", () => setTimeout(() => { st.pc.reopen = true; safe("price chart", deskChart); }, 60));
   window.addEventListener("load", () => safe("price chart", deskChart));   // the chart script is inlined after this one
 
   function desk2() {
