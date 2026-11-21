@@ -598,7 +598,7 @@ def chart_browser(html: Path, out: Path) -> tuple[list[str], list[str]]:
                 get_state = """async () => {
                     await VelourChart.ready;
                     const c = VelourChart.chart();
-                    return {ov: c.getOverlays().length, ind: c.getIndicators().map(i => i.name)};
+                    return {ov: c.getOverlays().filter(o => o.name !== 'vlLevel').length, ind: c.getIndicators().map(i => i.name)};
                 }"""
                 open_js = "async () => { }"   # the desk opens on the Terminal, the chart draws by itself
                 pg.evaluate("() => VelourChart.ready")
@@ -608,7 +608,7 @@ def chart_browser(html: Path, out: Path) -> tuple[list[str], list[str]]:
                     c.createOverlay({name: 'horizontalStraightLine', points: [{timestamp: b.timestamp, value: b.close}]});
                     c.createIndicator('MA');
                     VelourChart.save();
-                    return {ov: c.getOverlays().length, ind: c.getIndicators().map(i => i.name), sym: VelourChart.symbol()};
+                    return {ov: c.getOverlays().filter(o => o.name !== 'vlLevel').length, ind: c.getIndicators().map(i => i.name), sym: VelourChart.symbol()};
                 }"""
                 d = pg.evaluate(draw)
                 if d["ov"] < 1 or "MA" not in d["ind"]:

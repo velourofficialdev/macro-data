@@ -1372,9 +1372,25 @@ def curve_payload(data: dict) -> dict | None:
     return {"labels": [t for t, _ in tenors], "sets": sets}
 
 
+FRED_NOTICE = "This product uses the FRED\u00ae API but is not endorsed or certified by the Federal Reserve Bank of St. Louis."
+_FRED_KEYED = re.compile(r"(?:route: |, )keyed x\d+")
+
+
+FRED_TERMS_URL = "https://fred.stlouisfed.org/docs/api/terms_of_use.html"
+
+
 def build_footer(data: dict) -> str:
-    """Owner decision 2026-11-21: no footer and no source notices on the published page. Kept as a stub so the template token stays valid."""
-    return ""
+    """NOT USED ON THE PAGE since 2026-11-21 (owner: no footers or source notices; licence risk flagged to the owner). FRED's required notice + Terms link, shown only when the keyed API route was used (FX_MACRO note or error); never raises."""
+    try:
+        st = (data.get("status") or {}).get("FX_MACRO") or {}
+        text = f'{st.get("note") or ""} {st.get("error") or ""}'
+    except Exception:  # noqa: BLE001
+        text = ""
+    if not _FRED_KEYED.search(text):
+        return ""
+    return (f'<footer class="site-foot wrap"><p class="muted-text">{esc(FRED_NOTICE)} '
+            f'By using this page you agree to be bound by the '
+            f'<a class="muted-text" href="{FRED_TERMS_URL}" target="_blank" rel="noopener noreferrer">FRED API Terms of Use</a>.</p></footer>')
 
 
 def build_disclaimer(playbook: dict) -> str:
@@ -2152,7 +2168,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
         "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__FXPICK__": fx.get("picker", ""), "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]), "__NEWSCHK__": build_news_checked(feed),
-        "__FOOTER__": build_footer(data) + build_disclaimer(playbook), "__OPTIONS__": "" if (opt_html is None or "No options data yet" in opt_html) else opt_html, "__OPTEMPTY__": opt_html if (opt_html and "No options data yet" in opt_html) else "", "__OPTSTALE__": build_opt_stale(data, today) if OPTIONS_DESK_PUBLIC else "", "__FINGERPRINT__": build_fingerprint(data),
+        "__FOOTER__": build_disclaimer(playbook), "__OPTIONS__": "" if (opt_html is None or "No options data yet" in opt_html) else opt_html, "__OPTEMPTY__": opt_html if (opt_html and "No options data yet" in opt_html) else "", "__OPTSTALE__": build_opt_stale(data, today) if OPTIONS_DESK_PUBLIC else "", "__FINGERPRINT__": build_fingerprint(data),
     }
     for k, v in rep.items():
         page = page.replace(k, v)
