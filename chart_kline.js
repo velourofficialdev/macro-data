@@ -87,13 +87,8 @@
     try { raw = localStorage.getItem(KEY); } catch (e) { raw = mem; }
     if (!raw) return;
     wrote = true;   // a stored layout existed when the page opened
-    try {
-      var o = JSON.parse(raw);
-      if (isObj(o) && o.v === VER && isObj(o.symbols)) {
-        state = o;
-        if (!isObj(state.last)) state.last = { symbol: null, tab: "kline" };
-      }   // unknown or older versions are ignored (a fresh layout starts); nothing throws
-    } catch (e) { /* ignore a corrupt value */ }
+    var v = validate(raw);   // same allowlist and caps as an import; anything wrong starts a fresh layout
+    if (v.ok) { state = v.ok; } else { state = freshState(); }
   }
   function dropKid(k, v) { return k === "kid" ? undefined : v; }
   var saveT = 0, wrote = false;
@@ -101,9 +96,13 @@
   function saveNow() {
     clearTimeout(saveT); saveT = 0;
     try { snapshotCur(); } catch (e) { /* keep the previous snapshot */ }
-    var s = JSON.stringify(state, dropKid);
+    var s = JSON.stringify(state, dropKid), chk = validate(s);
     mem = s;
-    try { localStorage.setItem(KEY, s); wrote = true; } catch (e) { /* blocked or full: the in-memory copy remains */ }
+    if (!chk.ok) { say("Layout not saved on this device (" + chk.error + "). Use Export to keep a copy.", true); }
+    else {
+      try { localStorage.setItem(KEY, s); wrote = true; }
+      catch (e) { say("Could not save the layout on this device (storage blocked or full). Use Export to keep a copy.", true); }
+    }
     try { VC.cloudSave(state); } catch (e) { /* hook */ }
   }
   /* the last-chance saves (leaving the page, tab hidden) do not resurrect a layout somebody cleared from storage on purpose */
@@ -128,7 +127,7 @@
       var ts = new Array(s.c.length), t = t0, i, ok = true;
       for (i = 0; i < s.c.length; i++) { t += (+s.dd[i] || 0) * DAY; ts[i] = t; if (!fin(s.c[i])) ok = false; }
       if (!ok) return;
-      var o = { id: s.id, name: s.name || s.id, src: s.src || "", delay: s.delay || "Daily close", unit: s.unit || "", dec: fin(s.dec) ? clamp(s.dec, 0, 6) : 2,
+      var o = { id: s.id, name: s.name || s.id, src: s.src || "", delay: s.delay || "Daily close", partial: !!s.last_partial, unit: s.unit || "", dec: fin(s.dec) ? clamp(s.dec, 0, 6) : 2,
                 ohlc: !!s.ohlc, ts: ts, c: s.c, o: s.o, h: s.h, l: s.l, cache: {} };
       feed.push(o); byId[o.id] = o;
     });
@@ -293,7 +292,7 @@
     r3.appendChild(exB); r3.appendChild(imB);
     var fileIn = el("input"); fileIn.type = "file"; fileIn.accept = "application/json,.json"; fileIn.hidden = true; fileIn.setAttribute("aria-label", "Layout file"); r3.appendChild(fileIn);
     var helpB = btn("Shortcuts", "Keyboard shortcuts"); helpB.setAttribute("aria-haspopup", "true"); helpB.setAttribute("aria-expanded", "false"); r3.appendChild(helpB);
-    var lvB = btn("Options levels (coming next)", "Phase 2: options levels on the chart"); lvB.disabled = true; r3.appendChild(lvB);
+    if (hasDesk()) { var lvB = btn("Options levels (coming next)", "Phase 2: options levels on the chart"); lvB.disabled = true; r3.appendChild(lvB); }
     root.appendChild(r3);
 
     chipsEl = el("div", "kl-chips"); root.appendChild(chipsEl);
@@ -333,7 +332,7 @@
       "Data: daily closes stored by the dashboard; not live. Candles and bars are drawn close-to-close, so there is no intraday high or low. Intraday intervals need data the dashboard does not store.",
       "Drawings and indicators are saved on this device; use Export to keep a copy.",
       "Charting tool, not advice."
-    ].forEach(function (t) { notes.appendChild(el("p", "note", t)); });
+    ].forEach(function (t, i) { var np = el("p", "note", t); if (i === 1) dataNote = np; notes.appendChild(np); });
     root.appendChild(notes);
 
     indPop = el("div", "kl-pop"); indPop.hidden = true; root.appendChild(indPop);
@@ -376,6 +375,8 @@
     window.addEventListener("resize", resizeSoon);
     root._helpB = helpB;
   }
+  var dataNote = null, dataNoteBase = "";
+  function hasDesk() { try { return !!(window.P && window.P.opt); } catch (e) { return false; } }
   function say(t, err) { if (!msgEl) return; msgEl.textContent = t; msgEl.className = "kl-msg" + (err ? " err" : ""); }
   function showState(title, sub, quiet) {
     if (!stateEl) return;
@@ -474,18 +475,22 @@
     if (needRestore) {
       needRestore = false;
       restoring = true;
-      applyType(st.type); applyScale(st.scale);
-      st.indicators.forEach(function (r) { mkInd(r); });
-      st.overlays.forEach(function (r) { mkOv(r); });
-      applyLock(true); applyHide(true);
-      restoring = false;
+      try {
+        applyType(st.type); applyScale(st.scale);
+        st.indicators.forEach(function (r) { try { mkInd(r); } catch (e) { /* skip one bad item */ } });
+        st.overlays.forEach(function (r) { try { mkOv(r); } catch (e) { /* skip one bad item */ } });
+        applyLock(true); applyHide(true);
+      } catch (e) { /* the chart still opens without the saved extras */ }
+      finally { restoring = false; }
       hist = [snapOv()]; hidx = 0; paintHist();
       renderChips();
     }
-    setRange(st.range, false);
-    if (stateEl) stateEl.hidden = true;
-    paintTop(); readLast();
-    if (!firstReady) { firstReady = true; resolveReady(); }
+    try { setRange(st.range, false); } catch (e) { /* keep going */ }
+    finally {
+      if (stateEl) stateEl.hidden = true;
+      try { paintTop(); readLast(); } catch (e) { /* keep going */ }
+      if (!firstReady) { firstReady = true; resolveReady(); }
+    }
   }
   function paintTop() {
     if (!chart || !curSym) return;
@@ -497,6 +502,8 @@
     typeSel.value = st.type;
     var last = s.ts[s.ts.length - 1];
     var line = (st.interval === "W" ? "Weekly last close of the daily series" : (s.delay || "Daily close")) + " \u00B7 " + (s.src || "source not stated") + " \u00B7 last point " + iso(last) + " \u00B7 " + s.ts.length.toLocaleString("en-US") + " points, saved by the dashboard (not live)";
+    if (s.partial && !/intraday/i.test(s.delay || "")) line += " \u00B7 latest point may be intraday until the close";
+    if (dataNote) { if (!dataNoteBase) dataNoteBase = dataNote.textContent; dataNote.textContent = dataNoteBase + (s.partial ? " The latest point may be an intraday price until the close." : ""); }
     if (st.type !== "area") line += " \u00B7 drawn close-to-close: daily closes only, no intraday high/low";
     srcEl.textContent = line;
     lockB.setAttribute("aria-pressed", String(locked)); hideB.setAttribute("aria-pressed", String(hidden_));
@@ -829,8 +836,10 @@
     li.appendChild(sel); li.appendChild(ab); pop.appendChild(li);
     pop.appendChild(el("h4", "", "Needs data we do not have"));
     ["VOL", "VWAP"].forEach(function (n) { var r = el("div", "kl-li"); r.appendChild(el("span", "", n)); r.appendChild(el("span", "kl-why", "needs volume data the dashboard does not have")); r.setAttribute("aria-disabled", "true"); pop.appendChild(r); });
-    pop.appendChild(el("h4", "", "Options levels"));
-    var lv = el("div", "kl-li"); lv.appendChild(el("span", "", "Options levels (coming next)")); lv.appendChild(el("span", "kl-why", "disabled")); lv.setAttribute("aria-disabled", "true"); pop.appendChild(lv);
+    if (hasDesk()) {
+      pop.appendChild(el("h4", "", "Options levels"));
+      var lv = el("div", "kl-li"); lv.appendChild(el("span", "", "Options levels (coming next)")); lv.appendChild(el("span", "kl-why", "disabled")); lv.setAttribute("aria-disabled", "true"); pop.appendChild(lv);
+    }
   }
   function addRow(pop, n, label, tip) {
     var r = el("div", "kl-li"), s = el("span"); s.appendChild(document.createTextNode(label)); s.appendChild(el("div", "kl-why", tip)); r.appendChild(s);
