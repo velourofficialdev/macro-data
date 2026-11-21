@@ -422,6 +422,20 @@ def desk_tabs_browser(html: Path) -> list[str]:
                         errs.append(f"desk tabs: view '{v}' did not show alone: {pg.evaluate(vis_js)}")
                     if pg.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1"):
                         errs.append(f"desk tabs: horizontal scroll on view '{v}' at 1440")
+                want = {"terminal": ["terminal"], "positioning": ["spine", "terrain", "grid", "stack"], "volatility": ["smile", "vol"], "tools": ["replay", "copy", "flow", "tables"], "learn": ["guide", "method"]}
+                got = pg.evaluate("Object.fromEntries([...document.querySelectorAll('#dside-l .dgrp')].map(g => [g.dataset.grp, [...g.querySelectorAll('button[data-tab]')].map(b => b.dataset.tab)]))")
+                if got != want:
+                    errs.append(f"desk tabs: sidebar groups are {got}, expected {want}")
+                gh = pg.locator("#dside-l .dgrp[data-grp='tools'] .dgrp-h")
+                gh.click()
+                pg.wait_for_timeout(150)
+                if pg.locator("#dside-l button[data-tab='replay']").is_visible():
+                    errs.append("desk tabs: collapsing the Tools group did not hide its items")
+                pg.reload()
+                pg.wait_for_timeout(600)
+                if pg.locator("#dside-l button[data-tab='replay']").is_visible():
+                    errs.append("desk tabs: the collapsed Tools group was not remembered after a reload")
+                pg.locator("#dside-l .dgrp[data-grp='tools'] .dgrp-h").click()
                 pg.click("#dside-l button[data-tab='smile']")
                 pg.reload()
                 pg.wait_for_timeout(700)

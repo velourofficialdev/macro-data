@@ -343,6 +343,11 @@
   .dside-l button:hover { background: var(--surface-2); color: var(--text); }
   .dside-l button[aria-selected="true"] { background: var(--surface-2); color: var(--text); font-weight: 600; box-shadow: inset 2px 0 0 var(--primary); }
   .dside button:focus-visible, .dside a:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+  .dgrp-h { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 8px 3px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; cursor: pointer; }
+  .dgrp-h:hover { color: var(--text); } .dgrp-h .ico { width: 11px; height: 11px; transition: transform .12s; } .dgrp-h[aria-expanded="false"] .ico { transform: rotate(-90deg); }
+  .dgrp-l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; } .dgrp[data-collapsed="true"] .dgrp-l { display: none; }
+  .dgrp + .dgrp { border-top: 0; }
+  .dshell[data-side="closed"] .dgrp-h { display: none; } .dshell[data-side="closed"] .dgrp + .dgrp { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; } .dshell[data-side="closed"] .dgrp[data-collapsed="true"] .dgrp-l { display: flex; }
   .dside-sep { height: 1px; margin: 5px 6px; background: var(--border); }
   .dside-f { margin-top: auto; padding-top: 6px; border-top: 1px solid var(--border); }
   .dside-reset { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
@@ -477,6 +482,7 @@
     .dshell[data-side="closed"] .dside { width: auto; }
     .dside-h, .dside-f { display: none; }
     .dside-l { flex-direction: row; gap: 2px; } .dside-l button { width: auto; padding: 6px 9px; gap: 6px; font-size: 12.5px; } .dshell[data-side="closed"] .dside-l button span { display: inline; }
+    .dside-l { align-items: center; } .dgrp { display: flex; align-items: center; } .dgrp-h { display: none !important; } .dgrp-l { flex-direction: row; display: flex !important; } .dgrp + .dgrp { border-left: 1px solid var(--border); margin-left: 3px; padding-left: 3px; border-top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; }
     .dside-sep { width: 1px; height: 18px; margin: 0 3px; align-self: center; }
     .dmain { min-height: 0; } .dpanes { flex: none; } .dtab { height: auto; overflow: visible; }
     .dtab > .dpanel.dsolo { height: auto; } .dsolo .odbox, .dsolo .odgwrap, .dsolo > .cv { flex: none; height: 360px; } .dsolo .odgwrap .odgrid { height: 360px; } .dsolo .odbox.odterr { height: 300px; }
@@ -997,22 +1003,18 @@
           <span class="dside-ttl">Options desk</span>
           <a href="#overview" class="dside-back" title="Back to the macro dashboard" aria-label="Back to the macro dashboard"><svg class="ico"><use href="#d-back"/></svg></a>
         </div>
-        <ul class="dside-l" id="dside-l" role="tablist" aria-orientation="vertical" aria-label="Desk views">
-          <li><button type="button" role="tab" data-tab="terminal" title="Terminal"><svg class="ico"><use href="#d-terminal"/></svg><span>Terminal</span></button></li>
-          <li><button type="button" role="tab" data-tab="spine" title="Spine"><svg class="ico"><use href="#d-spine"/></svg><span>Spine</span></button></li>
-          <li><button type="button" role="tab" data-tab="terrain" title="Terrain"><svg class="ico"><use href="#d-terrain"/></svg><span>Terrain</span></button></li>
-          <li><button type="button" role="tab" data-tab="grid" title="Grid"><svg class="ico"><use href="#d-grid"/></svg><span>Grid</span></button></li>
-          <li><button type="button" role="tab" data-tab="smile" title="Smile"><svg class="ico"><use href="#d-smile"/></svg><span>Smile</span></button></li>
-          <li><button type="button" role="tab" data-tab="stack" title="Cross-expiry"><svg class="ico"><use href="#d-stack"/></svg><span>Cross-expiry</span></button></li>
-          <li><button type="button" role="tab" data-tab="vol" title="Volatility"><svg class="ico"><use href="#d-vol"/></svg><span>Volatility</span></button></li>
-          <li><button type="button" role="tab" data-tab="replay" title="Replay"><svg class="ico"><use href="#d-replay"/></svg><span>Replay</span></button></li>
-          <li><button type="button" role="tab" data-tab="copy" title="Copy levels"><svg class="ico"><use href="#d-copy"/></svg><span>Copy levels</span></button></li>
-          <li><button type="button" role="tab" data-tab="flow" title="Order flow"><svg class="ico"><use href="#d-flow"/></svg><span>Order flow</span></button></li>
-          <li><button type="button" role="tab" data-tab="tables" title="Level tables"><svg class="ico"><use href="#d-tables"/></svg><span>Level tables</span></button></li>
-          <li class="dside-sep" role="presentation"></li>
-          <li><button type="button" role="tab" data-tab="guide" title="How to read"><svg class="ico"><use href="#d-guide"/></svg><span>How to read</span></button></li>
-          <li><button type="button" role="tab" data-tab="method" title="Methodology"><svg class="ico"><use href="#d-method"/></svg><span>Methodology</span></button></li>
-        </ul>
+        <div class="dside-l" id="dside-l" role="tablist" aria-orientation="vertical" aria-label="Desk views">
+          <div class="dgrp" data-grp="terminal"><button type="button" class="dgrp-h" aria-expanded="true" aria-controls="dgrp-terminal"><span>Terminal</span><svg class="ico"><use href="#d-collapse"/></svg></button>
+            <ul id="dgrp-terminal" class="dgrp-l" role="presentation"><li role="presentation"><button type="button" role="tab" data-tab="terminal" title="Terminal"><svg class="ico"><use href="#d-terminal"/></svg><span>Terminal</span></button></li></ul></div>
+          <div class="dgrp" data-grp="positioning"><button type="button" class="dgrp-h" aria-expanded="true" aria-controls="dgrp-positioning"><span>Positioning</span><svg class="ico"><use href="#d-collapse"/></svg></button>
+            <ul id="dgrp-positioning" class="dgrp-l" role="presentation"><li role="presentation"><button type="button" role="tab" data-tab="spine" title="Spine"><svg class="ico"><use href="#d-spine"/></svg><span>Spine</span></button></li><li role="presentation"><button type="button" role="tab" data-tab="terrain" title="Terrain"><svg class="ico"><use href="#d-terrain"/></svg><span>Terrain</span></button></li><li role="presentation"><button type="button" role="tab" data-tab="grid" title="Grid"><svg class="ico"><use href="#d-grid"/></svg><span>Grid</span></button></li><li role="presentation"><button type="button" role="tab" data-tab="stack" title="Cross-expiry"><svg class="ico"><use href="#d-stack"/></svg><span>Cross-expiry</span></button></li></ul></div>
+          <div class="dgrp" data-grp="volatility"><button type="button" class="dgrp-h" aria-expanded="true" aria-controls="dgrp-volatility"><span>Volatility</span><svg class="ico"><use href="#d-collapse"/></svg></button>
+            <ul id="dgrp-volatility" class="dgrp-l" role="presentation"><li role="presentation"><button type="button" role="tab" data-tab="smile" title="Smile"><svg class="ico"><use href="#d-smile"/></svg><span>Smile</span></button></li><li role="presentation"><button type="button" role="tab" data-tab="vol" title="Volatility"><svg class="ico"><use href="#d-vol"/></svg><span>Volatility</span></button></li></ul></div>
+          <div class="dgrp" data-grp="tools"><button type="button" class="dgrp-h" aria-expanded="true" aria-controls="dgrp-tools"><span>Tools</span><svg class="ico"><use href="#d-collapse"/></svg></button>
+            <ul id="dgrp-tools" class="dgrp-l" role="presentation"><li role="presentation"><button type="button" role="tab" data-tab="replay" title="Replay"><svg class="ico"><use href="#d-replay"/></svg><span>Replay</span></button></li><li role="presentation"><button type="button" role="tab" data-tab="copy" title="Copy levels"><svg class="ico"><use href="#d-copy"/></svg><span>Copy levels</span></button></li><li role="presentation"><button type="button" role="tab" data-tab="flow" title="Order flow"><svg class="ico"><use href="#d-flow"/></svg><span>Order flow</span></button></li><li role="presentation"><button type="button" role="tab" data-tab="tables" title="Level tables"><svg class="ico"><use href="#d-tables"/></svg><span>Level tables</span></button></li></ul></div>
+          <div class="dgrp" data-grp="learn"><button type="button" class="dgrp-h" aria-expanded="true" aria-controls="dgrp-learn"><span>Learn</span><svg class="ico"><use href="#d-collapse"/></svg></button>
+            <ul id="dgrp-learn" class="dgrp-l" role="presentation"><li role="presentation"><button type="button" role="tab" data-tab="guide" title="How to read"><svg class="ico"><use href="#d-guide"/></svg><span>How to read</span></button></li><li role="presentation"><button type="button" role="tab" data-tab="method" title="Methodology"><svg class="ico"><use href="#d-method"/></svg><span>Methodology</span></button></li></ul></div>
+        </div>
         <div class="dside-f"><button type="button" class="dside-reset" id="od-reset" aria-label="Reset layout" title="Open every panel again, show the Terminal and the sidebar"><svg class="ico"><use href="#d-reset"/></svg><span>Reset layout</span></button>
           <p class="dside-note">Educational context, not advice.</p></div>
       </nav>
@@ -1377,14 +1379,17 @@ const P = __PAYLOAD__;
   }
   if (shell) {
     btns.forEach(b => b.addEventListener("click", () => show(b.dataset.tab, true)));
-    shell.querySelector(".dside-l").addEventListener("keydown", e => {
+    shell.querySelector("#dside-l").addEventListener("keydown", e => {
       if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End" && e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      const i = btns.indexOf(document.activeElement); if (i < 0) return; e.preventDefault();
-      const n = e.key === "Home" ? 0 : e.key === "End" ? btns.length - 1 : (i + (e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : -1) + btns.length) % btns.length;
-      btns[n].focus(); show(btns[n].dataset.tab, true);
+      const vb = btns.filter(x => x.offsetParent !== null), i = vb.indexOf(document.activeElement); if (i < 0) return; e.preventDefault();
+      const n = e.key === "Home" ? 0 : e.key === "End" ? vb.length - 1 : (i + (e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : -1) + vb.length) % vb.length;
+      vb[n].focus(); show(vb[n].dataset.tab, true);
     });
     document.getElementById("dside-t").addEventListener("click", () => side(shell.dataset.side !== "open", true));
-    document.getElementById("od-reset").addEventListener("click", () => { side(true, false); try { localStorage.removeItem(SIDE_KEY); localStorage.removeItem(TAB_KEY); } catch (e) {} show("terminal", false); try { if (hashView() !== null) history.replaceState(null, "", "#options"); } catch (e) {} });
+    document.getElementById("od-reset").addEventListener("click", () => { side(true, false); try { localStorage.removeItem(SIDE_KEY); localStorage.removeItem(TAB_KEY); localStorage.removeItem("macro-desk-groups"); shell.querySelectorAll(".dgrp").forEach(g => { g.dataset.collapsed = "false"; g.querySelector(".dgrp-h").setAttribute("aria-expanded", "true"); }); } catch (e) {} show("terminal", false); try { if (hashView() !== null) history.replaceState(null, "", "#options"); } catch (e) {} });
+    const GK = "macro-desk-groups"; let shut = []; try { shut = JSON.parse(read(GK) || "[]"); if (!Array.isArray(shut)) shut = []; } catch (e) { shut = []; }
+    shell.querySelectorAll(".dgrp").forEach(g => { const h = g.querySelector(".dgrp-h"), id = g.dataset.grp, set = c => { g.dataset.collapsed = String(c); h.setAttribute("aria-expanded", String(!c)); }; set(shut.indexOf(id) >= 0);
+      h.addEventListener("click", () => { const c = g.dataset.collapsed !== "true"; set(c); shut = shut.filter(x => x !== id); if (c) shut.push(id); store(GK, JSON.stringify(shut)); }); });
     side(read(SIDE_KEY) !== "closed", false);
     show(VIEWS.indexOf(read(TAB_KEY)) >= 0 ? read(TAB_KEY) : "terminal", false);
   }
