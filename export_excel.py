@@ -152,7 +152,7 @@ def options_levels_sheet(data: dict, today=None) -> pd.DataFrame | None:
         for name, v in (("Price", s.get("spot")), ("Call wall", s.get("call_wall")), ("Put wall", s.get("put_wall")), ("Gamma flip", s.get("gamma_flip")), ("Max pain", s.get("max_pain"))):
             if v is None:
                 continue
-            rows.append({"Instrument": key, "Level": name, "Value": v, f"Mapped value ({meta['map']})": conv(v) if conv else None, "Source": src, "Fetched (UTC)": fetched})
+            rows.append({"Instrument": key, "Level": name, "Value": v, "Mapped value": conv(v) if conv else None, "Mapped to": meta["map"] if conv else None, "Source": src, "Fetched (UTC)": fetched})
     return pd.DataFrame(rows) if rows else None
 
 

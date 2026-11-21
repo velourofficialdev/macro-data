@@ -1501,7 +1501,7 @@ def opt_payload(data: dict, playbook: dict | None = None, today: date | None = N
                     "oi_changes": s.get("oi_changes") or [], "vol": s.get("vol") or {}, "history": s.get("history_full") or [],
                     "map": mapping, "surface": s["surface"]}
         # desk additions: source label, derived panels, TradingView levels. Each part fails soft to None / absent.
-        for name, fn, args in (("src", "source_info", (s, key, today)), ("x", "desk_extras", (s, today)), ("tv", "tv_levels", (key, s, mapping))):
+        for name, fn, args in (("src", "source_info", (s, key, today)), ("x", "desk_extras", (s, today)), ("tv", "tv_levels", (key, s, (dict(mapping, symbol=(getattr(_ol, "TV_SYMBOL", {}) or {}).get(key, key)) if mapping else None)))):
             try:
                 out[key][name] = getattr(_ol, fn)(*args) if _ol is not None and hasattr(_ol, fn) else None
             except Exception as exc:  # noqa: BLE001
@@ -1710,6 +1710,7 @@ def build_options(data: dict, today: date) -> str:
 
 # Options desk switch: False = public build (no desk, no options numbers anywhere); True = internal build.
 # Env OPTIONS_DESK_PUBLIC in {1,true,on} turns it on; the CLI flag --options-desk on|off wins over the env.
+# NOTE: the name is historical (kept from the brief). True = INTERNAL desk build (options desk shown); False = public build.
 OPTIONS_DESK_PUBLIC = False
 
 
@@ -2040,13 +2041,16 @@ def inject_chart(page: str, data_dir: Path) -> str:
     feed = {"v": 1, "symbols": []}
     try:
         import chart_feed
-        feed = chart_feed.build_chart_feed(data_dir)
+        try:
+            feed = chart_feed.build_chart_feed(data_dir, include_opt_keys=OPTIONS_DESK_PUBLIC)
+        except TypeError:  # older chart_feed without the keyword
+            feed = chart_feed.build_chart_feed(data_dir)
         if not isinstance(feed, dict) or not isinstance(feed.get("symbols"), list):
             feed = {"v": 1, "symbols": []}
     except Exception as exc:  # noqa: BLE001
         print(f"WARN chart feed skipped: {type(exc).__name__}: {exc}")
-    css_ = read("chart_kline.css").replace("</style", "<\\/style")
-    js_ = read("chart_kline.js").replace("</script", "<\\/script")
+    css_ = re.sub(r"</style", r"<\\/style", read("chart_kline.css"), flags=re.I)
+    js_ = re.sub(r"</script", r"<\\/script", read("chart_kline.js"), flags=re.I)
     feed_s = json.dumps(feed, separators=(",", ":")).replace("</", "<\\/")
     # callables, so backslashes and "\1"-style text in the files are never read as replacement escapes
     for token, val in (("/*__CHART_KLINE_CSS__*/", css_), ("/*__CHART_KLINE_JS__*/", js_), ("__CHART_FEED__", feed_s)):
