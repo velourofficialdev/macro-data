@@ -101,3 +101,9 @@
   #kl-root.kl-full .kl-stage { height: auto; min-height: 240px; }
 }
 @media print { #kl-root { display: none !important; } }
+
+/* phone: toolbar groups wrap so the last buttons are not cut off; the drawing strip scrolls with a right-edge fade as a cue */
+@media (max-width: 560px) {
+  #kl-root .kl-row { flex-wrap: wrap; overflow-x: visible; }
+  #kl-root .kl-tools { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); }
+}
