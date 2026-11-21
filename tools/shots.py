@@ -2,8 +2,9 @@
 
     python tools/shots.py PAGE.html OUT_DIR [--only main|options] [--sections overview,fx]
 
-For dark desktop, light desktop and dark phone it saves one PNG per section of the main page and one per
-card of the options desk into OUT_DIR, and writes OUT_DIR/layout.md listing machine-found suspects:
+For dark desktop, light desktop and dark phone it saves one PNG per section of the main page, one per
+panel (.dpanel) of the options desk (internal build only; the public build has no desk) and the chart card on both
+tabs (Velour chart, Live) into OUT_DIR, and writes OUT_DIR/layout.md listing machine-found suspects:
   - element wider than its card (cut off on the right)
   - text clipped by its own box (overflow hidden and content taller or wider)
   - two labels overlapping inside an SVG chart
@@ -24,11 +25,11 @@ SUSPECTS_JS = r"""
 (root) => {
   const out = [], vis = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const name = e => (e.id ? '#' + e.id : e.tagName.toLowerCase() + (e.className && typeof e.className === 'string' ? '.' + e.className.split(' ')[0] : ''));
-  root.querySelectorAll('.card').forEach(card => {
+  root.querySelectorAll('.card, .dpanel').forEach(card => {
     if (!vis(card) || (card.tagName === 'DETAILS' && !card.open)) return;
     const cr = card.getBoundingClientRect(), title = (card.querySelector('h3') || {}).textContent || name(card);
     card.querySelectorAll('*').forEach(e => {
-      if (!vis(e) || e.closest('.scroll, .odgrid, .mxs, .wl, svg, canvas, select, .newsbox, .tip, .sr-only') || e.classList.contains('sr-only')) return;
+      if (!vis(e) || e.closest('.scroll, .odgrid, .dlad, .mxs, .wl, svg, canvas, select, .newsbox, .tip, .sr-only') || e.classList.contains('sr-only')) return;
       for (let a = e.parentElement; a && a !== card; a = a.parentElement) { const o = getComputedStyle(a).overflowX; if (o === 'auto' || o === 'scroll') return; }
       const r = e.getBoundingClientRect();
       if (r.right > cr.right + 2 && e.children.length === 0 && (e.textContent || '').trim()) out.push(`cut off on the right: "${(e.textContent||'').trim().slice(0,40)}" in card "${title.trim()}"`);
@@ -52,6 +53,23 @@ SUSPECTS_JS = r"""
 """
 
 
+def chart_shots(pg, out: Path, tag: str) -> None:
+    """Open the chart card and save both tabs (Velour chart, Live). The Live tab needs the internet; offline it shows its fallback note."""
+    try:
+        pg.evaluate("document.getElementById('tvcard').open = true")
+        for tab in ("kline", "live"):
+            btn = pg.locator(f'#chart-tabs button[data-v="{tab}"]')
+            if not btn.count():
+                return
+            btn.click()
+            pg.wait_for_timeout(2500 if tab == "kline" else 1500)
+            pg.locator("#tvcard").screenshot(path=str(out / f"{tag}-main-chart-{tab}.png"))
+        pg.locator('#chart-tabs button[data-v="kline"]').click()
+        pg.evaluate("document.getElementById('tvcard').open = false")
+    except Exception as exc:  # noqa: BLE001
+        print(f"chart screenshots skipped: {type(exc).__name__}: {exc}", file=sys.stderr)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("page")
@@ -70,7 +88,7 @@ def main() -> int:
     (out / ".macro-check").write_text("written by tools/shots.py\n")
     url = Path(a.page).resolve().as_uri()
     want = set(filter(None, a.sections.split(",")))
-    report = ["# layout suspects", ""]
+    report = ["# layout suspects", "", "Internal build (options desk on) is needed for the desk panels: build with --options-desk on or OPTIONS_DESK_PUBLIC=1. A public build has no #odesk.", ""]
     with sync_playwright() as p:
         b = p.chromium.launch(executable_path=CHROME) if CHROME else p.chromium.launch()
         for theme, w in (("dark", 1440), ("light", 1440), ("dark", 390)):
@@ -91,7 +109,7 @@ def main() -> int:
                     ban = pg.locator("#opt-stale")   # sits outside the #odesk cards
                     if ban.count() and ban.first.is_visible():
                         ban.first.screenshot(path=str(out / f"{tag}-options-banner.png"))
-                    cards = pg.locator("#odesk > .card")
+                    cards = pg.locator("#odesk > .card, #odesk .dpanel")
                     for i in range(cards.count()):
                         if cards.nth(i).is_visible():
                             h = cards.nth(i).locator("h3")
@@ -99,6 +117,12 @@ def main() -> int:
                             title = re.sub(r"^\s*\d+[\s.:)\-]*", "", title)   # the file name already carries the number
                             slug = "".join(c if c.isalnum() else "-" for c in title.lower()).strip("-")[:40] or "card"
                             cards.nth(i).screenshot(path=str(out / f"{tag}-options-{i:02d}-{slug}.png"))
+                if page_name == "main" and not want and pg.locator("#tvcard").count():
+                    chart_shots(pg, out, tag)
+                if page_name == "options" and not pg.locator("#odesk").count():
+                    report.append(f"## {tag} options: no desk in this page (public build; use --options-desk on for the internal build)")
+                    pg.close()
+                    continue
                 sus = pg.evaluate(SUSPECTS_JS, pg.query_selector("main"))
                 report.append(f"## {tag} {page_name}: {len(sus)} suspect(s)")
                 report += [f"- {s}" for s in sus[:40]]

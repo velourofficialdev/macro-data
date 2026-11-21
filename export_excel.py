@@ -130,7 +130,33 @@ def _format(ws, df: pd.DataFrame) -> None:
         ws.column_dimensions["F"].width = 22
 
 
-def export(path: Path, playbook: dict, data: dict, computed: dict) -> None:
+def options_levels_sheet(data: dict, today=None) -> pd.DataFrame | None:
+    """Internal build only: one row per instrument and level (option units and the mapped futures units), with source text and fetch time."""
+    rows = []
+    try:
+        import options_levels as ol
+    except Exception:  # noqa: BLE001
+        ol = None
+    for key, meta in bd.OPT_META.items():
+        s = (data.get("options") or {}).get(key)
+        if not isinstance(s, dict) or not s.get("spot"):
+            continue
+        conv = bd._opt_mapper(s, meta)
+        src, fetched = "Cboe delayed chain", s.get("updated_utc") or s.get("date")
+        try:
+            if ol is not None and hasattr(ol, "source_info"):
+                si = ol.source_info(s, key, today or pd.Timestamp.utcnow().date())
+                src, fetched = si.get("text") or src, si.get("fetched_utc") or fetched
+        except Exception:  # noqa: BLE001
+            pass
+        for name, v in (("Price", s.get("spot")), ("Call wall", s.get("call_wall")), ("Put wall", s.get("put_wall")), ("Gamma flip", s.get("gamma_flip")), ("Max pain", s.get("max_pain"))):
+            if v is None:
+                continue
+            rows.append({"Instrument": key, "Level": name, "Value": v, f"Mapped value ({meta['map']})": conv(v) if conv else None, "Source": src, "Fetched (UTC)": fetched})
+    return pd.DataFrame(rows) if rows else None
+
+
+def export(path: Path, playbook: dict, data: dict, computed: dict, options_desk: bool = False, today=None) -> None:
     sheets = {
         "Summary": summary_sheet(playbook, computed["metrics"]),
         "Yields": yields_sheet(data),
@@ -140,6 +166,8 @@ def export(path: Path, playbook: dict, data: dict, computed: dict) -> None:
         "COT_USD_Index": cot_sheet(data["cot"].get("usd_index"), "DXY"),
         "Fed_Rate_Odds": data.get("zq"),          # daily snapshots from 30-Day Fed Funds futures (fed_rate_odds.py)
     }
+    if options_desk:   # internal build only; the public workbook carries no options content
+        sheets["Options_Levels"] = options_levels_sheet(data, today)
     with pd.ExcelWriter(path, engine="openpyxl") as xw:
         for name, df in sheets.items():
             if df is None or df.empty:
