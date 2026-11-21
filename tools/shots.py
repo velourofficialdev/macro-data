@@ -88,6 +88,9 @@ def main() -> int:
                             continue
                         pg.locator(f"#{sec}").screenshot(path=str(out / f"{tag}-main-{sec}.png"))
                 else:
+                    ban = pg.locator("#opt-stale")   # sits outside the #odesk cards
+                    if ban.count() and ban.first.is_visible():
+                        ban.first.screenshot(path=str(out / f"{tag}-options-banner.png"))
                     cards = pg.locator("#odesk > .card")
                     for i in range(cards.count()):
                         if cards.nth(i).is_visible():

@@ -1565,24 +1565,34 @@ def build_fingerprint(data: dict) -> str:
             'What followed past look-alikes is context, not a forecast; five cases is a small sample.</p>')
 
 def build_opt_stale(data: dict, today: date) -> str:
-    """Banner for the options desk when any OPT_* source failed its last check. Empty when all are ok."""
+    """Banner for the options desk when a Cboe chain source (OPT_SPX/NDX/DJX/RUT/GOLD) failed its last check.
+    Names each failing instrument with its own as-of date and age. Empty when all five are ok."""
     st = data.get("status") or {}
-    bad = [k for k, v in st.items() if str(k).startswith("OPT_") and isinstance(v, dict) and v.get("ok") is False]
+    opts = data.get("options") or {}
+    bad = [k for k in OPT_META if isinstance((st.get(f"OPT_{k}")), dict) and st[f"OPT_{k}"].get("ok") is False]
     if not bad:
         return ""
-    dates = [str(s.get("date")) for k, s in (data.get("options") or {}).items() if not str(k).startswith("_") and isinstance(s, dict) and s.get("date")]
-    if not dates:
-        return ('<div class="optstale" id="opt-stale" role="status"><b>Options data is not updating.</b> '
-                "The data provider is currently refusing automated downloads, so this desk is not updating.</div>")
-    last = max(dates)
-    try:
-        n = (today - datetime.strptime(last[:10], "%Y-%m-%d").date()).days
-    except ValueError:
-        n = None
-    age = f", {n} day{'s' if n != 1 else ''} old" if n is not None and n >= 0 else ""
-    return (f'<div class="optstale" id="opt-stale" role="status"><b>Options data is from {esc(last[:10])}{age}.</b> '
-            "The data provider is currently refusing automated downloads, so this desk is not updating. "
-            "Levels below show where positioning stood on that date, not today.</div>")
+    parts, n403 = [], 0
+    for k in bad:
+        err = str(st[f"OPT_{k}"].get("error") or "")
+        n403 += bool(re.search(r"\b403\b", err))
+        name = f"{re.sub('&amp;', '&', OPT_META[k]['title'])} ({OPT_META[k]['src'].replace(' options', '')})"
+        s = opts.get(k) if isinstance(opts.get(k), dict) else {}
+        raw = str(s.get("source_time") or s.get("date") or "")[:10]
+        try:
+            d = datetime.strptime(raw, "%Y-%m-%d").date()
+            n = (today - d).days
+            parts.append(f"{name} options data is as of {d.strftime('%d %b %Y')}" + (f", {n} day{'s' if n != 1 else ''} old" if n >= 0 else ""))
+        except ValueError:
+            parts.append(f"{name} has no saved options data yet")
+    refused = n403 == len(bad)   # wording only when every failing source reports HTTP 403
+    whole = len(bad) == len(OPT_META)
+    head = "Options data is not updating." if whole else "Some options data is not updating."
+    why = ("The data provider is currently refusing automated downloads" if refused else "They could not be refreshed on the latest update")
+    tail = ("Levels below show where positioning stood on those dates, not today." if whole
+            else "Other instruments passed their latest check; levels for the ones listed show where positioning stood on their date, not today.")
+    return (f'<div class="optstale" id="opt-stale" role="status"><b>{head}</b> '
+            + esc("; ".join(parts)) + f". {why}. {tail}</div>")
 
 
 def build_options(data: dict, today: date) -> str:

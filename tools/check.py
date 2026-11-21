@@ -189,6 +189,44 @@ def build(data_dir: Path, out_html: Path) -> tuple[bool, str]:
     return ok, tail
 
 
+def stale_banner_checks() -> list[str]:
+    """Direct tests of build_opt_stale wording (no browser needed)."""
+    import importlib
+    from datetime import date
+    sys.path.insert(0, str(ROOT))
+    try:
+        bd = importlib.import_module("build_dashboard")
+    except Exception as exc:  # noqa: BLE001
+        return [f"stale banner: cannot import build_dashboard: {exc}"]
+    errs, today = [], date(2026, 11, 21)
+    ok = {"ok": True, "error": None}
+    e403 = {"ok": False, "error": "HTTPError: 403 Client Error: Forbidden for url: x"}
+    eto = {"ok": False, "error": "ReadTimeout: HTTPSConnectionPool timed out"}
+    opts = {k: {"date": "2026-11-20", "source_time": "2026-11-20 01:00:00"} for k in ("SPX", "NDX", "DJX", "RUT")}
+    opts["GOLD"] = {"date": "2026-11-19", "source_time": "2026-11-19 01:05:07"}
+    base = {f"OPT_{k}": dict(ok) for k in ("SPX", "NDX", "DJX", "RUT", "GOLD")}
+    base["OPT_VIX_TERM"] = dict(e403)   # not a chain source: must be ignored
+    def run(over):
+        return bd.build_opt_stale({"status": {**base, **over}, "options": opts}, today)
+    h = run({})
+    if h:
+        errs.append("stale banner: shown although all five chain sources are ok")
+    h = run({"OPT_GOLD": e403})
+    if not h or "Gold (GLD)" not in h or "19 Nov 2026" not in h or "2 days old" not in h:
+        errs.append("stale banner: gold-only failure must name Gold with 19 Nov 2026 and 2 days old")
+    if h and ("S&amp;P" in h or "Nasdaq" in h or "20 Nov" in h or "is not updating." in h.replace("Some options data is not updating.", "")):
+        errs.append("stale banner: gold-only failure names other instruments or claims the whole desk is stale")
+    if h and "refusing automated downloads" not in h:
+        errs.append("stale banner: a 403 error must use the refusing wording")
+    h = run({"OPT_GOLD": eto})
+    if not h or "refusing" in h or "could not be refreshed" not in h:
+        errs.append("stale banner: a timeout error must use neutral wording, not the refusing wording")
+    h = run({f"OPT_{k}": e403 for k in ("SPX", "NDX", "DJX", "RUT", "GOLD")})
+    if "Options data is not updating." not in h:
+        errs.append("stale banner: all five failing must say the desk is not updating")
+    return errs
+
+
 def browser(html: Path, full: bool, stale: bool | None = None) -> list[str]:
     from playwright.sync_api import sync_playwright
     errs = []
@@ -218,7 +256,7 @@ def browser(html: Path, full: bool, stale: bool | None = None) -> list[str]:
                                 errs.append(f"{tag}: stale-data banner missing although an OPT_ source is failing")
                             if not stale and pg.locator("#opt-stale").count():
                                 errs.append(f"{tag}: stale-data banner present although all OPT_ sources are ok")
-                            if stale and shown and "day" not in pg.inner_text("#opt-stale"):
+                            if stale and shown and "day" not in pg.inner_text("#opt-stale") and "no saved options data" not in pg.inner_text("#opt-stale"):
                                 errs.append(f"{tag}: stale-data banner shows no age in days")
                         if frag == "" and pg.locator("#options").count() and pg.is_visible("#options"):
                             errs.append(f"{tag}: options desk visible on the main page")
@@ -299,7 +337,7 @@ def main() -> int:
                     stj[k].update(ok=True, error=None)
             sp.write_text(json.dumps(stj))
         except (OSError, ValueError):
-            pass
+            pass   # no status.json in the checkout: fixture build then just has no banner data, which is fine
         r = sh([sys.executable, "tools/fixtures.py", str(fx_data)])
         errs = [] if r.returncode == 0 else ["fixtures failed:\n" + (r.stdout + r.stderr)[-800:]]
         ok2, tail2 = build(fx_data, out / "fixture" / "index.html")
@@ -315,7 +353,8 @@ def main() -> int:
         real_st = json.loads((ROOT / "data" / "status.json").read_text())
     except (OSError, ValueError):
         pass
-    real_stale = any(k.startswith("OPT_") and v.get("ok") is False for k, v in real_st.items())
+    real_stale = any(k in {f"OPT_{c}" for c in ("SPX", "NDX", "DJX", "RUT", "GOLD")} and isinstance(v, dict) and v.get("ok") is False for k, v in real_st.items())
+    berrs += stale_banner_checks()
     for h in htmls:
         try:
             berrs += [f"[{h.parent.name}] {e}" for e in browser(h, full=not a.quick, stale=(real_stale if h.parent.name == "real" else False if h.parent.name == "fixture" else None))]
