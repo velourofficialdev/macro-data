@@ -1564,6 +1564,42 @@ def build_fingerprint(data: dict) -> str:
             f'<p class="note">History used: {F.index[0].strftime("%b %Y")} to {F.index[-1].strftime("%d %b %Y")}, excluding the last 3 months. Five matches at least a month apart. '
             'What followed past look-alikes is context, not a forecast; five cases is a small sample.</p>')
 
+def build_opt_stale(data: dict, today: date) -> str:
+    """Banner for the options desk when a Cboe chain source (OPT_SPX/NDX/DJX/RUT/GOLD) failed its last check.
+    Names each failing instrument with its own as-of date and age. Empty when all five are ok."""
+    st = data.get("status") or {}
+    opts = data.get("options") or {}
+    bad = [k for k in OPT_META if isinstance((st.get(f"OPT_{k}")), dict) and st[f"OPT_{k}"].get("ok") is False]
+    if not bad:
+        return ""
+    groups, n403 = {}, 0   # as-of text -> instrument titles, so equal dates collapse into one sentence
+    for k in bad:
+        err = str(st[f"OPT_{k}"].get("error") or "")
+        n403 += bool(re.search(r"\b403\b", err))
+        name = re.sub("&amp;", "&", OPT_META[k]["title"])
+        s = opts.get(k) if isinstance(opts.get(k), dict) else {}
+        raw = str(s.get("source_time") or s.get("date") or "")[:10]
+        try:
+            d = datetime.strptime(raw, "%Y-%m-%d").date()
+            n = (today - d).days
+            when = f"as of {d.strftime('%d %b %Y')}" + (f", {n} day{'s' if n != 1 else ''} old" if n >= 0 else "")
+        except ValueError:
+            when = "has no saved options data yet"
+        groups.setdefault(when, []).append(name)
+    def join(ns):
+        return ns[0] if len(ns) == 1 else ", ".join(ns[:-1]) + " and " + ns[-1]
+    parts = [f"{join(ns)}: {w}" if w.startswith("as of") else f"{join(ns)} {w}" for w, ns in groups.items()]
+    names = join([n for ns in groups.values() for n in ns])
+    refused = n403 == len(bad)   # wording only when every failing source reports HTTP 403
+    whole = len(bad) == len(OPT_META)
+    head = "Options data is not updating." if whole else "Some options data is not updating."
+    why = ("The data provider is currently refusing automated downloads" if refused else f"{names} could not be refreshed on the latest update")
+    tail = ("Levels below show where positioning stood on those dates, not today." if whole
+            else "Other instruments passed their latest check; levels for the ones listed show where positioning stood on their date, not today.")
+    return (f'<div class="optstale" id="opt-stale" data-stale="{",".join(bad)}" role="status"><b>{head}</b> '
+            + esc("; ".join(parts)) + f". {why}. {tail}</div>")
+
+
 def build_options(data: dict, today: date) -> str:
     opts = data.get("options") or {}
     if not any(not str(k).startswith("_") for k in opts):
@@ -1992,7 +2028,7 @@ def render(playbook: dict, data: dict, computed: dict, today: date, feed: dict |
         "__KPIS__": build_kpis(data, computed), "__COT_GOLD_CARD__": cot_cards[0], "__COT_USD_CARD__": cot_cards[1],
         "__FXWATCH__": build_instr_watch_html(irows), "__FXMATRIX__": build_drivers_matrix(irows, fx.get("drivers", {})), "__WEEK__": build_week(data), "__CONFLUENCE__": fx["conf"], "__FXPICK__": fx.get("picker", ""), "__ECON__": fx["econ"], "__EWATCH__": build_econ_watch_html(erows), "__FED_NEXT__": fedh["next"], "__ZQ_NEXT__": zqh["next"], "__ZQ_TABLE__": zqh["table"], "__ZQ_UPD__": esc(zqh["upd"]), "__FED_TABLE__": fedh["table"],
         "__FED_UPD__": esc((data.get("fed") or {}).get("updated", "n/a")), "__ETABLE__": etable, "__NEWS__": fx["news"], "__FXUPD__": esc(fx["upd"]), "__NEWSCHK__": build_news_checked(feed),
-        "__STATUS__": build_status(data, today), "__FOOTER__": build_footer(data), "__OPTIONS__": build_options(data, today), "__FINGERPRINT__": build_fingerprint(data),
+        "__STATUS__": build_status(data, today), "__FOOTER__": build_footer(data), "__OPTIONS__": build_options(data, today), "__OPTSTALE__": build_opt_stale(data, today), "__FINGERPRINT__": build_fingerprint(data),
     }
     for k, v in rep.items():
         page = page.replace(k, v)

@@ -189,7 +189,77 @@ def build(data_dir: Path, out_html: Path) -> tuple[bool, str]:
     return ok, tail
 
 
-def browser(html: Path, full: bool) -> list[str]:
+def stale_banner_checks() -> list[str]:
+    """Direct tests of build_opt_stale wording (no browser needed)."""
+    import importlib
+    from datetime import date
+    sys.path.insert(0, str(ROOT))
+    try:
+        bd = importlib.import_module("build_dashboard")
+    except Exception as exc:  # noqa: BLE001
+        return [f"stale banner: cannot import build_dashboard: {exc}"]
+    errs, today = [], date(2026, 11, 21)
+    ok = {"ok": True, "error": None}
+    e403 = {"ok": False, "error": "HTTPError: 403 Client Error: Forbidden for url: x"}
+    eto = {"ok": False, "error": "ReadTimeout: HTTPSConnectionPool timed out"}
+    opts = {k: {"date": "2026-11-20", "source_time": "2026-11-20 01:00:00"} for k in ("SPX", "NDX", "DJX", "RUT")}
+    opts["GOLD"] = {"date": "2026-11-19", "source_time": "2026-11-19 01:05:07"}
+    base = {f"OPT_{k}": dict(ok) for k in ("SPX", "NDX", "DJX", "RUT", "GOLD")}
+    base["OPT_VIX_TERM"] = dict(e403)   # not a chain source: must be ignored
+    def run(over):
+        return bd.build_opt_stale({"status": {**base, **over}, "options": opts}, today)
+    h = run({})
+    if h:
+        errs.append("stale banner: shown although all five chain sources are ok")
+    h = run({"OPT_GOLD": e403})
+    if not h or "Gold" not in h or "19 Nov 2026" not in h or "2 days old" not in h:
+        errs.append("stale banner: gold-only failure must name Gold with 19 Nov 2026 and 2 days old")
+    if h and ("S&amp;P" in h or "Nasdaq" in h or "20 Nov" in h or "is not updating." in h.replace("Some options data is not updating.", "")):
+        errs.append("stale banner: gold-only failure names other instruments or claims the whole desk is stale")
+    if h and "refusing automated downloads" not in h:
+        errs.append("stale banner: a 403 error must use the refusing wording")
+    h = run({"OPT_GOLD": eto})
+    if not h or "refusing" in h or "could not be refreshed" not in h:
+        errs.append("stale banner: a timeout error must use neutral wording, not the refusing wording")
+    if "Gold could not be refreshed" not in run({"OPT_GOLD": eto}):
+        errs.append("stale banner: partial-failure wording must name the instrument, not a dangling 'They'")
+    h = run({"OPT_SPX": eto, "OPT_NDX": eto, "OPT_DJX": eto, "OPT_RUT": eto})
+    if h.count("as of 20 Nov 2026") != 1:
+        errs.append("stale banner: instruments with the same date must share one sentence")
+    h = run({"OPT_GOLD": e403})
+    if 'data-stale="GOLD"' not in h:
+        errs.append("stale banner: data-stale must list exactly the failing instrument keys")
+    h = run({f"OPT_{k}": e403 for k in ("SPX", "NDX", "DJX", "RUT", "GOLD")})
+    if "Options data is not updating." not in h:
+        errs.append("stale banner: all five failing must say the desk is not updating")
+    return errs
+
+
+def gold_only_stale_browser(html: Path) -> list[str]:
+    """A gold-only failure must mark Gold (feed line and note) as stale and leave SPX alone."""
+    from playwright.sync_api import sync_playwright
+    errs = []
+    with sync_playwright() as p:
+        b = p.chromium.launch(executable_path=CHROME) if CHROME else p.chromium.launch()
+        try:
+            pg = b.new_page(viewport={"width": 1440, "height": 900})
+            pg.goto(html.as_uri() + "#options")
+            pg.wait_for_timeout(900)
+            if not pg.locator("#od-inst button[data-v='SPX']").count() or not pg.locator("#od-inst button[data-v='GOLD']").count():
+                return ["gold-only stale: fixture has no SPX/GOLD buttons"]
+            for inst, want in (("SPX", False), ("GOLD", True)):
+                pg.click(f"#od-inst button[data-v='{inst}']")
+                pg.wait_for_timeout(200)
+                stale = "stale" in (pg.get_attribute("#od-feed", "class") or "").split()
+                note = "last price on the desk" in pg.inner_text("#od-mnote")
+                if stale != want or note != want:
+                    errs.append(f"{inst}: feed stale={stale}, note stale={note}; expected {want}")
+        finally:
+            b.close()
+    return errs
+
+
+def browser(html: Path, full: bool, stale: bool | None = None) -> list[str]:
     from playwright.sync_api import sync_playwright
     errs = []
     url = html.as_uri()
@@ -212,6 +282,14 @@ def browser(html: Path, full: bool) -> list[str]:
                             errs.append(f"{tag}: horizontal scroll on phone")
                         if frag == "#options" and pg.locator("#odesk").count() and pg.is_visible("#overview"):
                             errs.append(f"{tag}: dashboard sections visible on the options page")
+                        if frag == "#options" and stale is not None and w > 1000 and theme == "dark":
+                            shown = pg.locator("#opt-stale").count() > 0 and pg.is_visible("#opt-stale")
+                            if stale and not shown:
+                                errs.append(f"{tag}: stale-data banner missing although an OPT_ source is failing")
+                            if not stale and pg.locator("#opt-stale").count():
+                                errs.append(f"{tag}: stale-data banner present although all OPT_ sources are ok")
+                            if stale and shown and not re.search(r"\d+ days? old|as of", pg.inner_text("#opt-stale")) and "no saved options data" not in pg.inner_text("#opt-stale"):
+                                errs.append(f"{tag}: stale-data banner shows no age in days")
                         if frag == "" and pg.locator("#options").count() and pg.is_visible("#options"):
                             errs.append(f"{tag}: options desk visible on the main page")
                         if full and frag == "#options" and w > 1000 and theme == "dark" and pg.locator("#od-inst button").count():
@@ -283,6 +361,15 @@ def main() -> int:
         fx_data = out / "fixture-data"
         shutil.copytree(ROOT / "data", fx_data)
         shutil.rmtree(fx_data / "options", ignore_errors=True)
+        sp = fx_data / "status.json"   # fixture = healthy options feed, so the stale banner must be off
+        try:
+            stj = json.loads(sp.read_text())
+            for k in stj:
+                if k.startswith("OPT_") and isinstance(stj[k], dict):
+                    stj[k].update(ok=True, error=None)
+            sp.write_text(json.dumps(stj))
+        except (OSError, ValueError):
+            pass   # no status.json in the checkout: fixture build then just has no banner data, which is fine
         r = sh([sys.executable, "tools/fixtures.py", str(fx_data)])
         errs = [] if r.returncode == 0 else ["fixtures failed:\n" + (r.stdout + r.stderr)[-800:]]
         ok2, tail2 = build(fx_data, out / "fixture" / "index.html")
@@ -291,11 +378,32 @@ def main() -> int:
         else:
             htmls.append(out / "fixture" / "index.html")
         res["fixtures"] = {"errors": errs}
+        if ok2:   # gold-only failure on top of the healthy fixture: only Gold may be shown as stale
+            g_data = out / "fixture-gold-stale-data"
+            shutil.copytree(fx_data, g_data)
+            try:
+                gj = json.loads((g_data / "status.json").read_text())
+                gj["OPT_GOLD"] = {"ok": False, "error": "HTTPError: 403 Client Error: Forbidden", "checked_utc": "2026-11-21T00:00:00Z"}
+                (g_data / "status.json").write_text(json.dumps(gj))
+                okg, tailg = build(g_data, out / "fixture-gold-stale" / "index.html")
+                if okg:
+                    res["fixtures"]["errors"] += [f"[gold-stale] {e}" for e in gold_only_stale_browser(out / "fixture-gold-stale" / "index.html")]
+                else:
+                    res["fixtures"]["errors"].append("gold-stale fixture build failed:\n" + tailg)
+            except (OSError, ValueError) as exc:
+                res["fixtures"]["errors"].append(f"gold-stale fixture setup failed: {exc}")
 
     berrs = []
+    real_st = {}
+    try:
+        real_st = json.loads((ROOT / "data" / "status.json").read_text())
+    except (OSError, ValueError):
+        pass
+    real_stale = any(k in {f"OPT_{c}" for c in ("SPX", "NDX", "DJX", "RUT", "GOLD")} and isinstance(v, dict) and v.get("ok") is False for k, v in real_st.items())
+    berrs += stale_banner_checks()
     for h in htmls:
         try:
-            berrs += [f"[{h.parent.name}] {e}" for e in browser(h, full=not a.quick)]
+            berrs += [f"[{h.parent.name}] {e}" for e in browser(h, full=not a.quick, stale=(real_stale if h.parent.name == "real" else False if h.parent.name == "fixture" else None))]
         except Exception as exc:  # noqa: BLE001
             berrs.append(f"[{h.parent.name}] browser check crashed: {type(exc).__name__}: {exc}")
     res["browser"] = {"errors": berrs}
