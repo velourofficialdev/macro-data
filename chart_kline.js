@@ -86,6 +86,7 @@
     var raw = null;
     try { raw = localStorage.getItem(KEY); } catch (e) { raw = mem; }
     if (!raw) return;
+    wrote = true;   // a stored layout existed when the page opened
     try {
       var o = JSON.parse(raw);
       if (isObj(o) && o.v === VER && isObj(o.symbols)) {
@@ -95,18 +96,24 @@
     } catch (e) { /* ignore a corrupt value */ }
   }
   function dropKid(k, v) { return k === "kid" ? undefined : v; }
-  var saveT = 0;
+  var saveT = 0, wrote = false;
   function saveSoon() { clearTimeout(saveT); saveT = setTimeout(saveNow, 400); }
   function saveNow() {
     clearTimeout(saveT); saveT = 0;
     try { snapshotCur(); } catch (e) { /* keep the previous snapshot */ }
     var s = JSON.stringify(state, dropKid);
     mem = s;
-    try { localStorage.setItem(KEY, s); } catch (e) { /* blocked or full: the in-memory copy remains */ }
+    try { localStorage.setItem(KEY, s); wrote = true; } catch (e) { /* blocked or full: the in-memory copy remains */ }
     try { VC.cloudSave(state); } catch (e) { /* hook */ }
   }
-  window.addEventListener("pagehide", function () { if (chart) saveNow(); });
-  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden" && chart) saveNow(); });
+  /* the last-chance saves (leaving the page, tab hidden) do not resurrect a layout somebody cleared from storage on purpose */
+  function lastChance() {
+    var gone = false;
+    try { gone = wrote && localStorage.getItem(KEY) === null; } catch (e) { gone = false; }
+    if (chart && !gone) saveNow();
+  }
+  window.addEventListener("pagehide", lastChance);
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") lastChance(); });
 
   /* ---------- feed ---------- */
   var feed = [], byId = {};
@@ -878,8 +885,27 @@
   function snapshotCur() {
     if (!chart || !curSym || !firstReady || needRestore) return;
     var st = sc();
+    try { adoptForeign(st); } catch (e) { /* never block a save */ }
     st.overlays = snapOv();
     state.last.symbol = curSym; state.last.magnet = magnet; state.theme = pageTheme();
+  }
+  /* drawings and indicators created straight through the chart API (VelourChart.chart().createOverlay / createIndicator)
+     have no toolbar record yet: give them the default look and register them so they persist like toolbar ones */
+  function adoptForeign(st) {
+    chart.getOverlays().forEach(function (o) {
+      if (metas[o.id] || !isComplete(o)) return;
+      var m = defaultMeta(o.name); metas[o.id] = m;
+      try { chart.overrideOverlay({ id: o.id, styles: ovStyles(m) }); } catch (e) {}
+    });
+    var known = {}; st.indicators.forEach(function (r) { if (r.kid) known[r.kid] = 1; });
+    var added = false;
+    chart.getIndicators().forEach(function (i) {
+      if (known[i.id] || !INDS[i.name] || i.name === "VL_CMP" || st.indicators.length >= 12) return;
+      var d = INDS[i.name], p = Array.isArray(i.calcParams) ? i.calcParams.slice(0, d.params.length) : d.params.slice();
+      if (p.length !== d.params.length || !p.every(function (x) { return fin(x) && x >= 1 && x <= 400; })) p = d.params.slice();
+      st.indicators.push({ n: i.name, p: p, vis: i.visible !== false, kid: i.id }); added = true;
+    });
+    if (added) renderChips();
   }
   function exportObj() {
     var o = JSON.parse(JSON.stringify(state, dropKid)); o.app = "velour-chart-layout"; o.saved = new Date().toISOString(); return o;
