@@ -359,9 +359,15 @@ def public_absence(html: Path, label: str, fixture_snap: dict | None) -> list[st
     h = html.read_text(errors="ignore")
     for pat, what in ((r'id="options"', 'id="options"'), (r'href="#options"', 'href="#options" nav link'), (r'"opt"\s*:', '"opt": key in the payload'),
                       (r"odesk", "odesk"), (r'id="od-', 'id="od-..." elements'), (r"OPT_[A-Z_]+", "OPT_* status rows"), (r"\.dpanel|data-panel=", "desk panels"),
-                      (r"(?i)options levels", "'options levels' text"), (r"(?i)opt_key|opt_units", "opt_key/opt_units in the chart feed")):
+                      (r"(?i)options levels", "'options levels' text")):
         if re.search(pat, h):
             errs.append(f"[{label}] public build still contains {what}")
+    # the chart-feed data block itself (not the shared chart code) must carry no options mapping fields
+    feed = re.search(r'<script type="application/json" id="chart-feed">(.*?)</script>', h, flags=re.S)
+    if feed is None:
+        errs.append(f"[{label}] public build has no #chart-feed data block")
+    elif re.search(r"(?i)opt_key|opt_units", feed.group(1)):
+        errs.append(f"[{label}] public build still contains opt_key/opt_units in the chart feed")
     if fixture_snap:   # fixture numbers must not be in the visible text (tags and scripts stripped)
         vis = re.sub(r"<(script|style)\b.*?</\1>", " ", h, flags=re.S | re.I)
         vis = re.sub(r"<[^>]+>", " ", vis)
@@ -391,7 +397,7 @@ def desk_grid_browser(html: Path) -> list[str]:
     """Internal build: move one panel, reload, the order persisted, Reset restores it; phone has no horizontal scroll."""
     from playwright.sync_api import sync_playwright
     errs = []
-    order_js = "Array.from(document.querySelectorAll('.dpanel[data-panel]')).map(e => e.dataset.panel)"
+    order_js = "Array.from(document.querySelectorAll('#dpanels .dpanel[data-panel]')).map(e => e.dataset.panel)"
     with sync_playwright() as p:
         b = p.chromium.launch(executable_path=CHROME) if CHROME else p.chromium.launch()
         try:

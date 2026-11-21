@@ -5,7 +5,6 @@
   var LIB_URL = "https://cdn.jsdelivr.net/npm/klinecharts@10.1.1/dist/umd/klinecharts.min.js";
   var LIB_SRI = "sha384-xkC4/84Bj5cSxBeqZuaHxfU6OGkQpaAtTHc5gwE/kJd4vt7vRtFvslHtVTEq11Zl";
   var KEY = "macro-kline", VER = 1, DAY = 86400000;
-  var OK = "opt" + "_key", OU = "opt" + "_units";   // internal-build feed fields; spelled in two parts so the public page text never contains them
   var root = document.getElementById("kl-root");
 
   /* ---------- public object (exists before the card is opened) ---------- */
@@ -132,7 +131,7 @@
       for (i = 0; i < s.c.length; i++) { t += (+s.dd[i] || 0) * DAY; ts[i] = t; if (!fin(s.c[i])) ok = false; }
       if (!ok) return;
       var o = { id: s.id, name: s.name || s.id, src: s.src || "", delay: s.delay || "Daily close", partial: !!s.last_partial, unit: s.unit || "", dec: fin(s.dec) ? clamp(s.dec, 0, 6) : 2,
-                optKey: typeof s[OK] === "string" ? s[OK] : "", optUnits: typeof s[OU] === "string" ? s[OU] : "", ohlc: !!s.ohlc, ts: ts, c: s.c, o: s.o, h: s.h, l: s.l, cache: {} };
+                optKey: typeof s.opt_key === "string" ? s.opt_key : "", optUnits: typeof s.opt_units === "string" ? s.opt_units : "", ohlc: !!s.ohlc, ts: ts, c: s.c, o: s.o, h: s.h, l: s.l, cache: {} };
       feed.push(o); byId[o.id] = o;
     });
   }
