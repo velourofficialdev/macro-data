@@ -117,12 +117,12 @@
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") lastChance(); });
 
   /* ---------- feed ---------- */
-  var feed = [], byId = {};
+  var feed = [], byId = Object.create(null);
   function parseFeed(force) {
     if (feed.length && !force) return;   // already parsed (the options desk chart may have done it before the card opened)
     var node = document.getElementById("chart-feed"), j = null;
     try { j = node ? JSON.parse(node.textContent || "{}") : null; } catch (e) { j = null; }
-    feed = []; byId = {};
+    feed = []; byId = Object.create(null);
     if (!j || !Array.isArray(j.symbols)) return;
     j.symbols.forEach(function (s) {
       if (!s || typeof s.id !== "string" || !Array.isArray(s.c) || !Array.isArray(s.dd) || s.c.length < 2 || s.c.length !== s.dd.length) return;
@@ -1002,16 +1002,25 @@
     });
     if (added) renderChips();
   }
-  function exportObj() {
-    var o = JSON.parse(JSON.stringify(state, dropKid)); o.app = "velour-chart-layout"; o.saved = new Date().toISOString(); return o;
+  function exportObj() {   // only symbols in today's feed: stored-but-hidden entries stay in localStorage, and strict import accepts the result
+    var o = JSON.parse(JSON.stringify(state, dropKid)), left = 0, k, ind, i;
+    for (k in o.symbols) {
+      if (!byId[k]) { delete o.symbols[k]; left++; continue; }
+      ind = o.symbols[k].indicators || [];
+      for (i = ind.length - 1; i >= 0; i--) if (ind[i].n === "VL_CMP" && !byId[ind[i].sym]) { ind.splice(i, 1); left++; }
+    }
+    if (o.last && !byId[o.last.symbol]) o.last.symbol = null;
+    if (!Object.keys(o.symbols).length) o.symbols[curSym && byId[curSym] ? curSym : feed[0].id] = freshSym();
+    o.app = "velour-chart-layout"; o.saved = new Date().toISOString(); exportLeft = left; return o;
   }
+  var exportLeft = 0;
   function doExport() {
     saveNow();
     try {
       var blob = new Blob([JSON.stringify(exportObj(), null, 1)], { type: "application/json" }), a = document.createElement("a");
       a.href = URL.createObjectURL(blob); a.download = "velour-chart-layout.json"; document.body.appendChild(a); a.click();
       setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
-      say("Layout exported as velour-chart-layout.json.");
+      say("Layout exported as velour-chart-layout.json." + (exportLeft ? " " + exportLeft + " saved item(s) for series missing from today\u2019s data were left out (still kept in this browser)." : ""));
     } catch (e) { say("Export failed in this browser.", true); }
   }
   function validNum(x) { return fin(x) && Math.abs(x) < 1e15; }
@@ -1067,7 +1076,9 @@
     if (!feed.length) { parseFeed(); }
     var v = validate(text);
     if (!v.ok) return { ok: false, error: v.error };
-    state = v.ok; if (!state.last.symbol) state.last.symbol = curSym || (feed[0] && feed[0].id);
+    var old = state.symbols, k;   // keep stored entries for series missing from today's feed (hidden, never drawn)
+    state = v.ok; for (k in old) if (!byId[k] && Object.prototype.hasOwnProperty.call(old, k) && k !== "__proto__" && !Object.prototype.hasOwnProperty.call(state.symbols, k)) state.symbols[k] = old[k];
+    if (!state.last.symbol) state.last.symbol = curSym || (feed[0] && feed[0].id);
     try { localStorage.setItem(KEY, JSON.stringify(state, dropKid)); } catch (e) { mem = JSON.stringify(state, dropKid); }
     if (chart) {
       var want = state.last.symbol || curSym;
