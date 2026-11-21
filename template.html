@@ -136,8 +136,6 @@
   .tvbox { height: 480px; margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
   .tvbox iframe { width: 100%; height: 100%; border: 0; display: block; }
   @media (max-width: 640px) { .tvbox { height: 380px; } }
-  #tvcard { scroll-margin-top: calc(var(--hh, 104px) - 10px); }
-  #tvcard[open] .tvhint { display: none; }
   .tvbox .tvload { margin: 12px; }
   .tvbox { position: relative; }
   .tvbox tv-advanced-chart { display: block; height: 100%; width: 100%; }
@@ -231,7 +229,7 @@
   @media (max-width: 760px) { .odbox, .odgrid { height: 360px; } .odbox.odterr { height: 290px; } .btn.ghost { margin-left: 0; } }
   .odgcols[hidden] { display: none !important; } .odgcols { display: none; font-size: 11px; padding: 2px 8px; margin: 0; flex: none; } @media (max-width: 760px) { .odgcols { display: inline-block; } }
   #od-rng { flex: none; }
-  .odfeed { font-size: 11px; color: var(--muted); margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+  .odfeed { font-size: 11px; color: var(--muted); margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 6px; }
   .odfeed i { width: 7px; height: 7px; border-radius: 50%; background: var(--call); display: inline-block; } .odfeed.stale i { background: var(--warn); }
   .odfeed + .btn.ghost { margin-left: 0; }
   .odreg { margin: 0 16px 14px; padding: 6px 10px; border-left: 3px solid var(--c, var(--muted)); background: var(--surface-2); border-radius: 0 6px 6px 0; font-size: 12px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
@@ -324,16 +322,104 @@
   .dlgbox .odprompt { min-height: 240px; }
   body.dlock { overflow: hidden; }
   @media (max-width: 760px) { .dbox2 { height: 320px; } .dpanel.dfull .odbox { height: calc(100vh - var(--tvtop, 0px) - 170px); } .odbar .btn.ghost { margin-left: 0; } }
-  /* ---- options terminal: dense block, four columns on desktop (ladder | greeks + magnet | walls + hedging over price chart | skew + surface), stacked on tablet and phone ---- */
-  .dterm { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 0 0 14px; }
-  .dterm .dcol, .dterm .drow2 { display: contents; }
+  /* ---- options desk shell: sidebar (collapsible icon rail) + views; full width, tight gutters, fills the viewport under the header ---- */
+  body.optpage main.wrap, body.optpage .topbar .wrap, body.optpage nav.sections .wrap { max-width: none; padding-left: 6px; padding-right: 6px; }
+  body.optpage main { padding: 4px 0 6px; } body.optpage section.sec { padding-top: 0; }
+  body.optpage .topbar .wrap { padding-top: 5px; padding-bottom: 5px; } body.optpage .brand h1 { font-size: 17px; } body.optpage .brand .sub { display: none; }
+  body.optpage nav.sections .wrap { padding-top: 3px; padding-bottom: 3px; } body.optpage nav.sections a { padding: 3px 10px; font-size: 12.5px; }
+  body.optpage #options { display: flex; flex-direction: column; gap: 4px; height: calc(100vh - var(--hh, 104px) - 10px); }
+  body.optpage #options > .optstale { flex: none; margin: 0; padding: 5px 10px; font-size: 12px; }
+  .dshell { flex: 1 1 0; display: flex; gap: 4px; align-items: stretch; min-height: 540px; }
+  .dside { flex: none; width: 172px; display: flex; flex-direction: column; gap: 2px; padding: 6px 5px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--text) 22%, transparent); border-radius: 8px; overflow: hidden auto; transition: width .14s ease; }
+  .dside-h { display: flex; align-items: center; gap: 4px; padding: 0 0 6px; margin: 0 0 2px; border-bottom: 1px solid var(--border); min-height: 30px; }
+  .dside-ttl { flex: 1 1 auto; min-width: 0; font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dside-t, .dside-back { flex: none; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; padding: 0; text-decoration: none; }
+  .dside-t:hover, .dside-back:hover { background: var(--surface-2); color: var(--text); }
+  .dside .ico { width: 17px; height: 17px; }
+  .dside-l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+  .dside-l li { margin: 0; }
+  .dside-l button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 500; text-align: left; cursor: pointer; white-space: nowrap; }
+  .dside-l button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .dside-l button:hover { background: var(--surface-2); color: var(--text); }
+  .dside-l button[aria-selected="true"] { background: var(--surface-2); color: var(--text); font-weight: 600; box-shadow: inset 2px 0 0 var(--primary); }
+  .dside button:focus-visible, .dside a:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+  .dside-sep { height: 1px; margin: 5px 6px; background: var(--border); }
+  .dside-f { margin-top: auto; padding-top: 6px; border-top: 1px solid var(--border); }
+  .dside-reset { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+  .dside-reset:hover { background: var(--surface-2); color: var(--text); }
+  .dside-note { margin: 4px 8px 2px; font-size: 10.5px; line-height: 1.35; color: var(--muted); white-space: normal; }
+  body.optpage .disc { display: none; }
+  .disc { margin: 4px auto 16px; font-size: 12px; color: var(--muted); }
+  .dshell[data-side="closed"] .dside { width: 42px; }
+  .dshell[data-side="closed"] .dside-ttl, .dshell[data-side="closed"] .dside-back, .dshell[data-side="closed"] .dside-l button span, .dshell[data-side="closed"] .dside-reset span, .dshell[data-side="closed"] .dside-note { display: none; } .dshell[data-side="closed"] .dside-reset { justify-content: center; padding: 7px 0; }
+  .dshell[data-side="closed"] .dside-h { justify-content: center; } .dshell[data-side="closed"] .dside-l button { justify-content: center; padding: 7px 0; }
+  .dmain { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+  .odctl { flex: none; margin: 0; }
+  .odctl .odbar { padding: 5px 8px 3px; gap: 4px 10px; }
+  .odctl .ranges button { padding: 2px 7px; font-size: 11.5px; } .odctl .odsel { font-size: 11.5px; } .odctl .odsel select { font-size: 11.5px; padding: 2px 5px; }
+  .odctl .odbar .btn.ghost { padding: 3px 9px; font-size: 11.5px; margin-left: 0; }
+  .odrow2 { display: flex; flex-direction: column; gap: 3px; padding: 0 8px 4px; }
+  .odrow3 { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; min-width: 0; }
+  .odrow2 .odmode { flex: 1 1 260px; min-width: 0; padding: 0; font-size: 10.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .odrow2 .odstats { flex: none; padding: 0; gap: 3px 18px; } .odrow2 .odstats div { min-width: 78px; } .odrow2 .odstats .v { font-size: 14px; margin-top: 0; } .odrow2 .odstats .m { font-size: 10px; } .odrow2 .odstats .kl { font-size: 9.5px; }
+  .odrow2 .odreg { flex: 0 1 auto; margin: 0; padding: 2px 8px; font-size: 11px; min-width: 0; }
+  .dpanes { flex: 1 1 0; min-height: 0; position: relative; }
+  .dtab { height: 100%; min-height: 0; overflow: auto; }
+  .dtab[hidden] { display: none; }
+  .dtab > .dpanel.dsolo { height: 100%; min-height: 0; }
+  .dtab > .dpanel.dsolo.dtop { height: auto; max-width: 1100px; }
+  .dsolo .odbox, .dsolo .odgwrap, .dsolo > .cv { flex: 1 1 0; min-height: 200px; height: auto; }
+  .dsolo .odgwrap .odgrid { height: auto; max-height: none; } .dsolo .odgwrap { display: flex; }
+  .dsolo .odstack { flex: 1 1 0; min-height: 0; } .dsolo .odpane { display: flex; flex-direction: column; min-height: 0; } .dsolo .odpane .odbox { flex: 1 1 0; height: auto; min-height: 200px; }
+  .dsolo > .odcap, .dsolo > .odlegend { flex: none; }
+  .dvol { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: auto; gap: 4px; align-content: start; }
+  .dvol > .dpanel { min-height: 0; } .dvol > .dwide { grid-column: 1 / -1; }
+  .dvol .cv { flex: none; height: 220px; } .dvol { height: auto; min-height: 100%; } .dvol > .dpanel { overflow: visible; } .dvol .dpanel > * { flex-shrink: 0; }
+  .dcopy { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 4px; align-content: start; } .dcopy > .dpanel { align-self: start; } .dcopy .odprompt { min-height: 260px; }
+  .dcopybtns { display: flex; flex-wrap: wrap; gap: 8px; } .dcopybtns .btn { flex: none; }
+  .dtables > .grid { gap: 8px; padding: 2px; }
+  .dtab .card-h { padding: 8px 12px 6px; min-height: 36px; }
+  .dpanel .card-h .dtools { margin-left: auto; }
+  .dtools button { display: inline-flex; align-items: center; justify-content: center; } .dtools svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  .dsfctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; flex: none; }
+  /* tab strip in a panel header (like the reference's "CANDLESTICK | GLOBE"): small caps, current tab underlined and bold */
+  .dtabs { display: inline-flex; gap: 2px; flex: 0 1 auto; min-width: 0; }
+  .dtabs button { font: inherit; font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; padding: 3px 7px 2px; border: 0; border-bottom: 2px solid transparent; border-radius: 4px 4px 0 0; background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .dtabs button:hover { color: var(--text); background: var(--surface-2); }
+  .dtabs button[aria-pressed="true"] { color: var(--text); border-bottom-color: var(--primary); }
+  .dtabs button:focus-visible, .dlvl:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .dlvl { flex: none; font: inherit; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border: 1px solid var(--border-strong); border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+  .dlvl[aria-pressed="true"] { color: var(--primary-ink); background: var(--tint-primary); border-color: var(--primary); }
+  .dlvl[aria-pressed="true"]::before { content: "\2713\00a0"; }
+  /* terminal: four columns (ladder | greeks + magnet | chart | walls/hedging over surface/skew); each panel fills its share of the height */
+  .dterm { display: grid; grid-template-columns: 1fr; gap: 4px; margin: 0; height: 100%; min-height: 0; }
+  .dterm .dcol { display: contents; }
   .dterm .dpanel { min-height: 0; min-width: 0; height: 440px; }
-  .dterm .dpanel[data-panel="ladder"] { order: 1; height: 460px; } .dterm .dpanel[data-panel="greeks_view"] { order: 2; } .dterm .dpanel[data-panel="walls"] { order: 3; height: 320px; }
-  .dterm .dpanel[data-panel="hedging"] { order: 4; height: 300px; } .dterm .dpanel[data-panel="magnet"] { order: 5; height: 360px; } .dterm .dpanel[data-panel="pchart"] { order: 6; height: 480px; }
-  .dterm .dpanel[data-panel="skew"] { order: 7; height: 420px; } .dterm .dpanel[data-panel="surface"] { order: 8; height: 440px; }
+  .dterm .dgroup { display: contents; }
+  .dterm .dgroup.js > .dpanel:not(.gon) { display: none; }
   .dterm .dpanel.dcollapsed { height: auto; }
   .dterm .dpanel.dfull { height: auto; }
   .dterm .dpanel:not(.dfull) .dguide { display: none; }
+  .dterm .dpanel[data-panel="ladder"] { order: 1; height: 460px; } .dterm .dpanel[data-panel="greeks_view"] { order: 2; height: 420px; } .dterm .dpanel[data-panel="magnet"] { order: 6; height: 340px; }
+  .dterm .dpanel[data-panel="pchart"] { order: 3; height: 600px; } .dterm .dpanel[data-panel="walls"], .dterm .dpanel[data-panel="hedging"] { order: 4; height: 300px; }
+  .dterm .dpanel[data-panel="surface"], .dterm .dpanel[data-panel="skew"] { order: 5; height: 420px; }
+  @media (min-width: 760px) and (max-width: 1199px) {
+    .dterm { grid-template-columns: 1fr 1fr; }
+    .dterm .dpanel[data-panel="pchart"] { grid-column: 1 / -1; order: 0; height: 600px; }
+    .dterm .dpanel[data-panel="ladder"], .dterm .dpanel[data-panel="greeks_view"] { height: 480px; }
+  }
+  @media (min-width: 1200px) {
+    .dterm { grid-template-columns: 16fr 21fr 39fr 24fr; }
+    .dterm .dcol { display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; }
+    .dterm .dgroup { display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; }
+    .dterm .dgroup[data-g="a"] { flex: 2 1 0; } .dterm .dgroup[data-g="b"] { flex: 3 1 0; }
+    .dterm .dpanel, .dterm .dpanel[data-panel] { height: auto; order: 0; }
+    .dterm .dcol > .dpanel, .dterm .dgroup > .dpanel { flex: 1 1 0; }
+    .dterm .dcol.c2 > .dpanel[data-panel="greeks_view"] { flex: 3 1 0; } .dterm .dcol.c2 > .dpanel[data-panel="magnet"] { flex: 2 1 0; }
+    .dterm .dpanel.dcollapsed { flex: none !important; height: auto; }
+    .dterm .dpanel.dfull { flex: none; height: auto; }
+    .dterm .dpanel[data-panel="surface"] .odbox { min-height: 120px; }
+  }
   .dterm .dpanel:not(.dfull) .card-h { padding: 6px 6px 4px 8px; min-height: 30px; gap: 4px 6px; flex-wrap: nowrap; }
   .dterm .dpanel:not(.dfull) .card-h h3 { flex: 0 0 auto; max-width: 100%; } .dterm .dpanel[data-panel="magnet"]:not(.dfull) .card-h h3 { flex: 0 1 auto; min-width: 0; white-space: normal !important; line-height: 1.25; }
   .dterm .dpanel:not(.dfull) .card-h .ranges { flex: 0 1 auto; min-width: 0; justify-content: flex-end; }
@@ -344,7 +430,7 @@
   .dterm .dpanel:not(.dfull) .dfresh > span:first-of-type { white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
   .dterm .dpanel:not(.dfull) .dfresh i { width: 6px; height: 6px; margin-top: 3px; }
   .dterm .dpanel:not(.dfull) .odcap { padding: 0 8px; font-size: 10px; min-height: 0; line-height: 1.35; }
-  .dterm .dpanel:not(.dfull) .dctl { padding: 0 8px 2px; gap: 3px 8px; }
+  .dterm .dpanel:not(.dfull) .dctl { padding: 0 8px 2px; gap: 3px 8px; } .dterm .dctl .ranges { flex: 0 1 auto; min-width: 0; }
   .dterm .dpanel:not(.dfull) .odbox { margin: 0 2px 2px; }
   .dterm .dpanel:not(.dfull) .odlegend { padding: 0 8px 6px; font-size: 10px; flex-wrap: wrap; gap: 2px 8px; } .dterm .odlegend i { width: 80px; }
   .dterm .dlad { margin: 2px 4px 4px; flex: 1 1 0; min-height: 0; max-height: none; }
@@ -371,34 +457,35 @@
   .dpclg { display: flex; flex-wrap: wrap; gap: 2px 12px; padding: 2px 8px 6px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .dpclg span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex: none; } .dpclg i { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--c, var(--muted)); } .dpclg i.dsh { border-top-style: dashed; } .dpclg i.dot { border-top-style: dotted; }
   .dpanel.dfull .dpc { flex: none; height: calc(100vh - var(--tvtop, 0px) - 170px); min-height: 260px; }
-  @media (min-width: 760px) and (max-width: 1199px) {
-    .dterm { grid-template-columns: 1fr 1fr; }
-    .dterm .dpanel[data-panel="pchart"] { grid-column: 1 / -1; order: 5; } .dterm .dpanel[data-panel="magnet"] { order: 6; } .dterm .dpanel[data-panel="skew"] { order: 7; }
-    .dterm .dpanel[data-panel="ladder"], .dterm .dpanel[data-panel="greeks_view"] { height: 520px; } .dterm .dpanel[data-panel="walls"], .dterm .dpanel[data-panel="hedging"] { height: 270px; }
-    .dterm .dpanel[data-panel="magnet"], .dterm .dpanel[data-panel="skew"] { height: 420px; } .dterm .dpanel[data-panel="surface"] { grid-column: 1 / -1; height: 440px; }
-  }
-  @media (min-width: 1200px) {
-    .dterm { grid-template-columns: 19fr 20fr 36fr 25fr; gap: 6px; height: clamp(860px, calc(100vh - 40px), 920px); }
-    .dterm .dcol { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
-    .dterm .drow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex: none; height: 226px; min-height: 0; }
-    .dterm .dpanel, .dterm .dpanel[data-panel] { height: auto; order: 0; }
-    .dterm .dcol > .dpanel, .dterm .drow2 > .dpanel { flex: 1 1 0; }
-    .dterm .dcol.c2 > .dpanel[data-panel="greeks_view"] { flex: 3 1 0; } .dterm .dcol.c2 > .dpanel[data-panel="magnet"] { flex: 2 1 0; }
-    .dterm .dcol.c4 > .dpanel[data-panel="skew"] { flex: 5 1 0; } .dterm .dcol.c4 > .dpanel[data-panel="surface"] { flex: 6 1 0; }
-    .dterm .dpanel.dcollapsed { flex: none !important; height: auto; }
-    .dterm .drow2:has(> .dcollapsed) { align-items: start; } .dterm .drow2:has(> .dcollapsed) > .dpanel:not(.dcollapsed) { height: 226px; }
-    .dterm .dpanel.dfull { flex: none; height: auto; }
-    .dterm .dpanel[data-panel="surface"] .odbox { min-height: 160px; }
-  }
   .dterm .dpanel[data-panel="walls"]:not(.dfull) .card-h { flex-wrap: wrap; } .dterm .dpanel[data-panel="walls"]:not(.dfull) .card-h .ranges { flex: 1 1 100%; order: 10; justify-content: flex-start; }
   .dterm .dpanel[data-panel="hedging"]:not(.dfull) .gs b { font-size: 12.5px !important; }
-  @media (min-width: 1200px) {
-    .odctl { margin-bottom: 8px; } .odctl .odbar { padding: 8px 12px 2px; gap: 4px 12px; } .odctl .ranges button { padding: 3px 8px; font-size: 11.5px; }
-    .odctl .odbar .btn.ghost { padding: 4px 10px; font-size: 12px; } .odctl .odmode { padding: 2px 12px 4px; font-size: 11px; }
-    .odctl .card-b.odstats { padding: 0 12px 6px; gap: 4px 18px; } .odctl .odstats div { min-width: 84px; } .odctl .odstats .v { font-size: 15px; margin-top: 0; } .odctl .odstats .m { font-size: 10px; } .odctl .odstats .kl { font-size: 9.5px; }
-    .odctl .odreg { margin: 0 12px 8px; padding: 3px 8px; font-size: 11.5px; }
+  /* centre chart panel: the Velour chart or the Live widget fills it */
+  .dchart > .odcap { flex: none; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.3; padding: 0 8px; font-size: 10px; }
+  .dpcbody { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+  .dpcbody > #kl-pane { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+  .dpcbody > #kl-pane[hidden], .dpcbody > #tv-live[hidden] { display: none; }
+  .dpcbody > #tv-live { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; padding: 0 6px; }
+  .dpcbody #tv-live .tvbox { flex: 1 1 0; height: auto; min-height: 200px; margin-top: 4px; }
+  .dpcbody #tv-live .note { margin: 4px 0 4px; font-size: 10.5px; }
+  .dchart .dpclg { flex: none; } .dchart .dfresh { display: none; }
+  .dpanel.dfull .dpcbody { flex: 1 1 auto; min-height: 400px; }
+  .dpanel.dfull.dchart { display: flex; flex-direction: column; }
+  @media (max-width: 759px) {
+    body.optpage #options { height: auto; }
+    .dshell { flex-direction: column; height: auto; min-height: 0; gap: 4px; }
+    .dside { width: auto; flex-direction: row; align-items: center; padding: 3px; overflow: auto hidden; scrollbar-width: none; position: sticky; top: var(--hh, 90px); z-index: 12; }
+    .dshell[data-side="closed"] .dside { width: auto; }
+    .dside-h, .dside-f { display: none; }
+    .dside-l { flex-direction: row; gap: 2px; } .dside-l button { width: auto; padding: 6px 9px; gap: 6px; font-size: 12.5px; } .dshell[data-side="closed"] .dside-l button span { display: inline; }
+    .dside-sep { width: 1px; height: 18px; margin: 0 3px; align-self: center; }
+    .dmain { min-height: 0; } .dpanes { flex: none; } .dtab { height: auto; overflow: visible; }
+    .dtab > .dpanel.dsolo { height: auto; } .dsolo .odbox, .dsolo .odgwrap, .dsolo > .cv { flex: none; height: 360px; } .dsolo .odgwrap .odgrid { height: 360px; } .dsolo .odbox.odterr { height: 300px; }
+    .dsolo .odpane .odbox { flex: none; height: 300px; }
+    .dvol, .dcopy { display: flex; flex-direction: column; } .dvol .cv { flex: none; height: 240px; }
+    .dterm { height: auto; } .dterm .dpanel[data-panel="pchart"] { height: 560px; }
+    .odctl .odbar { gap: 4px 8px; } .odrow2 .odreg { flex: 1 1 100%; }
+    body.optpage main.wrap, body.optpage .topbar .wrap, body.optpage nav.sections .wrap { padding-left: 4px; padding-right: 4px; }
   }
-  @media (max-width: 759px) { .dterm .dpanel[data-panel="pchart"] { height: 420px; } }
   /*OPTDESK:END*/
   .fpprof { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; margin: 0 0 10px; color: var(--muted); }
   .fpprof b { color: var(--text); font-weight: 600; } .fpprof i { font-style: normal; font-size: 11px; }
@@ -746,10 +833,6 @@
 
   @media (max-width: 520px) { .wrap { padding: 0 12px; } .brand h1 { font-size: 18px; } .cv.main { height: 300px; } .kv { font-size: 20px; } }
 
-  /* chart card: tabs, panes */
-  #chart-tabs { margin: 2px 0 8px; }
-  #kl-root { min-height: 200px; }
-  .card-b.tvfull #tv-live { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
   #tv-live[hidden], #kl-pane[hidden] { display: none; }
 
   /* print / PDF */
@@ -765,7 +848,7 @@
     body { font-size: 11px; }
   }
 </style>
-<style>/*__CHART_KLINE_CSS__*/</style>
+<style>/*OPTDESK:BEGIN*//*__CHART_KLINE_CSS__*//*OPTDESK:END*/</style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -775,6 +858,28 @@
   <symbol id="i-save" viewBox="0 0 16 16"><path d="M4 2.5h8v11l-4-2.8-4 2.8z"/></symbol>
   <symbol id="i-group" viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h10"/></symbol>
   <symbol id="i-flt" viewBox="0 0 16 16"><path d="M2.5 3h11L9.3 8v4.5l-2.6 1V8z"/></symbol>
+  <!--OPTDESK:BEGIN-->
+  <symbol id="d-side" viewBox="0 0 16 16"><path d="M2.5 3h11v10h-11zM6 3v10"/></symbol>
+  <symbol id="d-back" viewBox="0 0 16 16"><path d="M9.5 3.5 5 8l4.5 4.5"/></symbol>
+  <symbol id="d-terminal" viewBox="0 0 16 16"><path d="M2 3.5h12v9H2zM2 6.5h12M5 9.5h3"/></symbol>
+  <symbol id="d-spine" viewBox="0 0 16 16"><path d="M8 2v12M3 4h5M5.5 7h2.5M2.5 10h5.5M8 13h5M8 4h3.5"/></symbol>
+  <symbol id="d-terrain" viewBox="0 0 16 16"><path d="M1.5 12.5 5 7l3 3.5 2.5-4 4 6z"/></symbol>
+  <symbol id="d-grid" viewBox="0 0 16 16"><path d="M2.5 2.5h11v11h-11zM2.5 6.2h11M2.5 9.8h11M6.2 2.5v11M9.8 2.5v11"/></symbol>
+  <symbol id="d-smile" viewBox="0 0 16 16"><path d="M2 4.5c1.4 7 10.6 7 12 0"/></symbol>
+  <symbol id="d-stack" viewBox="0 0 16 16"><path d="M8 2 14 5 8 8 2 5zM2 8l6 3 6-3M2 11l6 3 6-3"/></symbol>
+  <symbol id="d-vol" viewBox="0 0 16 16"><path d="M1.5 8h3l1.5-4.5 2.5 9 1.5-4.5h4"/></symbol>
+  <symbol id="d-replay" viewBox="0 0 16 16"><path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v3h3M7 6l3 2-3 2z"/></symbol>
+  <symbol id="d-copy" viewBox="0 0 16 16"><path d="M6 6h7.5v7.5H6zM3.5 10.5v-8h8"/></symbol>
+  <symbol id="d-flow" viewBox="0 0 16 16"><path d="M2 4h8M2 8h12M2 12h5M12 3l2 1-2 1"/></symbol>
+  <symbol id="d-tables" viewBox="0 0 16 16"><path d="M2.5 3.5h11M2.5 6.5h11M2.5 9.5h11M2.5 12.5h7"/></symbol>
+  <symbol id="d-guide" viewBox="0 0 16 16"><path d="M2 3h4.5a1.5 1.5 0 0 1 1.5 1.5V13a1.5 1.5 0 0 0-1.5-1.5H2zM14 3H9.5A1.5 1.5 0 0 0 8 4.5V13a1.5 1.5 0 0 1 1.5-1.5H14z"/></symbol>
+  <symbol id="d-method" viewBox="0 0 16 16"><path d="M3.5 2h9v12h-9zM5.7 5h4.6M5.7 8h4.6M5.7 11h2.8"/></symbol>
+  <symbol id="d-reset" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.5v3h-3"/></symbol>
+  <symbol id="d-collapse" viewBox="0 0 16 16"><path d="M3.5 6l4.5 4.5L12.5 6"/></symbol>
+  <symbol id="d-expand" viewBox="0 0 16 16"><path d="M6 3.5 10.5 8 6 12.5"/></symbol>
+  <symbol id="d-full" viewBox="0 0 16 16"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></symbol>
+  <symbol id="d-close" viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></symbol>
+  <!--OPTDESK:END-->
 </svg>
 <div class="stickyhead">
 <header class="topbar"><div class="wrap">
@@ -840,30 +945,12 @@
         <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>US yields and spreads across time</h3></span></summary>
         __MATRIX__
       </details>
-      <details class="card collapse" style="--w:12" id="tvcard">
-        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Chart</h3></span><span class="note tvhint">Open to load the chart</span></summary>
-        <div class="card-b">
-          <div class="ranges" id="chart-tabs" role="group" aria-label="Chart type"><button type="button" data-v="kline" aria-pressed="true">Velour chart</button><button type="button" data-v="live" aria-pressed="false">Live</button></div>
-          <div id="kl-pane">
-            <script type="application/json" id="chart-feed">__CHART_FEED__</script>
-            <div id="kl-root"></div>
-          </div>
-          <div id="tv-live" hidden>
-            <div class="tvbar"><div class="ranges" id="tv-sym" role="group" aria-label="Chart symbol"></div><button type="button" class="tvx" id="tv-x" aria-expanded="false" aria-controls="tv-box" disabled hidden>Expand</button></div>
-            <div id="tv-box" class="tvbox" aria-live="polite"></div>
-            <p class="note" id="tv-fail" hidden>The TradingView chart could not load (blocked or offline). The rest of the dashboard is unaffected. <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Open tradingview.com</a></p>
-            <p class="note">Charting tool, not advice. Prices come from TradingView, may be delayed, and are separate from the dashboard data above.</p>
-            <p class="note tvnote2">Opening the Live tab loads a TradingView script on this page and it also uses a hidden TradingView frame, so TradingView sees your IP address, cookies and this page's address; nothing else from the page is sent.<br>Remembers symbol, candle interval and date range on this device. Drawings and indicators reset on reload.<br>
-              Index and dollar-index charts are broker CFD quotes (they track the index but are not the official level; the S&amp;P entry is a CFD quote that tracks the S&amp;P 500 Index). The 10Y yield is the Federal Reserve end-of-day series, drawn as a line.</p>
-          </div>
-        </div>
-      </details>
     </div>
   </section>
 
   <!-- ============ FED ODDS ============ -->
   <section class="sec" id="fed">
-    <div class="sechead"><h2>Fed policy odds</h2><p>Market-implied chance of a cut, hold or hike at each FOMC meeting, from Kalshi prediction markets (bid/ask midpoint, rescaled to 100%). Updated __FED_UPD__.</p></div>
+    <div class="sechead"><h2>Fed policy odds</h2><p>Market-implied chance of a cut, hold or hike at each FOMC meeting, from prediction-market prices (bid/ask midpoint, rescaled to 100%). Updated __FED_UPD__.</p></div>
     <div class="grid">
       <div class="card" style="--w:5"><div class="card-h"><h3>Next meeting</h3></div><div class="card-b">__FED_NEXT__</div></div>
       <div class="card" style="--w:7"><div class="card-h"><h3>How the odds moved</h3><div class="ranges" id="fedm" role="group" aria-label="Meeting"></div></div><div class="legend" data-for="fed"></div><div class="cv tall" id="ch-fed" role="img" aria-label="Cut, hold and hike odds over time for the selected meeting"></div></div>
@@ -880,7 +967,7 @@
 
   <!-- ============ POSITIONING ============ -->
   <section class="sec" id="positioning">
-    <div class="sechead"><h2>Positioning</h2><p>CFTC Legacy Futures Only, Non-Commercial. Tuesday positions, published Friday; price = Friday close of the same week.</p></div>
+    <div class="sechead"><h2>Positioning</h2><p>Weekly positioning report, futures only, non-commercial traders. Tuesday positions, published Friday; price = Friday close of the same week.</p></div>
     <div class="grid">
       <div class="card cotcard" style="--w:6"><div class="card-h"><h3>Gold COT</h3></div><div class="card-b">__COT_GOLD_CARD__</div></div>
       <div class="card cotcard" style="--w:6"><div class="card-h"><h3>USD Index COT</h3></div><div class="card-b">__COT_USD_CARD__</div></div>
@@ -888,11 +975,11 @@
       <div class="card" style="--w:4"><div class="card-h"><h3>Speculator net, % of open interest</h3></div><div class="legend" data-for="cotoi"></div><div class="cv" id="ch-cotoi" role="img" aria-label="Speculator net position as a percent of open interest"></div></div>
       <div class="card" style="--w:4"><div class="card-h"><h3>Weekly price change at Friday close (%)</h3></div><div class="legend" data-for="cotpx"></div><div class="cv" id="ch-cotpx" role="img" aria-label="Weekly price change at Friday close"></div></div>
       <details class="card collapse" style="--w:12" open data-mobile-closed>
-        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Gold (COMEX 088691): last 52 reports</h3></span><span class="note">OI normalized net = net ÷ open interest. Stats and readings cover these 52 reports.</span></summary>
+        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Gold: last 52 reports</h3></span><span class="note">OI normalized net = net ÷ open interest. Stats and readings cover these 52 reports.</span></summary>
         <div class="card-b flush">__COT_GOLD_TABLE__</div>
       </details>
       <details class="card collapse" style="--w:12" open data-mobile-closed>
-        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>USD Index (ICE 098662): last 52 reports</h3></span></summary>
+        <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>USD Index: last 52 reports</h3></span></summary>
         <div class="card-b flush">__COT_USD_TABLE__</div>
       </details>
     </div>
@@ -901,82 +988,151 @@
   <!-- ============ FX ============ -->
 
 <!--OPTDESK:BEGIN-->
-  <section class="sec" id="options">
-    <div class="sechead"><a href="#overview" class="backlink">← Macro dashboard</a><h2>Options positioning</h2><p>Computed from delayed option chains. The source, delay and fetch time are on every panel. Open interest is the settled figure from the start of the session; prices are the latest available at the time shown, not necessarily closes. Gamma exposure assumes dealers hold the opposite side of customer positions, a common simplification: it maps where hedging flows may cluster, not where price must go. Index levels come from the index options, or from a proxy scaled to the index and marked approximate; gold levels come from GLD options scaled to the COMEX gold future. Not a live trade tape. Educational context, not advice.</p></div>
+  <section class="sec" id="options" aria-label="Options desk">
     __OPTSTALE__
-    <div id="odesk">
-      <div class="card odctl"><div class="card-b odbar">
-        <div class="ranges" id="od-inst" role="group" aria-label="Instrument"></div>
-        <div class="ranges" id="od-greek" role="group" aria-label="Greek"></div>
-        <label class="odsel">Expiry <select id="od-ex" aria-label="Expiry"></select></label>
-        <div class="ranges" id="od-rng" role="group" aria-label="Strike range around price"></div>
-        <div class="ranges" id="od-mode" role="group" aria-label="Mode"></div>
-        <label class="odsel" id="od-mvw">Move <select id="od-mv" aria-label="Price move"></select></label>
-        <span class="odfeed" id="od-feed"></span>
-        <button type="button" class="btn ghost" id="od-copy">Copy levels</button>
-        <button type="button" class="btn ghost" id="od-tv" title="Pine script and CSV of the call wall, put wall, gamma flip and max pain">Copy levels for TradingView</button>
-        <button type="button" class="btn ghost" id="od-reset" title="Put the panels back in their default order, all open">Reset layout</button>
-      </div>
-      <p class="odmode" id="od-mnote"></p>
-      <div class="card-b odstats" id="od-stats"></div><div class="odreg" id="od-reg"></div></div>
-      <div class="dterm" id="dterm" role="group" aria-label="Options terminal">
-        <div class="dcol c1">
-          <div class="card dpanel" data-panel="ladder"><div class="card-h"><h3>Strike ladder</h3><div class="ranges" id="dl-mode" role="group" aria-label="Ladder columns"></div></div>
-            <div class="odcap" id="dl-cap"></div><div class="dlad" id="dl-body"></div></div>
+    <div id="odesk" class="dshell" data-side="open">
+      <nav class="dside" id="dside" aria-label="Options desk views">
+        <div class="dside-h">
+          <button type="button" class="dside-t" id="dside-t" aria-expanded="true" aria-controls="dside-l" title="Collapse the sidebar" aria-label="Collapse the sidebar"><svg class="ico"><use href="#d-side"/></svg></button>
+          <span class="dside-ttl">Options desk</span>
+          <a href="#overview" class="dside-back" title="Back to the macro dashboard" aria-label="Back to the macro dashboard"><svg class="ico"><use href="#d-back"/></svg></a>
         </div>
-        <div class="dcol c2">
-          <div class="card dpanel" data-panel="greeks_view"><div class="card-h"><h3>Greeks view</h3><div class="ranges" id="gv-type" role="group" aria-label="Bars or line"></div></div>
-            <div class="dctl"><div class="ranges" id="gv-ex" role="group" aria-label="Expiry"></div><div class="ranges" id="gv-greek" role="group" aria-label="Greek"></div><div class="ranges" id="gv-opts" role="group" aria-label="Options"></div></div>
-            <div class="odcap" id="gv-cap"></div><div class="odbox dbox2" id="gv-box" role="img" aria-label="Exposure by strike, horizontal bars"></div></div>
-          <div class="card dpanel" data-panel="magnet"><div class="card-h"><h3 title="0DTE magnet · expected range · IV rank">0DTE magnet · expected range · IV rank</h3></div><div class="dmag" id="mg-body"></div></div>
+        <ul class="dside-l" id="dside-l" role="tablist" aria-orientation="vertical" aria-label="Desk views">
+          <li><button type="button" role="tab" data-tab="terminal" title="Terminal"><svg class="ico"><use href="#d-terminal"/></svg><span>Terminal</span></button></li>
+          <li><button type="button" role="tab" data-tab="spine" title="Spine"><svg class="ico"><use href="#d-spine"/></svg><span>Spine</span></button></li>
+          <li><button type="button" role="tab" data-tab="terrain" title="Terrain"><svg class="ico"><use href="#d-terrain"/></svg><span>Terrain</span></button></li>
+          <li><button type="button" role="tab" data-tab="grid" title="Grid"><svg class="ico"><use href="#d-grid"/></svg><span>Grid</span></button></li>
+          <li><button type="button" role="tab" data-tab="smile" title="Smile"><svg class="ico"><use href="#d-smile"/></svg><span>Smile</span></button></li>
+          <li><button type="button" role="tab" data-tab="stack" title="Cross-expiry"><svg class="ico"><use href="#d-stack"/></svg><span>Cross-expiry</span></button></li>
+          <li><button type="button" role="tab" data-tab="vol" title="Volatility"><svg class="ico"><use href="#d-vol"/></svg><span>Volatility</span></button></li>
+          <li><button type="button" role="tab" data-tab="replay" title="Replay"><svg class="ico"><use href="#d-replay"/></svg><span>Replay</span></button></li>
+          <li><button type="button" role="tab" data-tab="copy" title="Copy levels"><svg class="ico"><use href="#d-copy"/></svg><span>Copy levels</span></button></li>
+          <li><button type="button" role="tab" data-tab="flow" title="Order flow"><svg class="ico"><use href="#d-flow"/></svg><span>Order flow</span></button></li>
+          <li><button type="button" role="tab" data-tab="tables" title="Level tables"><svg class="ico"><use href="#d-tables"/></svg><span>Level tables</span></button></li>
+          <li class="dside-sep" role="presentation"></li>
+          <li><button type="button" role="tab" data-tab="guide" title="How to read"><svg class="ico"><use href="#d-guide"/></svg><span>How to read</span></button></li>
+          <li><button type="button" role="tab" data-tab="method" title="Methodology"><svg class="ico"><use href="#d-method"/></svg><span>Methodology</span></button></li>
+        </ul>
+        <div class="dside-f"><button type="button" class="dside-reset" id="od-reset" title="Open every panel again, show the Terminal and the sidebar"><svg class="ico"><use href="#d-reset"/></svg><span>Reset layout</span></button>
+          <p class="dside-note">Educational context, not advice.</p></div>
+      </nav>
+      <div class="dmain">
+        <div class="card odctl"><div class="card-b odbar">
+          <div class="ranges" id="od-inst" role="group" aria-label="Instrument"></div>
+          <div class="ranges" id="od-greek" role="group" aria-label="Greek"></div>
+          <label class="odsel">Expiry <select id="od-ex" aria-label="Expiry"></select></label>
+          <div class="ranges" id="od-rng" role="group" aria-label="Strike range around price"></div>
+          <div class="ranges" id="od-mode" role="group" aria-label="Mode"></div>
+          <label class="odsel" id="od-mvw">Move <select id="od-mv" aria-label="Price move"></select></label>
         </div>
-        <div class="dcol c3">
-          <div class="drow2">
-            <div class="card dpanel" data-panel="walls"><div class="card-h"><h3>Major walls</h3><div class="ranges" id="wl-sw" role="group" aria-label="Wall measure"></div></div>
-              <div class="dwalls" id="wl-body"></div></div>
-            <div class="card dpanel" data-panel="hedging"><div class="card-h"><h3>Hedging pressure</h3></div><div class="dgauge" id="hp-body"></div></div>
+        <div class="odrow2"><div class="odstats" id="od-stats"></div>
+        <div class="odrow3"><div class="odreg" id="od-reg"></div><p class="odmode" id="od-mnote"></p><span class="odfeed" id="od-feed"></span></div></div></div>
+        <div class="dpanes" id="dpanes">
+          <div class="dtab" data-tab="terminal" role="tabpanel" aria-label="Terminal">
+            <div class="dterm" id="dterm" role="group" aria-label="Options terminal">
+              <div class="dcol c1">
+                <div class="card dpanel" data-panel="ladder"><div class="card-h"><h3>Strike ladder</h3><div class="ranges" id="dl-mode" role="group" aria-label="Ladder columns"></div></div>
+                  <div class="odcap" id="dl-cap"></div><div class="dlad" id="dl-body"></div></div>
+              </div>
+              <div class="dcol c2">
+                <div class="card dpanel" data-panel="greeks_view"><div class="card-h"><h3>Greeks view</h3><div class="ranges" id="gv-type" role="group" aria-label="Bars or line"></div></div>
+                  <div class="dctl"><div class="ranges" id="gv-ex" role="group" aria-label="Expiry"></div><div class="ranges" id="gv-greek" role="group" aria-label="Greek"></div><div class="ranges" id="gv-opts" role="group" aria-label="Options"></div></div>
+                  <div class="odcap" id="gv-cap"></div><div class="odbox dbox2" id="gv-box" role="img" aria-label="Exposure by strike, horizontal bars"></div></div>
+                <div class="card dpanel" data-panel="magnet"><div class="card-h"><h3 title="0DTE magnet · expected range · IV rank">0DTE magnet</h3></div><div class="dmag" id="mg-body"></div></div>
+              </div>
+              <div class="dcol c3">
+                <div class="card dpanel dchart" data-panel="pchart"><div class="card-h"><div class="dtabs" id="pc-tabs" role="tablist" aria-label="Chart or live"><button type="button" role="tab" data-v="kline" aria-pressed="true">Chart</button><button type="button" role="tab" data-v="live" aria-pressed="false">Live</button></div>
+                    <button type="button" class="dlvl" id="pc-lv" aria-pressed="true" title="Draw the call wall, put wall, gamma flip, max pain and 1-day ±1σ on the chart">Levels</button></div>
+                  <div class="odcap" id="pc-cap"></div>
+                  <div class="dpcbody">
+                    <div id="kl-pane">
+                      <script type="application/json" id="chart-feed">__CHART_FEED__</script>
+                      <div id="kl-root"></div>
+                    </div>
+                    <div id="tv-live" hidden>
+                      <div class="tvbar"><div class="ranges" id="tv-sym" role="group" aria-label="Chart symbol"></div></div>
+                      <div id="tv-box" class="tvbox" aria-live="polite"></div>
+                      <p class="note" id="tv-fail" hidden>The TradingView chart could not load (blocked or offline). The rest of the desk is unaffected. <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">Open tradingview.com</a></p>
+                      <p class="note tvnote2">Live chart by TradingView. Prices may be delayed and are separate from the desk's data. Opening this tab loads a TradingView script and frame, so TradingView sees your IP address, cookies and this page's address. Symbol, interval and range are remembered on this device; drawings reset on reload.</p>
+                    </div>
+                  </div>
+                  <div class="dpclg" id="pc-leg"></div></div>
+              </div>
+              <div class="dcol c4">
+                <div class="dgroup" data-g="a">
+                  <div class="card dpanel" data-panel="walls"><div class="card-h"><h3>Major walls</h3><div class="ranges" id="wl-sw" role="group" aria-label="Wall measure"></div></div>
+                    <div class="dwalls" id="wl-body"></div></div>
+                  <div class="card dpanel" data-panel="hedging"><div class="card-h"><h3>Hedging pressure</h3></div><div class="dgauge" id="hp-body"></div></div>
+                </div>
+                <div class="dgroup" data-g="b">
+                  <div class="card dpanel" data-panel="surface"><div class="card-h"><h3>IV surface</h3><div class="dsfctl"><div class="ranges" id="sf-col" role="group" aria-label="Surface colouring"></div><button type="button" class="btn ghost odgcols" id="sf-reset">Reset view</button></div></div>
+                    <div class="odcap" id="sf-cap"></div><div class="odbox odterr"><canvas id="sf-cv" aria-label="3D surface of implied volatility by expiry and moneyness"></canvas></div><div class="odlegend" id="sf-leg"></div></div>
+                  <div class="card dpanel" data-panel="skew"><div class="card-h"><h3>IV skew by expiry</h3><span class="dbadge" title="Net drift needs hourly snapshots of the book; the dashboard stores one per day. It arrives in Phase 2.">Net drift: Phase 2</span></div>
+                    <div class="odbox dbox3" id="sk-chart" role="img" aria-label="Implied volatility against moneyness, one line per expiry"></div><div class="legend" id="sk-leg"></div><div class="scroll dsk" id="sk-tab"></div></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="card dpanel" data-panel="pchart"><div class="card-h"><h3>Price chart with levels</h3><div class="ranges" id="pc-rng" role="group" aria-label="Chart range"></div></div>
-            <div class="odcap" id="pc-cap"></div><div class="dpmsg" id="pc-msg" hidden></div><div class="dpc" id="pc-box" role="img" aria-label="Daily price chart of the selected market with the call wall, put wall, gamma flip, max pain and one-sigma range drawn as horizontal lines"></div><div class="dpclg" id="pc-leg"></div></div>
-        </div>
-        <div class="dcol c4">
-          <div class="card dpanel" data-panel="skew"><div class="card-h"><h3>IV skew by expiry</h3><span class="dbadge" title="Net drift needs hourly snapshots of the book; the dashboard stores one per day. It arrives in Phase 2.">Net drift: Phase 2</span></div>
-            <div class="odbox dbox3" id="sk-chart" role="img" aria-label="Implied volatility against moneyness, one line per expiry"></div><div class="legend" id="sk-leg"></div><div class="scroll dsk" id="sk-tab"></div></div>
-          <div class="card dpanel" data-panel="surface"><div class="card-h"><h3>IV surface</h3><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:none"><div class="ranges" id="sf-col" role="group" aria-label="Surface colouring"></div><button type="button" class="btn ghost odgcols" id="sf-reset" style="display:inline-block;margin:0">Reset view</button></div></div>
-            <div class="odcap" id="sf-cap"></div><div class="odbox odterr"><canvas id="sf-cv" aria-label="3D surface of implied volatility by expiry and moneyness"></canvas></div><div class="odlegend" id="sf-leg"></div></div>
+          <div class="dtab" data-tab="spine" role="tabpanel" aria-label="Spine" hidden>
+            <div class="card dpanel dsolo" data-panel="spine"><div class="card-h"><h3>Spine</h3><div class="ranges" id="od-sv" role="group" aria-label="Spine style"><button type="button" data-v="spine" aria-pressed="true">Spine</button><button type="button" data-v="bars" aria-pressed="false">Bars</button></div></div>
+              <div class="odcap" id="od-cap1"></div><div class="odbox" id="od-spine" role="img" aria-label="Exposure by strike with walls, gamma flip and price"></div></div>
+          </div>
+          <div class="dtab" data-tab="terrain" role="tabpanel" aria-label="Terrain" hidden>
+            <div class="card dpanel dsolo" data-panel="terrain"><div class="card-h"><h3>Terrain</h3><div class="ranges" id="od-pal" role="group" aria-label="Terrain colours"><button type="button" data-v="div" aria-pressed="true">Calls / puts</button><button type="button" data-v="heat" aria-pressed="false">Heat</button></div></div>
+              <div class="odcap" id="od-cap2"></div><div class="odbox odterr"><canvas id="od-terrain" aria-label="3D relief of the dealer book"></canvas></div><div class="odlegend" id="od-leg"></div></div>
+          </div>
+          <div class="dtab" data-tab="grid" role="tabpanel" aria-label="Grid" hidden>
+            <div class="card dpanel dsolo" data-panel="grid"><div class="card-h"><h3>Grid</h3><div class="dsfctl"><button type="button" class="btn ghost odgcols" id="od-gcols"></button><div class="odsw" id="od-sw" role="group" aria-label="Grid colours"></div></div></div>
+              <div class="odcap" id="od-cap3"></div><div class="odgwrap"><div class="odgrid" id="od-grid"></div><div class="odbar2" id="od-gbar"></div></div></div>
+          </div>
+          <div class="dtab" data-tab="smile" role="tabpanel" aria-label="Smile" hidden>
+            <div class="card dpanel dsolo" data-panel="smile"><div class="card-h"><h3>Smile</h3><p class="note" id="od-smn"></p></div>
+              <div class="odcap" id="od-cap4"></div><div class="odbox" id="od-smile" role="img" aria-label="Implied volatility smile for calls and puts with a fitted curve"></div></div>
+          </div>
+          <div class="dtab" data-tab="stack" role="tabpanel" aria-label="Cross-expiry" hidden>
+            <div class="card dpanel dsolo" data-panel="stack"><div class="card-h"><h3>Cross-expiry stack</h3><p class="note">Two views side by side: pick instrument, Greek, expiry and mode for each</p></div>
+              <div class="odstack"><div class="odpane" id="od-pa"></div><div class="odpane" id="od-pb"></div></div></div>
+          </div>
+          <div class="dtab dvol" data-tab="vol" role="tabpanel" aria-label="Volatility" hidden>
+            <div class="card dpanel" data-panel="vol"><div class="card-h"><h3>Volatility</h3><p class="note" id="od-voln"></p></div>
+              <div class="card-b"><div class="odstats" id="od-volstats"></div><p class="optread" id="od-volread"></p></div>
+              <div class="legend" id="od-tlg"></div><div class="cv" id="od-term" role="img" aria-label="ATM implied volatility and 25-delta risk reversal by expiry"></div></div>
+            <div class="card dpanel" data-panel="vix"><div class="card-h"><h3>VIX term structure</h3><p class="note">VIX3M ÷ VIX, last 12 months</p></div>
+              <div class="card-b"><p class="optread" id="od-vixread"></p></div><div class="cv" id="od-vix" role="img" aria-label="VIX3M divided by VIX over the last year"></div></div>
+            <div class="card dpanel dwide" data-panel="volidx"><div class="card-h"><h3>Implied vol index</h3><p class="note">The 30-day implied vol index for each market (VIX, VXN, VXD, RVX, GVZ) · last 12 months</p></div>
+              <div class="card-b"><div class="odstats" id="od-viall"></div><p class="optread" id="od-viread"></p></div><div class="cv" id="od-vichart" role="img" aria-label="Implied volatility index over the last year"></div></div>
+          </div>
+          <div class="dtab" data-tab="replay" role="tabpanel" aria-label="Replay" hidden>
+            <div class="card dpanel dsolo" data-panel="replay"><div class="card-h"><h3>Replay</h3><p class="note">Price against the walls and flip at each daily update</p></div>
+              <div class="legend" id="od-rlg"></div><div class="cv" id="od-replay" role="img" aria-label="Price, call wall, put wall and gamma flip over time"></div></div>
+          </div>
+          <div class="dtab dcopy" data-tab="copy" role="tabpanel" aria-label="Copy levels" hidden>
+            <div class="card dpanel" data-panel="prompt"><div class="card-h"><h3>AI prompt</h3><div class="ranges" id="od-pt" role="group" aria-label="Prompt type"></div></div>
+              <div class="card-b"><p class="note">Every number below comes from this page's data. Paste it into ChatGPT, Claude or any other assistant.</p><textarea id="od-prompt" class="odprompt" readonly aria-label="Prompt text"></textarea>
+              <button type="button" class="btn ghost" id="od-pcopy" style="margin-left:0">Copy prompt</button></div></div>
+            <div class="card dpanel" data-panel="levels_export"><div class="card-h"><h3>Levels for the selected instrument</h3></div>
+              <div class="card-b"><p class="note">Call wall, put wall, gamma flip and max pain, with the as-of time. Copy them as text or as a TradingView Pine script and CSV.</p>
+              <div class="dcopybtns"><button type="button" class="btn ghost" id="od-copy" style="margin-left:0">Copy levels</button>
+              <button type="button" class="btn ghost" id="od-tv" style="margin-left:0" title="Pine script and CSV of the call wall, put wall, gamma flip and max pain">Copy levels for TradingView</button></div></div></div>
+          </div>
+          <div class="dtab" data-tab="flow" role="tabpanel" aria-label="Order flow" hidden>
+            <div class="card dpanel dsolo dtop" data-panel="order_flow"><div class="card-h"><h3>Order flow</h3><span class="dbadge">not connected</span></div><div class="dflow" id="of-body"></div></div>
+          </div>
+          <div class="dtab dtables" data-tab="tables" role="tabpanel" aria-label="Level tables" hidden>
+            <div class="grid">
+              __OPTIONS__
+            </div>
+          </div>
+          <div class="dtab" data-tab="guide" role="tabpanel" aria-label="How to read" hidden>
+            <div class="card dpanel dsolo dtop" data-panel="guide"><div class="card-h"><h3>How to read <span id="od-gname">gamma</span></h3></div><div class="card-b odguide" id="od-guide"></div></div>
+          </div>
+          <div class="dtab" data-tab="method" role="tabpanel" aria-label="Methodology" hidden>
+            <div class="card dpanel dsolo dtop" data-panel="method"><div class="card-h"><h3>Methodology</h3></div><div class="card-b dmeth" id="mt-body"></div></div>
+          </div>
         </div>
       </div>
-      <div class="grid dgrid" id="dpanels">
-        <div class="card dpanel" data-panel="order_flow" style="--w:4"><div class="card-h"><h3>Order flow</h3><span class="dbadge">not connected</span></div><div class="dflow" id="of-body"></div></div>
-        <div class="card dpanel" data-panel="spine" style="--w:6"><div class="card-h"><h3>01 · Spine</h3><div class="ranges" id="od-sv" role="group" aria-label="Spine style"><button type="button" data-v="spine" aria-pressed="true">Spine</button><button type="button" data-v="bars" aria-pressed="false">Bars</button></div></div>
-          <div class="odcap" id="od-cap1"></div><div class="odbox" id="od-spine" role="img" aria-label="Exposure by strike with walls, gamma flip and price"></div></div>
-        <div class="card dpanel" data-panel="terrain" style="--w:6"><div class="card-h"><h3>02 · Terrain</h3><div class="ranges" id="od-pal" role="group" aria-label="Terrain colours"><button type="button" data-v="div" aria-pressed="true">Calls / puts</button><button type="button" data-v="heat" aria-pressed="false">Heat</button></div></div>
-          <div class="odcap" id="od-cap2"></div><div class="odbox odterr"><canvas id="od-terrain" aria-label="3D relief of the dealer book"></canvas></div><div class="odlegend" id="od-leg"></div></div>
-        <div class="card dpanel" data-panel="grid" style="--w:6"><div class="card-h"><h3>03 · Grid</h3><div style="display:flex;gap:8px;align-items:center;flex:none"><button type="button" class="btn ghost odgcols" id="od-gcols"></button><div class="odsw" id="od-sw" role="group" aria-label="Grid colours"></div></div></div>
-          <div class="odcap" id="od-cap3"></div><div class="odgwrap"><div class="odgrid" id="od-grid"></div><div class="odbar2" id="od-gbar"></div></div></div>
-        <div class="card dpanel" data-panel="smile" style="--w:6"><div class="card-h"><h3>04 · Smile</h3><p class="note" id="od-smn"></p></div>
-          <div class="odcap" id="od-cap4"></div><div class="odbox" id="od-smile" role="img" aria-label="Implied volatility smile for calls and puts with a fitted curve"></div></div>
-        <div class="card dpanel" data-panel="stack" style="--w:12"><div class="card-h"><h3>05 · Cross-expiry stack</h3><p class="note">Two views side by side: pick instrument, Greek, expiry and mode for each</p></div>
-          <div class="odstack"><div class="odpane" id="od-pa"></div><div class="odpane" id="od-pb"></div></div></div>
-        <div class="card dpanel" data-panel="guide" style="--w:5"><div class="card-h"><h3>06 · How to read <span id="od-gname">gamma</span></h3></div><div class="card-b odguide" id="od-guide"></div></div>
-        <div class="card dpanel" data-panel="vol" style="--w:7"><div class="card-h"><h3>07 · Volatility</h3><p class="note" id="od-voln"></p></div>
-          <div class="card-b"><div class="odstats" id="od-volstats"></div><p class="optread" id="od-volread"></p></div>
-          <div class="legend" id="od-tlg"></div><div class="cv" id="od-term" role="img" aria-label="ATM implied volatility and 25-delta risk reversal by expiry"></div></div>
-        <div class="card dpanel" data-panel="vix" style="--w:6"><div class="card-h"><h3>08 · VIX term structure</h3><p class="note">VIX3M ÷ VIX, last 12 months · FRED</p></div>
-          <div class="card-b"><p class="optread" id="od-vixread"></p></div><div class="cv" id="od-vix" role="img" aria-label="VIX3M divided by VIX over the last year"></div></div>
-        <div class="card dpanel" data-panel="volidx" style="--w:12"><div class="card-h"><h3>11 · Implied vol index</h3><p class="note">The official 30-day implied vol index for each market (VIX, VXN, VXD, RVX, GVZ) via FRED · last 12 months</p></div>
-          <div class="card-b"><div class="odstats" id="od-viall"></div><p class="optread" id="od-viread"></p></div><div class="cv" id="od-vichart" role="img" aria-label="Implied volatility index over the last year"></div></div>
-        <div class="card dpanel" data-panel="replay" style="--w:6"><div class="card-h"><h3>09 · Replay</h3><p class="note">Price against the walls and flip at each daily update</p></div>
-          <div class="legend" id="od-rlg"></div><div class="cv" id="od-replay" role="img" aria-label="Price, call wall, put wall and gamma flip over time"></div></div>
-        <div class="card dpanel" data-panel="prompt" style="--w:12"><div class="card-h"><h3>10 · AI prompt</h3><div class="ranges" id="od-pt" role="group" aria-label="Prompt type"></div></div>
-          <div class="card-b"><p class="note">Every number below comes from this page's data. Paste it into ChatGPT, Claude or any other assistant.</p><textarea id="od-prompt" class="odprompt" readonly aria-label="Prompt text"></textarea>
-          <button type="button" class="btn ghost" id="od-pcopy" style="margin-left:0">Copy prompt</button></div></div>
-        <div class="card dpanel" data-panel="method" style="--w:12"><div class="card-h"><h3>Methodology and licence notes</h3></div><div class="card-b dmeth" id="mt-body"></div></div>
-      </div>
     </div>
-    <div class="grid" style="margin-top:12px">
-      __OPTIONS__
-    </div>
+    <div class="grid dempty">__OPTEMPTY__</div>
     <div class="dlg" id="tv-dlg" role="dialog" aria-modal="true" aria-labelledby="tv-dlg-t" hidden>
       <div class="dlgbox"><div class="dlgh"><h3 id="tv-dlg-t">Levels for TradingView</h3><button type="button" class="btn ghost" id="tv-dlg-x" style="margin:0">Close</button></div>
         <div class="ranges" id="tv-dlg-tabs" role="group" aria-label="Format"><button type="button" data-v="pine" aria-pressed="true">Pine script</button><button type="button" data-v="csv" aria-pressed="false">CSV</button></div>
@@ -989,7 +1145,7 @@
 <!--OPTDESK:END-->
 
   <section class="sec" id="fx">
-    <div class="sechead"><h2>FX, gold and indices</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs from the ECB's official euro reference rates (daily 14:15 CET fixing, crossed through the euro; Yahoo then FRED as fallbacks); XAUUSD uses COMEX gold futures. ES, NQ and US30 are the S&amp;P 500, Nasdaq 100 and Dow 30 cash index levels from Yahoo Finance (FRED as fallback). Latest data __FXUPD__ (pairs: ECB fixing; gold and indices: last price of the latest update).</p></div>
+    <div class="sechead"><h2>FX, gold and indices</h2><p>Daily timeframe. Score 0-100 starts at 50 and adds four signals: day-on-day momentum (±12.5), RSI(14) (up to ±25), price vs 50-day EMA (±15) and 200-day Z-score (up to ±20); 60+ bullish, 40 or less bearish. Support and resistance: the 120-day high and low (strong) and levels 40% of the way from price to each (moderate). Same formula as the original FX Macro Confluence engine. Pairs use the official euro reference rates (daily 14:15 CET fixing, crossed through the euro); XAUUSD uses gold futures. ES, NQ and US30 are the S&amp;P 500, Nasdaq 100 and Dow 30 cash index levels. Latest data __FXUPD__ (pairs: daily fixing; gold and indices: last price of the latest update).</p></div>
     <div class="grid" style="margin-bottom:12px">
       <div class="card" style="--w:12"><div class="card-h"><h3>This week</h3></div><div class="card-b">__WEEK__</div></div>
     </div>
@@ -1031,7 +1187,7 @@
         <p><b>Likely range this week</b> is the 68% range (&plusmn;1 sigma) from the last 20 and 60 days of price swings. In a 2001-2026 test on 7 pairs the weekly move stayed inside it 68.3% of weeks, so it is a size estimate you can rely on.</p>
         <p><b>Macro lean</b> counts the drivers that support the instrument higher or lower (a net of 2 is a lean). In the same test the read was right only about half of weeks, so treat it as background, not a signal. Crowded positioning (Z of 2 or more) and the risk or volatility rows are shown but not counted.</p>
         <p><b>Confluence score</b> (0-100) combines momentum, RSI, trend and Z-score; 60 or more reads bullish, 40 or less bearish. It also showed no reliable edge in the backtest.</p>
-        <p class="note">Pairs use ECB reference rates, gold uses COMEX futures, indices are the S&amp;P 500, Nasdaq 100 and Dow 30 cash levels (Yahoo Finance, FRED as fallback). Latest data __FXUPD__ (pairs: ECB fixing; gold and indices: last price of the latest update). The chart shows % change from the start of the selected range.</p>
+        <p class="note">Pairs use the official euro reference rates, gold uses gold futures, indices are the S&amp;P 500, Nasdaq 100 and Dow 30 cash levels. Latest data __FXUPD__ (pairs: daily fixing; gold and indices: last price of the latest update). The chart shows % change from the start of the selected range.</p>
       </div></div>
     </div>
     </div>
@@ -1039,7 +1195,7 @@
 
   <!-- ============ ECONOMY ============ -->
   <section class="sec" id="economy">
-    <div class="sechead"><h2>US economy</h2><p>FRED. Inflation and spending series are shown as % change from a year earlier; rates in %; counts in thousands. Z = latest vs its 5-year history.</p></div>
+    <div class="sechead"><h2>US economy</h2><p>Inflation and spending series are shown as % change from a year earlier; rates in %; counts in thousands. Z = latest vs its 5-year history.</p></div>
     <div class="term rterm">
       <div class="card wlp">
         <div class="card-h"><h3>US Economy</h3><span class="ctools"><button type="button" class="tool" data-embed="economy" title="Copy code to embed this section in another page">&lt;/&gt; Embed</button><button type="button" class="tool" data-act="dl"><svg class="ico"><use href="#i-dl"/></svg>Download</button></span></div>
@@ -1070,10 +1226,6 @@
     </div>
   </section>
 
-  <details class="card collapse" style="--w:12; margin-top:12px" id="srccard">
-    <summary class="card-h"><span class="ttl"><span class="chev"></span><h3>Data sources and update times</h3></span></summary>
-    <div class="card-b" style="overflow-x:auto">__STATUS__</div>
-  </details>
 </main>
 __FOOTER__
 
@@ -1094,18 +1246,19 @@ const P = __PAYLOAD__;
   paint();
 })();
 
-/* TradingView chart: the <tv-advanced-chart> web component loads only when the card is opened */
+/*OPTDESK:BEGIN*/
+/* Options desk centre panel: tabs "Chart" (the Velour chart; its own script loads the library on kl:open) and "Live" (TradingView; its script is requested only on the Live tab) */
 (function () {
-  const card = document.getElementById("tvcard"); if (!card) return;
+  const tabs = document.getElementById("pc-tabs"), tvl = document.getElementById("tv-live"); if (!tabs || !tvl) return;
   const SYMS = [["Gold (spot)", "OANDA:XAUUSD"], ["S&P 500 (CFD)", "FOREXCOM:SPXUSD"], ["Dollar index (CFD)", "CAPITALCOM:DXY"], ["EUR/USD", "FX:EURUSD"], ["US 10Y yield (daily)", "FRED:DGS10"]];
   const SRC = "https://widgets.tradingview-widget.com/w/en/tv-advanced-chart.js", KEY = "macro-tvstate", DAILY = "FRED:DGS10";
   try { localStorage.removeItem("macro-tvcolors"); } catch (e) {}
+  const box = document.getElementById("tv-box"), fail = document.getElementById("tv-fail"), picker = document.getElementById("tv-sym"), klp = document.getElementById("kl-pane"), klr = document.getElementById("kl-root");
+  const OK = { interval: /^(\d{1,3}|\d{1,2}[SDWM]|[DWM])$/, "time-frame": /^(\d{1,2}[DMYW]|YTD|ALL)$/ };
+  let mem = {} /* this-visit copy when localStorage is blocked */, sym = SYMS[0][1], started = false, token = 0, timer = 0, el = null, scriptState = 0, saveT = 0, pend = null;   // 0 none, 1 loading, 2 ok, 3 failed
   function flush() { clearTimeout(saveT); saveT = 0; if (pend) pend(); }
   window.addEventListener("pagehide", flush);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
-  const box = document.getElementById("tv-box"), fail = document.getElementById("tv-fail"), picker = document.getElementById("tv-sym");
-  const OK = { interval: /^(\d{1,3}|\d{1,2}[SDWM]|[DWM])$/, "time-frame": /^(\d{1,2}[DMYW]|YTD|ALL)$/ };
-  let mem = {} /* this-visit copy when localStorage is blocked */, sym = SYMS[0][1], started = false, token = 0, timer = 0, el = null, scriptState = 0, saveT = 0, pend = null;   // 0 none, 1 loading, 2 ok, 3 failed
   const theme = () => {
     const t = document.documentElement.getAttribute("data-theme");
     if (t === "light" || t === "dark") return t;
@@ -1120,34 +1273,8 @@ const P = __PAYLOAD__;
   }
   const narrow = () => window.matchMedia && window.matchMedia("(max-width: 480px)").matches;
   let wasNarrow = narrow();
-  window.addEventListener("resize", () => { const n = narrow(); if (n !== wasNarrow) { wasNarrow = n; if (started && card.open) { if (body.classList.contains("tvfull")) rerender = true; else render(); } } });
   function paint() { picker.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.s === sym))); }
-  function showFail() { clearTimeout(timer); collapse(); box.hidden = true; fail.hidden = false; xb.disabled = true; xb.hidden = true; }
-  const xb = document.getElementById("tv-x"), body = card.querySelector(".card-b");
-  let rerender = false;   // a width change while expanded is applied once, after Close
-  const head = document.querySelector(".stickyhead");
-  const setTop = () => body.style.setProperty("--tvtop", (head ? Math.max(0, Math.round(head.getBoundingClientRect().bottom)) : 0) + "px");   // leaves the page header (theme switch) reachable
-  function collapse() {
-    if (!body.classList.contains("tvfull")) return;
-    body.classList.remove("tvfull"); document.body.classList.remove("tvlock"); body.removeAttribute("role"); body.removeAttribute("aria-modal"); body.removeAttribute("aria-label");
-    xb.textContent = "Expand"; xb.setAttribute("aria-expanded", "false"); xb.focus({ preventScroll: true });
-    if (rerender) { rerender = false; if (started && card.open) render(); }
-  }
-  function expand() {
-    setTop(); body.classList.add("tvfull"); document.body.classList.add("tvlock"); body.setAttribute("role", "dialog"); body.setAttribute("aria-modal", "true"); body.setAttribute("aria-label", "Chart");
-    xb.textContent = "Close"; xb.setAttribute("aria-expanded", "true"); xb.focus();
-  }
-  window.addEventListener("hashchange", collapse);
-  window.addEventListener("resize", () => { if (body.classList.contains("tvfull")) setTop(); });
-  document.addEventListener("keydown", e => {
-    if (e.key !== "Tab" || !body.classList.contains("tvfull")) return;
-    const f = [...body.querySelectorAll("button:not(:disabled):not([hidden]), a[href]")].filter(x => x.offsetParent !== null); if (!f.length) return;
-    const i = f.indexOf(document.activeElement);
-    if (i < 0 || (e.shiftKey && i === 0) || (!e.shiftKey && i === f.length - 1)) { e.preventDefault(); (e.shiftKey ? f[f.length - 1] : f[0]).focus(); }
-  });
-  xb.addEventListener("click", () => { if (body.classList.contains("tvfull")) collapse(); else expand(); });
-  document.addEventListener("keydown", e => { if (e.key === "Escape" && body.classList.contains("tvfull")) { e.preventDefault(); collapse(); } });
-  card.addEventListener("toggle", () => { if (!card.open) collapse(); });
+  function showFail() { clearTimeout(timer); box.hidden = true; fail.hidden = false; }
   function ensureScript(my) {
     if (scriptState === 1 || scriptState === 2) return;
     scriptState = 1;
@@ -1156,7 +1283,7 @@ const P = __PAYLOAD__;
     document.head.appendChild(sc);
   }
   function render() {
-    flush(); const my = ++token; clearTimeout(timer); box.hidden = false; fail.hidden = true; box.textContent = ""; el = null; if (!body.classList.contains("tvfull")) { xb.disabled = true; xb.hidden = true; }
+    flush(); const my = ++token; clearTimeout(timer); box.hidden = false; fail.hidden = true; box.textContent = ""; el = null;
     const ld = document.createElement("p"); ld.className = "note tvload"; ld.textContent = "Loading chart..."; box.appendChild(ld);
     if (scriptState === 3) scriptState = 0;
     ensureScript(my);
@@ -1172,25 +1299,24 @@ const P = __PAYLOAD__;
     if (!narrow()) { el.setAttribute("show-drawing-toolbar", ""); el.setAttribute("show-date-ranges", ""); }
     apply(); box.appendChild(el);
     const wm = document.createElement("div"); wm.className = "tvwm"; wm.setAttribute("aria-hidden", "true"); wm.textContent = "VELOUR"; box.appendChild(wm); apply();
-    if (window.customElements && customElements.whenDefined) customElements.whenDefined("tv-advanced-chart").then(() => { scriptState = 2; if (my === token) { clearTimeout(timer); ld.remove(); fail.hidden = true; box.hidden = false; xb.hidden = false; xb.disabled = false; } });
+    if (window.customElements && customElements.whenDefined) customElements.whenDefined("tv-advanced-chart").then(() => { scriptState = 2; if (my === token) { clearTimeout(timer); ld.remove(); fail.hidden = true; box.hidden = false; } });
     timer = setTimeout(() => { if (my === token && scriptState !== 2) showFail(); }, 10000);
   }
   SYMS.forEach(([n, s]) => { const b = document.createElement("button"); b.type = "button"; b.textContent = n; b.dataset.s = s; b.addEventListener("click", () => { sym = s; put({ symbol: s }); paint(); if (started) render(); }); picker.appendChild(b); });
   { const sv = load(); if (sv.symbol) sym = sv.symbol; }
   paint(); apply();
-  /* tabs: "Velour chart" (own chart script, loads its library on kl:open) and "Live" (TradingView, requested only on this tab) */
-  const tabs = document.getElementById("chart-tabs"), klp = document.getElementById("kl-pane"), tvl = document.getElementById("tv-live"), klr = document.getElementById("kl-root");
-  let tab = "kline", klOn = false, klMsg = false;
+  let tab = "kline", klOn = false;
   try { const t = localStorage.getItem("macro-chart-tab"); if (t === "live" || t === "kline") tab = t; } catch (e) {}
+  const here = () => { const t = document.getElementById("dterm"); return !!(t && t.offsetWidth > 0); };   // desk page showing and the Terminal view selected
   function klNote(text, live) {
-    klMsg = true; klr.textContent = "";
-    const p = document.createElement("p"); p.className = "note"; p.setAttribute("role", "status"); p.textContent = text; klr.appendChild(p);
-    if (live) { const b = document.createElement("button"); b.type = "button"; b.className = "btn ghost"; b.style.marginLeft = "0"; b.textContent = "Open the Live tab"; b.addEventListener("click", () => setTab("live")); klr.appendChild(b); }
+    klr.textContent = "";
+    const p = document.createElement("p"); p.className = "note"; p.style.padding = "10px"; p.setAttribute("role", "status"); p.textContent = text; klr.appendChild(p);
+    if (live) { const b = document.createElement("button"); b.type = "button"; b.className = "btn ghost"; b.style.margin = "0 10px"; b.textContent = "Open the Live tab"; b.addEventListener("click", () => setTab("live")); klr.appendChild(b); }
   }
   function klOpen() {
     if (klOn) return;
     let n = 0; try { n = (JSON.parse(document.getElementById("chart-feed").textContent || "{}").symbols || []).length; } catch (e) {}
-    if (!n) { klNote("Chart data not available. The dashboard has no daily price history to draw yet. The Live tab still works.", true); return; }
+    if (!n) { klNote("Chart data not available. The desk has no daily price history to draw yet. The Live tab still works.", true); return; }
     if (!window.VelourChart) { klNote("Chart not available in this build. The Live tab still works.", true); return; }
     klOn = true; window.dispatchEvent(new CustomEvent("kl:open"));
   }
@@ -1198,17 +1324,23 @@ const P = __PAYLOAD__;
   function applyTab() {
     tabs.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === tab)));
     klp.hidden = tab !== "kline"; tvl.hidden = tab !== "live";
-    if (!card.open) { klHide(); return; }
+    document.getElementById("pc-lv").hidden = tab !== "kline";
+    if (!here()) { klHide(); return; }
     if (tab === "kline") klOpen(); else { klHide(); if (!started) { started = true; render(); } }
+    window.dispatchEvent(new CustomEvent("desk:chart", { detail: { tab } }));
   }
-  function setTab(t) { tab = t; try { localStorage.setItem("macro-chart-tab", t); } catch (e) {} if (t !== "live") collapse(); applyTab(); }
+  function setTab(t) { tab = t; try { localStorage.setItem("macro-chart-tab", t); } catch (e) {} applyTab(); }
   tabs.querySelectorAll("button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.v)));
-  tabs.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === tab))); klp.hidden = tab !== "kline"; tvl.hidden = tab !== "live";
   const sync = () => { apply(); applyTab(); };
-  card.addEventListener("toggle", sync);
+  window.addEventListener("desk:view", sync);
+  window.addEventListener("hashchange", () => setTimeout(sync, 80));
+  window.addEventListener("resize", () => { const n = narrow(); if (n !== wasNarrow) { wasNarrow = n; if (started && tab === "live" && here()) render(); } });
   new MutationObserver(sync).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   if (window.matchMedia) window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { sync(); });
+  tabs.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === tab))); klp.hidden = tab !== "kline"; tvl.hidden = tab !== "live";
+  window.addEventListener("DOMContentLoaded", sync);   // the chart script is the last script on the page
 })();
+/*OPTDESK:END*/
 
 /* macro drivers matrix: clicking a row picks that instrument in the list */
 (function () {
@@ -1218,15 +1350,52 @@ const P = __PAYLOAD__;
 })();
 
 /*OPTDESK:BEGIN*/
-/* Options desk is its own page: #options shows only the desk, every other link shows the dashboard */
+/* Options desk is its own page: #options (or #options/<view>) shows only the desk, every other link shows the dashboard.
+   Inside the desk a left sidebar picks one view at a time; the choice and the sidebar state are remembered on this device. */
 (function () {
-  const main = document.title;
+  const main = document.title, shell = document.getElementById("odesk");
+  const VIEWS = ["terminal", "spine", "terrain", "grid", "smile", "stack", "vol", "replay", "copy", "flow", "tables", "guide", "method"], TAB_KEY = "macro-desk-tab", SIDE_KEY = "macro-desk-side";
+  let cur = "terminal";
+  const store = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  const read = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const hashView = () => { const m = /^#options(?:\/([a-z]+))?$/.exec(location.hash); return m ? (VIEWS.indexOf(m[1]) >= 0 ? m[1] : "") : null; };   // null: not the desk; "": the desk, no view named
+  const btns = shell ? [...shell.querySelectorAll(".dside-l button[data-tab]")] : [];
+  function show(t, user) {
+    if (!shell || VIEWS.indexOf(t) < 0) t = "terminal";
+    cur = t;
+    shell.querySelectorAll(".dtab").forEach(p => { p.hidden = p.dataset.tab !== t; });
+    btns.forEach(b => { const on = b.dataset.tab === t; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
+    if (user) { store(TAB_KEY, t); try { history.replaceState(null, "", "#options/" + t); } catch (e) {} }
+    window.dispatchEvent(new CustomEvent("desk:view", { detail: { tab: t } }));
+    requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));   // charts in a view that was hidden are drawn again at their real size
+  }
+  function side(open, user) {
+    shell.dataset.side = open ? "open" : "closed";
+    const t = document.getElementById("dside-t"); t.setAttribute("aria-expanded", String(open)); const lab = open ? "Collapse the sidebar" : "Expand the sidebar"; t.title = lab; t.setAttribute("aria-label", lab);
+    if (user) store(SIDE_KEY, open ? "open" : "closed");
+    window.dispatchEvent(new Event("resize"));
+  }
+  if (shell) {
+    btns.forEach(b => b.addEventListener("click", () => show(b.dataset.tab, true)));
+    shell.querySelector(".dside-l").addEventListener("keydown", e => {
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End" && e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      const i = btns.indexOf(document.activeElement); if (i < 0) return; e.preventDefault();
+      const n = e.key === "Home" ? 0 : e.key === "End" ? btns.length - 1 : (i + (e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : -1) + btns.length) % btns.length;
+      btns[n].focus(); show(btns[n].dataset.tab, true);
+    });
+    document.getElementById("dside-t").addEventListener("click", () => side(shell.dataset.side !== "open", true));
+    document.getElementById("od-reset").addEventListener("click", () => { side(true, false); try { localStorage.removeItem(SIDE_KEY); localStorage.removeItem(TAB_KEY); } catch (e) {} show("terminal", false); try { if (hashView() !== null) history.replaceState(null, "", "#options"); } catch (e) {} });
+    side(read(SIDE_KEY) !== "closed", false);
+    show(VIEWS.indexOf(read(TAB_KEY)) >= 0 ? read(TAB_KEY) : "terminal", false);
+  }
   function route(scrollTo) {
-    const opt = location.hash === "#options", was = document.body.classList.contains("optpage");
+    const hv = hashView(), opt = hv !== null, was = document.body.classList.contains("optpage");
     document.body.classList.toggle("optpage", opt);
     document.title = opt ? "Velour Options Desk" : main;
+    if (opt && shell && hv && hv !== cur) show(hv, false);
     if (opt !== was) {
       window.dispatchEvent(new Event("resize"));
+      if (opt && shell) window.dispatchEvent(new CustomEvent("desk:view", { detail: { tab: cur } }));
       const t = !opt && scrollTo && location.hash ? document.querySelector(location.hash) : null;
       if (t) { const go = () => t.scrollIntoView({ behavior: "auto", block: "start" }); requestAnimationFrame(() => requestAnimationFrame(go)); setTimeout(go, 400); }   // again after charts redraw
       else window.scrollTo({ top: 0, behavior: "auto" });
@@ -1234,9 +1403,10 @@ const P = __PAYLOAD__;
   }
   window.addEventListener("hashchange", () => route(true));
   route(false);
+  if (shell && hashView()) show(hashView(), false);
 })();
 /*OPTDESK:END*/
-if (location.hash === "#opt" + "ions" && !document.getElementById("opt" + "ions")) { try { history.replaceState(null, "", "#overview"); } catch (e) {} }   // no options page in this build: show the dashboard
+if (location.hash.indexOf("#opt" + "ions") === 0 && !document.getElementById("opt" + "ions")) { try { history.replaceState(null, "", "#overview"); } catch (e) {} }   // no options page in this build: show the dashboard
 
 /* nav highlight for the section being read */
 (function () {
@@ -1893,7 +2063,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     reg.innerHTML = `<b>● ${esc(R.name)}</b><span>${R.pos ? "Positive" : "Negative"} gamma: ${esc(R.why)}.</span>`;
     const age = i.date ? Math.round((Date.now() - Date.parse(i.date)) / 864e5) : 0, feed = $("od-feed");
     const fst = age > 4 || isStale(st.inst);
-    feed.className = "odfeed" + (fst ? " stale" : ""); feed.innerHTML = `<i></i>${fst ? "Stale · " : ""}${i.src && i.src.text ? esc(i.src.text) : "Cboe delayed chain, fetched " + esc(i.updated_utc || i.date)}`;
+    feed.className = "odfeed" + (fst ? " stale" : ""); feed.innerHTML = `<i></i>${fst ? "Stale · " : ""}${i.src && i.src.text ? esc(i.src.text) : "Delayed · as of " + esc(i.updated_utc || i.date)}`;
     const capTxt = `${lab} · ${ser.ex < 0 ? "all expiries ≤ 60 days" : S().expiries[ser.ex].e} · ${S().units[cfg.greek]}${ser.note ? " · " + ser.note : ""}`;
     const wn = win(st.inst), off = [["call wall", L.cw], ["put wall", L.pw], ["flip", L.flip]].filter(x => x[1] != null && (x[1] < wn.lo || x[1] > wn.hi)).map(x => `${x[0]} ${fk(x[1])}`);
     const rt = winTxt(st.inst, wn) + (off.length ? " · outside range: " + off.join(", ") : "");
@@ -2244,7 +2414,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     if (!V) { host.closest(".card").style.display = "none"; return; }
     const r = V.ratio[V.ratio.length - 1], days = V.ratio.filter(x => x < 1).length;
     $("od-vixread").innerHTML = `VIX3M ÷ VIX is <b>${r.toFixed(3)}</b> (VIX ${V.vix[V.vix.length - 1].toFixed(2)}, VIX3M ${V.vix3m[V.vix3m.length - 1].toFixed(2)}): ${r < 1 ? '<span class="neg">▼ inverted</span>, near-term stress is priced above the 3-month view' : r < 1.05 ? '<span style="color:var(--warn)">flat</span>, little buffer between near-term and 3-month vol' : '<span class="pos">▲ normal upward slope</span>'}. Below 1 on ${days} of the last ${V.ratio.length} days. `
-      + `<span class="muted-text">In the ludovico-finance study (SPY, three years, exploratory), a lower VIX3M − VIX spread lined up with higher realised volatility over the next month (correlation about −0.49).</span>`;
+      + `<span class="muted-text">In one exploratory three-year study of an S&amp;P 500 proxy, a lower VIX3M − VIX spread lined up with higher realised volatility over the next month (correlation about −0.49).</span>`;
     draw(host, { labels: V.dates, sets: [{ name: "VIX3M ÷ VIX", data: V.ratio, color: "var(--s1)" }], dec: 3, axDec: 2, shortX: mon, endLabels: true, title: "vix term" });
     const svg = host.querySelector("svg"); if (!svg) return;
   }
@@ -2291,7 +2461,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
         o.oi_changes && o.oi_changes.length ? "Biggest open-interest changes since the previous day's first run: " + o.oi_changes.map(c => `${c.k} calls ${c.dc >= 0 ? "+" : ""}${c.dc}, puts ${c.dp >= 0 ? "+" : ""}${c.dp}`).join("; ") : ""].filter(Boolean).join("\n"); };
     const vx = O._vix ? `VIX ${O._vix.vix[O._vix.vix.length - 1]}, VIX3M ${O._vix.vix3m[O._vix.vix3m.length - 1]}, ratio ${O._vix.ratio[O._vix.ratio.length - 1]}` : "";
     if (st.pt === "quick") return "In 5 bullet points or fewer, give the options-positioning read for the next session from this data: regime, the zone price is in, the nearest levels above and below, and what would change the read. Be clear about uncertainty; do not give trade instructions.\n\n" + block(st.inst) + (vx ? "\n" + vx : "");
-    return "You are helping me read options positioning for US index and gold markets. Data is from Cboe delayed option chains taken at the time of the last update (open interest settled at the start of that session; prices are the latest at that time, not necessarily closes). Gamma exposure assumes dealers are long customer calls and short customer puts, a simplification. Levels are in option strikes, with futures-equivalent prices in brackets.\n\n"
+    return "You are helping me read options positioning for US index and gold markets. Data is from delayed option chains taken at the time of the last update (open interest settled at the start of that session; prices are the latest at that time, not necessarily closes). Gamma exposure assumes dealers are long customer calls and short customer puts, a simplification. Levels are in option strikes, with futures-equivalent prices in brackets.\n\n"
       + keys.map(block).join("\n\n") + (vx ? "\n\nVolatility backdrop: " + vx : "")
       + "\n\nPlease: 1) summarise the regime for each market, 2) map the key zones above and below price and how price has tended to behave around call walls, put walls and the gamma flip, 3) note anything unusual in the vol data (premium, skew, term structure), 4) list what would invalidate this read. Treat it as context, not a forecast.";
   }
@@ -2312,17 +2482,17 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   /* ---------- freshness bars and guides ---------- */
   function freshInfo(id) {
     const i = I(), s = SRC(), upd = i.updated_utc || i.date;
-    let text = s && s.text ? s.text : `Cboe delayed chain · delayed · fetched ${upd}`;
+    let text = s && s.text ? s.text : `Delayed · as of ${upd}`;
     let age = s && typeof s.age_days === "number" ? s.age_days : (i.date ? Math.round((Date.now() - Date.parse(i.date)) / 864e5) : 0);
     const approx = !!(s && s.approx);
-    if (id === "vix") { const d = O._vix && O._vix.dates ? O._vix.dates[O._vix.dates.length - 1] : null; text = `FRED daily index (VIX3M and VIX) · last data ${d || "n/a"}`; age = d ? Math.round((Date.now() - Date.parse(d)) / 864e5) : 0; }
-    else if (id === "volidx") { const v = (O._volidx || {})[st.inst]; text = `FRED daily index (${v ? v.name : "30-day implied vol"}) · last data ${v ? v.date : "n/a"}`; age = v ? Math.round((Date.now() - Date.parse(v.date)) / 864e5) : 0; }
+    if (id === "vix") { const d = O._vix && O._vix.dates ? O._vix.dates[O._vix.dates.length - 1] : null; text = `Daily index (VIX3M and VIX) · as of ${d || "n/a"}`; age = d ? Math.round((Date.now() - Date.parse(d)) / 864e5) : 0; }
+    else if (id === "volidx") { const v = (O._volidx || {})[st.inst]; text = `Daily index (${v ? v.name : "30-day implied vol"}) · as of ${v ? v.date : "n/a"}`; age = v ? Math.round((Date.now() - Date.parse(v.date)) / 864e5) : 0; }
     else if (id === "guide") { text = "Educational text · no market data"; age = 0; }
     else if (id === "method") { text = "Written description · sources below are read from the snapshots"; age = 0; }
     else if (id === "order_flow") { text = "No feed connected · nothing shown here is simulated"; age = 0; }
-    else if (id === "magnet" && X().ivr) text += ` · IV rank from FRED ${X().ivr.series_name || "30-day index"}`;
+    else if (id === "magnet" && X().ivr) text += ` · IV rank from the ${X().ivr.series_name || "30-day"} index`;
     else if (id === "replay") text += " · daily snapshots saved by the dashboard";
-    const short = s && s.fetched_utc && TERM.has(id) ? `${String(s.source || "Cboe delayed").replace(/ chain$/, "")} · ${String(s.fetched_utc).slice(0, 10)} · ${age}d old${s.approx ? " · approx." : ""}` : null;
+    const short = s && s.fetched_utc && TERM.has(id) ? `Delayed · as of ${String(s.fetched_utc).slice(0, 16)} · ${age}d old${s.approx ? " · proxy-scaled, approx." : ""}` : null;
     return { text, short, stale: (age > 4 || isStale(st.inst)) && id !== "guide" && id !== "method" && id !== "order_flow", approx: approx && ["guide", "method", "order_flow", "vix", "volidx"].indexOf(id) < 0 };
   }
   function freshAll() {
@@ -2342,73 +2512,65 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     });
   }
 
-  /* ---------- panel layout: collapse, move, drag, full screen, saved order ---------- */
-  const DEF = ["order_flow", "spine", "terrain", "grid", "smile", "stack", "guide", "vol", "vix", "volidx", "replay", "prompt", "method"];
-  const LKEY = "macro-desk-layout", dp = $("dpanels"), PN = {};
-  const TERM = new Set();   // terminal panels: fixed positions (collapse and full screen only); the lower grid can be reordered
-  $("dterm").querySelectorAll(".dpanel").forEach(p => { PN[p.dataset.panel] = p; TERM.add(p.dataset.panel); });
-  dp.querySelectorAll(".dpanel").forEach(p => { PN[p.dataset.panel] = p; });
-  const LOWER = () => Object.keys(PN).filter(x => !TERM.has(x));
-  const defLay = () => ({ v: 1, order: DEF.filter(x => PN[x] && !TERM.has(x)).concat(LOWER().filter(x => DEF.indexOf(x) < 0)), collapsed: [] });
+  /* ---------- panel layout: collapse, full screen, tabbed groups; each panel lives in its own sidebar view (saved: collapsed panels) ---------- */
+  const LKEY = "macro-desk-layout", PN = {};
+  const TERM = new Set();   // terminal panels: shorter freshness line
+  document.querySelectorAll("#odesk .dpanel[data-panel]").forEach(p => { PN[p.dataset.panel] = p; });
+  $("dterm").querySelectorAll(".dpanel").forEach(p => TERM.add(p.dataset.panel));
   function loadLay() {
-    try {
-      const o = JSON.parse(localStorage.getItem(LKEY) || "null");
-      if (o && o.v === 1 && Array.isArray(o.order)) { const order = o.order.filter((x, i, a) => PN[x] && !TERM.has(x) && a.indexOf(x) === i); /* older saves listed the terminal panels too: ignore those */ defLay().order.forEach(x => { if (order.indexOf(x) < 0) order.push(x); }); return { v: 1, order, collapsed: (Array.isArray(o.collapsed) ? o.collapsed : []).filter(x => PN[x]) }; }
-    } catch (e) {}
-    return defLay();
+    try { const o = JSON.parse(localStorage.getItem(LKEY) || "null"); if (o && o.v === 1) return { v: 1, order: [], collapsed: (Array.isArray(o.collapsed) ? o.collapsed : []).filter(x => PN[x]) }; } catch (e) {}   // older saves also listed an order: ignored now
+    return { v: 1, order: [], collapsed: [] };
   }
   let lay = loadLay(), fullId = null;
   const saveLay = () => { try { localStorage.setItem(LKEY, JSON.stringify(lay)); } catch (e) {} };
   const kick = () => window.dispatchEvent(new Event("resize"));
+  const IC = n => `<svg viewBox="0 0 16 16" aria-hidden="true"><use href="#d-${n}"/></svg>`;
   function applyLay() {
-    lay.order.forEach(id => dp.appendChild(PN[id]));
     Object.keys(PN).forEach(id => {
-      const p = PN[id], c = lay.collapsed.indexOf(id) >= 0, i = lay.order.indexOf(id), q = a => p.querySelector(`.dtools [data-a="${a}"]`);
+      const p = PN[id], c = lay.collapsed.indexOf(id) >= 0, cb = p.querySelector('.dtools [data-a="col"]');
       p.classList.toggle("dcollapsed", c);
-      const cb = q("col"); cb.textContent = c ? "+" : "–"; cb.setAttribute("aria-expanded", String(!c)); cb.title = c ? "Expand panel" : "Collapse panel";
-      if (q("up")) { q("up").disabled = i === 0; q("down").disabled = i === lay.order.length - 1; }
+      cb.innerHTML = IC(c ? "expand" : "collapse"); cb.setAttribute("aria-expanded", String(!c)); cb.title = c ? "Expand panel" : "Collapse panel"; cb.setAttribute("aria-label", cb.title);
     });
   }
-  function move(id, to) { const o = lay.order, i = o.indexOf(id); o.splice(i, 1); o.splice(Math.max(0, Math.min(o.length, to)), 0, id); saveLay(); applyLay(); }
   function setFull(id) {
-    if (fullId) { const p = PN[fullId]; p.classList.remove("dfull"); p.removeAttribute("role"); p.removeAttribute("aria-modal"); p.removeAttribute("aria-label"); const b = p.querySelector('[data-a="full"]'); b.title = "Full screen"; b.textContent = "⤢"; document.body.classList.remove("tvlock"); }
+    if (fullId) { const p = PN[fullId]; p.classList.remove("dfull"); p.removeAttribute("role"); p.removeAttribute("aria-modal"); p.removeAttribute("aria-label"); const b = p.querySelector('[data-a="full"]'); b.title = "Full screen"; b.setAttribute("aria-label", "Full screen"); b.innerHTML = IC("full"); document.body.classList.remove("tvlock"); }
     const was = fullId; fullId = id && id !== was ? id : null;
     if (fullId) {
       const p = PN[fullId], h = document.querySelector(".stickyhead"), ci = lay.collapsed.indexOf(fullId);
       if (ci >= 0) { lay.collapsed.splice(ci, 1); saveLay(); applyLay(); }
       p.style.setProperty("--tvtop", (h ? Math.max(0, Math.round(h.getBoundingClientRect().bottom)) : 0) + "px");
-      p.classList.add("dfull"); document.body.classList.add("tvlock"); p.setAttribute("role", "dialog"); p.setAttribute("aria-modal", "true"); p.setAttribute("aria-label", (p.querySelector("h3") || {}).textContent || "Panel");
-      const b = p.querySelector('[data-a="full"]'); b.title = "Close full screen (Esc)"; b.textContent = "✕"; b.focus({ preventScroll: true });
+      p.classList.add("dfull"); document.body.classList.add("tvlock"); p.setAttribute("role", "dialog"); p.setAttribute("aria-modal", "true"); p.setAttribute("aria-label", (p.querySelector("h3") || p.querySelector(".dtabs button[aria-pressed='true']") || {}).textContent || "Panel");
+      const b = p.querySelector('[data-a="full"]'); b.title = "Close full screen (Esc)"; b.setAttribute("aria-label", "Close full screen"); b.innerHTML = IC("close"); b.focus({ preventScroll: true });
     }
     kick();
   }
   document.addEventListener("keydown", e => { if (e.key === "Escape" && fullId && $("tv-dlg").hidden) { e.preventDefault(); const b = PN[fullId].querySelector('[data-a="full"]'); setFull(null); b.focus({ preventScroll: true }); } });
   window.addEventListener("hashchange", () => { if (fullId) setFull(null); });
-  const canDrag = window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-  let dragId = null;
+  window.addEventListener("desk:view", () => { if (fullId) setFull(null); });
   Object.keys(PN).forEach(id => {
     const p = PN[id], h = p.querySelector(".card-h"), t = document.createElement("span"); t.className = "dtools"; t.setAttribute("role", "group"); t.setAttribute("aria-label", "Panel controls");
-    t.innerHTML = (TERM.has(id) ? "" : '<button type="button" data-a="up" title="Move up" aria-label="Move panel up">↑</button><button type="button" data-a="down" title="Move down" aria-label="Move panel down">↓</button>')
-      + '<button type="button" data-a="col" aria-label="Collapse or expand panel">–</button><button type="button" data-a="full" title="Full screen" aria-label="Full screen">⤢</button>';
-    h.insertBefore(t, h.firstChild);   // first in the DOM, shown last (flex order)
+    t.innerHTML = '<button type="button" data-a="col" aria-label="Collapse or expand panel"></button><button type="button" data-a="full" title="Full screen" aria-label="Full screen">' + IC("full") + '</button>';
+    h.appendChild(t);
     t.addEventListener("click", e => {
-      const b = e.target.closest("button"); if (!b || b.disabled) return; const a = b.dataset.a, i = lay.order.indexOf(id);
-      if (a === "up") move(id, i - 1); else if (a === "down") move(id, i + 1);
-      else if (a === "col") { const c = lay.collapsed.indexOf(id); if (c >= 0) lay.collapsed.splice(c, 1); else lay.collapsed.push(id); saveLay(); applyLay(); kick(); }
+      const b = e.target.closest("button"); if (!b || b.disabled) return; const a = b.dataset.a;
+      if (a === "col") { const c = lay.collapsed.indexOf(id); if (c >= 0) lay.collapsed.splice(c, 1); else lay.collapsed.push(id); saveLay(); applyLay(); kick(); }
       else if (a === "full") setFull(id);
     });
-    if (canDrag && !TERM.has(id)) {
-      h.classList.add("dgrab");
-      h.addEventListener("mousedown", e => { if (!e.target.closest("button, select, a, input")) p.draggable = true; });
-      p.addEventListener("dragstart", e => { if (!p.draggable) return; dragId = id; p.classList.add("dragging"); try { e.dataTransfer.setData("text/plain", id); e.dataTransfer.effectAllowed = "move"; } catch (x) {} });
-      p.addEventListener("dragend", () => { p.draggable = false; p.classList.remove("dragging"); dragId = null; dp.querySelectorAll(".dover").forEach(x => x.classList.remove("dover")); });
-      p.addEventListener("dragover", e => { if (dragId && dragId !== id) { e.preventDefault(); p.classList.add("dover"); } });
-      p.addEventListener("dragleave", () => p.classList.remove("dover"));
-      p.addEventListener("drop", e => { if (!dragId || dragId === id) return; e.preventDefault(); const from = lay.order.indexOf(dragId), to = lay.order.indexOf(id); move(dragId, to > from ? to : to); });
-    }
   });
-  window.addEventListener("mouseup", () => { Object.keys(PN).forEach(id => { if (!dragId) PN[id].draggable = false; }); });
-  $("od-reset").addEventListener("click", () => { if (fullId) setFull(null); lay = defLay(); try { localStorage.removeItem(LKEY); } catch (e) {} applyLay(); kick(); });
+  /* tabbed groups: Walls | Hedging and Surface | Skew share one slot; a small tab strip replaces the title in each panel header */
+  document.querySelectorAll("#odesk .dgroup").forEach(g => {
+    const ps = [...g.querySelectorAll(":scope > .dpanel")], key = "macro-desk-g-" + g.dataset.g; let on = 0;
+    try { const v = localStorage.getItem(key); const i = ps.findIndex(p => p.dataset.panel === v); if (i >= 0) on = i; } catch (e) {}
+    const paintG = () => ps.forEach((p, i) => { p.classList.toggle("gon", i === on); p.querySelectorAll(".dtabs button").forEach((b, j) => b.setAttribute("aria-pressed", String(j === on))); });
+    ps.forEach((p, i) => {
+      const h = p.querySelector(".card-h"), h3 = h.querySelector("h3"), strip = document.createElement("div"); strip.className = "dtabs"; strip.setAttribute("role", "tablist"); strip.setAttribute("aria-label", "Panel view");
+      ps.forEach((q, j) => { const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "tab"); b.textContent = ({ walls: "Walls", hedging: "Hedging", surface: "Surface", skew: "Skew" })[q.dataset.panel] || q.querySelector("h3").textContent; b.dataset.p = q.dataset.panel; strip.appendChild(b); });
+      h.insertBefore(strip, h3); h3.classList.add("sr-only");
+      strip.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; on = ps.findIndex(q => q.dataset.panel === b.dataset.p); try { localStorage.setItem(key, b.dataset.p); } catch (x) {} paintG(); kick(); });
+    });
+    g.classList.add("js"); paintG();
+  });
+  $("od-reset").addEventListener("click", () => { if (fullId) setFull(null); lay = { v: 1, order: [], collapsed: [] }; try { localStorage.removeItem(LKEY); } catch (e) {} document.querySelectorAll("#odesk .dgroup").forEach(g => { try { localStorage.removeItem("macro-desk-g-" + g.dataset.g); } catch (e) {} }); applyLay(); kick(); });
   applyLay();
 
   /* ---------- strike ladder ---------- */
@@ -2550,7 +2712,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     if (v) {
       html += `<div class="dm"><div><div class="kl">IV rank</div><div class="v">${Math.round(v.rank)}<small> /100</small></div><div class="m">${ord(v.pct)} percentile</div></div><div><div class="kl">${esc(v.series_name || "30-day index")} (30-day)</div><div class="v">${v.last.toFixed(2)}</div><div class="m">${v.n}-day range ${v.lo.toFixed(1)} – ${v.hi.toFixed(1)}</div></div></div>`
         + `<svg viewBox="0 0 300 26" role="img" aria-label="IV rank ${Math.round(v.rank)} of 100"><rect x="2" y="9" width="296" height="8" rx="4" fill="var(--surface-2)" stroke="var(--border-strong)"/><rect x="2" y="9" width="${(296 * v.rank / 100).toFixed(1)}" height="8" rx="4" fill="var(--muted)" opacity=".6"/><circle cx="${(2 + 296 * v.rank / 100).toFixed(1)}" cy="13" r="5" fill="var(--text)"/></svg>`;
-    } else html += na("IV rank needs the 30-day vol index history (FRED); it is not available for this instrument.");
+    } else html += na("IV rank needs the 30-day vol index history ; it is not available for this instrument.");
     html += `<p class="meth">Magnet = the strike with the largest absolute gamma in the nearest expiry, searched within price ± 2σ. σ = the one-day expected move from ATM implied vol (price × IV ÷ 100 × √(1/252)). IV rank is a proxy: where the ${v ? esc(v.series_name || "30-day index") : "30-day index"} sits in its own last ${v ? v.window : 252} trading days (0 = the low, 100 = the high). Context, not a forecast.</p>`;
     host.innerHTML = html;
   }
@@ -2716,12 +2878,12 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   function method() {
     const M = Array.isArray(O._method) ? O._method : [], built = [["Hedging pressure", "balance = Σ gamma ÷ Σ |gamma| over strikes within price ± 2 one-day moves; score = 50 × (1 − balance). 0 = positive gamma dominates, 100 = negative gamma dominates."],
       ["Expected range and 0DTE magnet", "Range = price ± σ, with σ the one-day move from ATM implied vol. Magnet = the strike with the largest absolute gamma in the nearest expiry within ± 2σ."],
-      ["IV rank (proxy)", "Where the 30-day vol index from FRED (VIX, VXN, VXD, RVX, GVZ) sits in its own last 252 trading days."],
+      ["IV rank (proxy)", "Where the 30-day vol index (VIX, VXN, VXD, RVX, GVZ) sits in its own last 252 trading days."],
       ["Skew", "IV at 95% of price minus IV at 105%, in vol points, from out-of-the-money quotes."], ["Dealer side", "Dealers are assumed to hold the opposite side of customer positions: long customer calls and puts are dealer-short options. A common simplification, not a measurement."]];
     const rowsM = (M.length ? M.map(x => [x.title, x.text]) : built);
-    const src = keys.map(k => { const s = O[k].src; return `<tr><td data-l="Instrument">${esc(O[k].title)}</td><td data-l="Source">${esc(s ? s.text : "Cboe delayed chain · fetched " + (O[k].updated_utc || O[k].date))}</td><td data-l="Licence note">${esc(s ? s.licence_note : "Cboe data: permission for public display pending")}</td></tr>`; }).join("");
+    const src = keys.map(k => { const s = O[k].src; return `<tr><td data-l="Instrument">${esc(O[k].title)}</td><td data-l="Data">${esc(s ? s.text : "Delayed · as of " + (O[k].updated_utc || O[k].date))}</td></tr>`; }).join("");
     $("mt-body").innerHTML = rowsM.map(r => `<h4>${esc(r[0])}</h4><p>${esc(r[1])}</p>`).join("")
-      + `<h4>Source and licence by instrument</h4><table class="srctab"><thead><tr><th>Instrument</th><th>Source</th><th>Licence note</th></tr></thead><tbody>${src}</tbody></table>`
+      + `<h4>Data age by instrument</h4><table class="srctab"><thead><tr><th>Instrument</th><th>Data</th></tr></thead><tbody>${src}</tbody></table>`
       + `<p style="margin-top:8px">Educational context, not advice.</p>`;
   }
 
@@ -2729,7 +2891,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   { const dlg = $("tv-dlg"), ta = $("tv-dlg-ta"); let tvTab = "pine", opener = null;
     const fill = () => { const t = I().tv; $("tv-dlg-tabs").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === tvTab)));
       ta.value = t && t[tvTab] ? t[tvTab] : "Levels for TradingView are not available for this instrument."; $("tv-dlg-dl").disabled = !(t && t.csv); $("tv-dlg-copy").disabled = !(t && t[tvTab]);
-      const s = SRC(); $("tv-dlg-src").textContent = `${I().title} · ${s && s.text ? s.text : "Cboe delayed chain · fetched " + (I().updated_utc || I().date)}`;
+      const s = SRC(); $("tv-dlg-src").textContent = `${I().title} · ${s && s.text ? s.text : "Delayed · as of " + (I().updated_utc || I().date)}`;
       $("tv-dlg-note").textContent = (GD.tv_levels && GD.tv_levels.so_what) || "Paste the Pine script into TradingView's Pine Editor. Levels are from delayed open interest; educational, not advice."; };
     const close = () => { dlg.hidden = true; document.body.classList.remove("dlock"); if (opener) opener.focus(); };
     $("od-tv").addEventListener("click", e => { opener = e.currentTarget; tvTab = "pine"; fill(); dlg.hidden = false; document.body.classList.add("dlock"); $("tv-dlg-x").focus(); });
@@ -2742,10 +2904,10 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       else if (e.key === "Tab") { const f = [...dlg.querySelectorAll("button:not(:disabled), textarea")]; if (!f.length) return; const i = f.indexOf(document.activeElement); if (i < 0 || (e.shiftKey && i === 0) || (!e.shiftKey && i === f.length - 1)) { e.preventDefault(); (e.shiftKey ? f[f.length - 1] : f[0]).focus(); } } });
   }
 
-  /* ---------- price chart with levels (the Velour chart engine, a second instance; levels in the chart's own price units) ---------- */
-  st.pc = { range: "6M", h: null, sym: null, failed: false };
-  const PC_R = [["1M", "1M"], ["3M", "3M"], ["6M", "6M"], ["1Y", "1Y"], ["All", "All"]];
-  function pcUnits(sym, k) {   // option-chain price -> the chart's price units, the same mapping the stat strip uses (COMEX ratio for gold; index options are already in index points; DJX is quoted at 1/100 of the Dow)
+  /* ---------- centre chart: the Velour chart follows the desk instrument; the options levels are an overlay that can be switched off ---------- */
+  st.pc = { lv: true, fsym: undefined, csym: null };
+  try { if (localStorage.getItem("macro-desk-levels") === "0") st.pc.lv = false; } catch (e) {}
+  function pcUnits(sym, k) {   // option-chain price -> the chart's price units, the same mapping the stat strip uses (futures ratio for gold; index options are already in index points; DJX is quoted at 1/100 of the Dow)
     if (k == null || !isFinite(k)) return null;
     if (sym.optUnits === "index") return k;
     if (sym.optUnits === "x100") return k * 100;
@@ -2753,35 +2915,34 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     return null;
   }
   function deskChart() {
-    const host = $("pc-box"), msg = $("pc-msg"), cap = $("pc-cap"), leg = $("pc-leg"), VC = window.VelourChart;
-    buttons($("pc-rng"), PC_R, st.pc.range, v => { st.pc.range = v; deskChart(); });
-    if (!$("dterm").offsetWidth) return;   // desk page not showing: mount when it opens
-    const show = (title, sub) => { msg.hidden = false; host.style.display = "none"; msg.innerHTML = `<b>${esc(title)}</b>${esc(sub || "")}`; };
+    const cap = $("pc-cap"), leg = $("pc-leg"), VC = window.VelourChart, lvb = $("pc-lv");
+    lvb.setAttribute("aria-pressed", String(st.pc.lv)); lvb.title = (st.pc.lv ? "Hide" : "Show") + " the options levels on the chart";
     const sym = VC && VC.deskSymbol ? VC.deskSymbol(st.inst) : null, i = I(), cfg = cfgNow(), ser = series(cfg), L = levels(cfg, ser.vals), src = SRC();
-    leg.innerHTML = ""; msg.hidden = true; host.style.display = "";
-    if (!VC || !VC.mountDesk) { cap.textContent = ""; show(document.readyState === "complete" ? "Chart not available in this build." : "Loading chart…", ""); return; }
-    if (!sym) { cap.textContent = ""; show(`No price series for ${i.title} in the dashboard.`, " The levels are still on the stat strip, the ladder and the Replay panel."); return; }
+    leg.innerHTML = "";
+    if (!sym) {
+      cap.textContent = `No price series for ${i.title} in the desk, so no levels are drawn on the chart. They are still on the stat strip, the ladder and the Replay view.`; cap.title = cap.textContent;
+      if (VC && VC.setLevels) VC.setLevels(null, []);
+      st.pc.fsym = null; return;
+    }
     const sg = i.day_move, defs = [["cw", "Call wall", L.cw, "primary", "solid", 1.5], ["pw", "Put wall", L.pw, "secondary", "solid", 1.5], ["flip", "Gamma flip", L.flip, "warn", "dash", 1.5], ["mp", "Max pain", i.max_pain, "text", "dash", 1],
       ["s1u", "1-day +1σ", sg != null && i.spot != null ? i.spot + sg : null, "muted", "dot", 1], ["s1d", "1-day −1σ", sg != null && i.spot != null ? i.spot - sg : null, "muted", "dot", 1]];
-    const phone = host.clientWidth < 440, lv0 = defs.map(d => ({ id: d[0], label: d[1], raw: d[2], value: pcUnits(sym, d[2]), ck: d[3], dash: d[4], w: d[5] })).filter(d => d.value != null);
-    const lv = lv0.map(d => phone ? Object.assign({}, d, { label: "" }) : d);   // narrow screens: no on-line labels, the legend below names every line
+    const lv0 = defs.map(d => ({ id: d[0], label: d[1], raw: d[2], value: pcUnits(sym, d[2]), ck: d[3], dash: d[4], w: d[5] })).filter(d => d.value != null);
     const cv = { primary: "var(--primary)", secondary: "var(--secondary)", warn: "var(--warn)", text: "var(--text)", muted: "var(--muted)" }, nf = v => Number(v).toLocaleString("en-US", { minimumFractionDigits: sym.dec, maximumFractionDigits: sym.dec });
-    leg.innerHTML = lv0.map(d => `<span style="--c:${cv[d.ck]}"><i class="${d.dash === "solid" ? "" : d.dash === "dot" ? "dot" : "dsh"}"></i>${esc(d.label)} ${nf(d.value)}</span>`).join("") + (lv0.length ? "" : '<span>No levels for this selection.</span>');
-    const srcTxt = src && src.fetched_utc ? `${String(src.source || "Cboe delayed").replace(/ chain$/, "")} · fetched ${src.fetched_utc}${src.approx ? " · approximate" : ""}` : `fetched ${i.updated_utc || i.date}`;
-    const uTxt = sym.optUnits === "index" ? "levels in index points (the stat strip shows futures-equivalent prices)" : sym.optUnits === "x100" ? "levels in index points (DJX quote × 100)" : "levels converted to the chart's price units, as on the stat strip";
+    const other = st.pc.csym && st.pc.csym !== sym.id;   // the chart was switched to another symbol by hand: the levels belong to the desk instrument
+    leg.innerHTML = lv0.map(d => `<span style="--c:${cv[d.ck]}"><i class="${d.dash === "solid" ? "" : d.dash === "dot" ? "dot" : "dsh"}"></i>${esc(d.label)} ${nf(d.value)}</span>`).join("") + (lv0.length ? "" : "<span>No levels for this selection.</span>");
+    const srcTxt = src && src.fetched_utc ? `Delayed · as of ${src.fetched_utc}${src.approx ? " · proxy-scaled, approximate" : ""}` : `as of ${i.updated_utc || i.date}`;
+    const uTxt = sym.optUnits === "index" ? "levels in index points" : sym.optUnits === "x100" ? "levels in index points (DJX quote × 100)" : "levels converted to the chart's price units, as on the stat strip";
     const snapD = i.date || (src && src.fetched_utc ? String(src.fetched_utc).slice(0, 10) : null), gap = snapD && sym.lastDate && sym.lastDate > snapD;
-    const gapTxt = gap ? ` · Levels are from the ${snapD} snapshot and predate the latest close (${sym.lastDate}${i.spot != null && sym.lastClose != null && pcUnits(sym, i.spot) ? `, ${nf(sym.lastClose)} vs snapshot price ${nf(pcUnits(sym, i.spot))}` : ""})` : "";
-    cap.textContent = `${sym.name} · daily closes (${sym.src || sym.delay}) · last close ${sym.lastDate}${sym.partial ? ", latest point may be intraday" : ""} · levels from ${srcTxt}, drawn across the whole chart, not at the dates they applied · ${uTxt} · 1-day ±1σ is centred on the snapshot price${gapTxt}`;
+    const gapTxt = gap ? ` · levels are from the ${snapD} snapshot and predate the latest close (${sym.lastDate}${i.spot != null && sym.lastClose != null && pcUnits(sym, i.spot) ? `, ${nf(sym.lastClose)} vs snapshot price ${nf(pcUnits(sym, i.spot))}` : ""})` : "";
+    cap.textContent = `${sym.name} · ${sym.delay || "Daily close"} · last close ${sym.lastDate}${sym.partial ? ", latest point may be intraday" : ""} · levels ${srcTxt}, drawn across the whole chart, not at the dates they applied · ${uTxt} · 1-day ±1σ centred on the snapshot price${gapTxt}`
+      + (other ? ` · the chart shows another symbol, so the ${i.title} levels are hidden` : (st.pc.lv ? "" : " · levels hidden"));
     cap.title = cap.textContent;
-    if (st.pc.failed && (st.pc.reopen || st.pc.failInst !== st.inst)) { st.pc.failed = false; st.pc.h = null; }   // retry after a library failure when the panel is reopened or the instrument changes
-    st.pc.reopen = false;
-    if (st.pc.failed) { show("The chart library could not be loaded.", " It comes from a CDN and needs internet; the levels are listed below. Reopen the panel or switch instrument to retry."); return; }
-    if (!st.pc.h) {
-      const h = VC.mountDesk(host, sym.id, lv, { range: st.pc.range }); st.pc.h = h;
-      h.ready.catch(() => { if (st.pc.h !== h) return; st.pc.failed = true; st.pc.failInst = st.inst; st.pc.h = null; try { deskChart(); } catch (e) {} });
-    } else st.pc.h.update(sym.id, lv, { range: st.pc.range });
+    if (VC && VC.setLevels) { if (st.pc.fsym !== sym.id) { st.pc.fsym = sym.id; if (VC.setSymbol) VC.setSymbol(sym.id); } VC.setLevels(sym.id, st.pc.lv ? lv0.map(d => ({ id: d.id, label: d.label, value: d.value, ck: d.ck, dash: d.dash, w: d.w })) : []); }
   }
-  window.addEventListener("hashchange", () => setTimeout(() => { st.pc.reopen = true; safe("price chart", deskChart); }, 60));
+  $("pc-lv").addEventListener("click", () => { st.pc.lv = !st.pc.lv; try { localStorage.setItem("macro-desk-levels", st.pc.lv ? "1" : "0"); } catch (e) {} safe("price chart", deskChart); });
+  window.addEventListener("kl:symbol", e => { st.pc.csym = e.detail && e.detail.id || null; safe("price chart", deskChart); });
+  window.addEventListener("desk:chart", () => safe("price chart", deskChart));
+  window.addEventListener("hashchange", () => setTimeout(() => safe("price chart", deskChart), 60));
   window.addEventListener("load", () => safe("price chart", deskChart));   // the chart script is inlined after this one
 
   function desk2() {
@@ -2818,6 +2979,6 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   if (window.ResizeObserver) new ResizeObserver(set).observe(h); if (document.fonts) document.fonts.ready.then(set); })();
 
 </script>
-<script>/*__CHART_KLINE_JS__*/</script>
+<script>/*OPTDESK:BEGIN*//*__CHART_KLINE_JS__*//*OPTDESK:END*/</script>
 </body>
 </html>
