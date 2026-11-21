@@ -1,7 +1,7 @@
 """Offline test data for the options feeds.
 
-The sandbox that agents work in usually cannot reach Cboe, Yahoo or FRED. This file stands in for them:
-it builds realistic Cboe-shaped option chains for every desk instrument (SPX, NDX, DJX, RUT, GLD), futures
+The sandbox that agents work in usually cannot reach Tradier (no token), Yahoo or FRED. This file stands in for them:
+it builds realistic Tradier-shaped option chains (expirations / chains / quotes) for every desk instrument (SPX, NDX, DJX, RUT, GLD), futures
 and index closes in Yahoo's shape and VIX-family series in FRED's CSV shape, then runs the real
 `options_levels.update()` against them twice (the second run moves some open interest, so the
 open-interest-change table and history are exercised too).
@@ -13,6 +13,8 @@ Numbers here are made up. Never publish them and never describe them as market d
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import os
 import sys
@@ -28,6 +30,8 @@ import update_data as ud  # noqa: E402
 
 
 def fake_chain(root: str, spot: float, step: float, lo: float, hi: float, call_peak: float, put_peak: float, base_iv: float, seed: int) -> dict:
+    """Tradier-shaped option rows (chains endpoint: symbol, root_symbol, strike, option_type, expiration_date, open_interest,
+    volume, bid, ask, last, greeks.mid_iv / smv_vol) plus the underlying price for the quotes endpoint."""
     rng = np.random.default_rng(seed)
     today = pd.Timestamp.now("UTC").normalize().tz_localize(None)
     opts = []
@@ -43,38 +47,73 @@ def fake_chain(root: str, spot: float, step: float, lo: float, hi: float, call_p
                 intrinsic = max(0, (k - spot) if cp == "P" else (spot - k))
                 px = intrinsic + spot * iv * np.sqrt(max(d, 1) / 365) * 0.4 * np.exp(-abs(k - spot) / (spot * 0.03))
                 sym = f"{root}{exp.strftime('%y%m%d')}{cp}{int(round(k * 1000)):08d}"
-                opts.append({"option": sym, "bid": round(px * 0.98, 2), "ask": round(px * 1.02, 2), "iv": round(iv, 4),
-                             "open_interest": oi, "volume": int(oi * 0.2), "last_trade_price": round(px, 2)})
-    return {"timestamp": "fixture", "data": {"current_price": spot, "options": opts}}
+                opts.append({"symbol": sym, "root_symbol": root, "strike": float(k), "option_type": "call" if cp == "C" else "put",
+                             "expiration_date": exp.strftime("%Y-%m-%d"), "open_interest": oi, "volume": int(oi * 0.2),
+                             "bid": round(px * 0.98, 2), "ask": round(px * 1.02, 2), "last": round(px, 2),
+                             "greeks": {"mid_iv": round(iv, 4), "smv_vol": round(iv * 1.01, 4)}})
+    return {"spot": spot, "options": opts}
 
 
-CHAINS = {
-    "_SPX": ("SPXW", 5800, 5, 5000, 6600, 6000, 5600, 0.15, 1),
-    "_NDX": ("NDXP", 21000, 10, 18000, 24000, 21800, 20200, 0.19, 3),
-    "_DJX": ("DJX", 430, 1, 380, 480, 440, 420, 0.13, 4),
-    "_RUT": ("RUTW", 2250, 5, 1900, 2600, 2350, 2150, 0.22, 5),
+CHAINS = {   # Tradier symbol -> fake_chain args
+    "SPX": ("SPXW", 5800, 5, 5000, 6600, 6000, 5600, 0.15, 1),
+    "NDX": ("NDXP", 21000, 10, 18000, 24000, 21800, 20200, 0.19, 3),
+    "DJX": ("DJX", 430, 1, 380, 480, 440, 420, 0.13, 4),
+    "RUT": ("RUTW", 2250, 5, 1900, 2600, 2350, 2150, 0.22, 5),
     "GLD": ("GLD", 380, 1, 320, 440, 395, 365, 0.18, 2),
 }
+FAKE_TOKEN = "fx-not-real-token"   # check: not-a-secret
 MAPPED = {"ES=F": 5832.25, "GC=F": 4140.0, "NQ=F": 21110.5, "YM=F": 43120.0, "RTY=F": 2258.4}
 
 
 class _Resp:
-    def __init__(self, js=None, text=None):
-        self._js, self.text = js, text
+    def __init__(self, js=None, text=None, status=200):
+        self._js, self.text, self.status_code = js, text, status
 
     def raise_for_status(self):
-        pass
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
 
     def json(self):
         return self._js
 
 
-def install(chains: dict) -> None:
-    """Replace network calls inside options_levels with the fixtures above."""
+def _tradier_fake(chains: dict, url: str, params: dict, headers: dict, log: list | None, fail: dict | None):
+    """Answer Tradier sandbox calls the way the real API shapes them. Missing/wrong Authorization header -> 401.
+    `fail` can force a status for a path suffix ({"/chains": 429}); an empty chain list gives {"options": null}."""
+    params, headers = params or {}, headers or {}
+    if log is not None:
+        log.append((url, dict(params), dict(headers)))
+    if headers.get("Authorization") != f"Bearer {FAKE_TOKEN}":
+        return _Resp({"fault": {"faultstring": "Invalid Access Token"}}, status=401)
+    path = url.split("/v1", 1)[1]
+    for suffix, code in (fail or {}).items():
+        if path.endswith(suffix):
+            return _Resp({}, status=code)
+    if path == "/markets/quotes":
+        sym = params["symbols"]
+        if sym not in chains or not chains[sym]["options"] and not chains[sym].get("spot"):
+            return _Resp({"quotes": {"unmatched_symbols": {"symbol": sym}}})
+        q = {"symbol": sym, "last": chains[sym]["spot"], "trade_date": int(pd.Timestamp.now("UTC").timestamp() * 1000)}
+        return _Resp({"quotes": {"quote": q}})
+    sym = params.get("symbol")
+    rows = chains.get(sym, {}).get("options", [])
+    if path == "/markets/options/expirations":
+        dates = sorted({o["expiration_date"] for o in rows})
+        return _Resp({"expirations": {"date": dates if len(dates) != 1 else dates[0]} if dates else None})
+    if path == "/markets/options/chains":
+        sel = [o for o in rows if o["expiration_date"] == params["expiration"]]
+        return _Resp({"options": {"option": sel if len(sel) != 1 else sel[0]} if sel else None})
+    raise RuntimeError(f"fixtures: no fake Tradier route {path}")
+
+
+def install(chains: dict, log: list | None = None, fail: dict | None = None) -> None:
+    """Replace network calls inside options_levels with the fixtures above (and set the fake token + no throttle)."""
+    os.environ["TRADIER_TOKEN"] = FAKE_TOKEN
+    ol.MIN_INTERVAL = 0.0
+
     def fake_get(url, params=None, headers=None, timeout=None):
-        for s, js in chains.items():
-            if url.endswith(f"/{s}.json"):
-                return _Resp(js)
+        if "tradier.com" in url:
+            return _tradier_fake(chains, url, params, headers, log, fail)
         for y, px in MAPPED.items():
             if url.endswith(y):
                 return _Resp({"chart": {"result": [{"indicators": {"quote": [{"close": [px - 5, px]}]}}]}})
@@ -103,8 +142,8 @@ def run(out: Path) -> dict:
         h = pd.read_csv(hp)
         h["date"] = (pd.Timestamp.now("UTC").normalize().tz_localize(None) - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
         h.to_csv(hp, index=False)
-    for o in chains["_SPX"]["data"]["options"]:   # day 2: open interest moves at one strike
-        if "C05900000" in o["option"]:
+    for o in chains["SPX"]["options"]:   # day 2: open interest moves at one strike
+        if "C05900000" in o["symbol"]:
             o["open_interest"] += 500
     return ol.update(out)
 
@@ -383,8 +422,8 @@ def fast_mode_checks(work: Path) -> dict:
         if st()["RUN_MODE"].get("mode") != "full": bad["run mode full"] = str(st().get("RUN_MODE"))
         # B3: next day (history last date moved back): the first run diffs against the held baseline, then replaces it
         n5900 = 0
-        for o in chains["_SPX"]["data"]["options"]:
-            if "C05900000" in o["option"]:
+        for o in chains["SPX"]["options"]:
+            if "C05900000" in o["symbol"]:
                 o["open_interest"] += 300
                 n5900 += 1
         install(chains)
@@ -423,6 +462,102 @@ def fast_mode_checks(work: Path) -> dict:
     return bad
 
 
+def tradier_checks(work: Path) -> dict:
+    """Tradier source: parse into the columns analyse() needs, source/proxy fields, ETF proxy rescale, no-token skip,
+    401 and 429 stop early, the token only ever in the Authorization header. All network is faked."""
+    import shutil
+    import requests
+    bad = {}
+    saved_get, saved_tok, saved_iv = requests.get, os.environ.get("TRADIER_TOKEN"), ol.MIN_INTERVAL
+    quiet = lambda: contextlib.redirect_stdout(io.StringIO())
+    chains = {k: fake_chain(*v) for k, v in CHAINS.items()}
+    shutil.rmtree(work, ignore_errors=True)
+    try:
+        # 1. parse + fields (token present)
+        log: list = []
+        install(chains, log)
+        df, spot, stamp = ol.fetch_chain("SPX")
+        need = {"root", "expiry", "type", "strike", "oi", "volume", "iv", "bid", "ask", "last"}
+        if not need <= set(df.columns) or set(df["type"]) != {"C", "P"} or not (df["iv"] > 0).all() or spot != 5800 or not stamp.endswith("UTC"):
+            bad["parse"] = f"columns {sorted(df.columns)} types {set(df['type'])} spot {spot} stamp {stamp!r}"
+        if abs(df["iv"].iloc[0] - chains["SPX"]["options"][0]["greeks"]["smv_vol"]) > 1e-9: bad["iv field"] = "iv must come from greeks.smv_vol (mid_iv as fallback)"
+        d1 = work / "d1"
+        with quiet():
+            res = ol.update(d1, fast=True)
+        snap = json.loads((d1 / "options" / "SPX.json").read_text())
+        if not res["SPX"][0] or snap.get("source") != "Tradier sandbox, 15 min delayed" or snap.get("source_delay") != "15 min": bad["source"] = f"{res['SPX']} {snap.get('source')!r} {snap.get('source_delay')!r}"
+        if "proxy" not in snap or snap["proxy"] is not None or snap.get("proxy_ratio") is not None: bad["proxy null"] = f"proxy {snap.get('proxy')!r} ratio {snap.get('proxy_ratio')!r}"
+        if "Tradier" not in (res["SPX"][3] or "") or "proxy" in (res["SPX"][3] or ""): bad["note"] = str(res["SPX"][3])
+        # token only in the Authorization header: never in a URL, a query parameter, another header, status text or the saved files
+        if not log: bad["calls"] = "no Tradier calls were made"
+        for url, prm, hdr in log:
+            if FAKE_TOKEN in url or FAKE_TOKEN in json.dumps(prm) or [k for k, v in hdr.items() if FAKE_TOKEN in str(v) and k != "Authorization"]:
+                bad["token leak"] = "token found outside the Authorization header"
+            if not url.startswith("https://sandbox.tradier.com/v1/") or "User-Agent" in hdr: bad["request shape"] = f"{url} {sorted(hdr)}"
+        blob = "".join(p_.read_text() for p_ in (d1 / "options").glob("*") if p_.suffix in (".json", ".csv")) + json.dumps({k: list(v) for k, v in res.items()})
+        if FAKE_TOKEN in blob: bad["token in files"] = "token text found in options files or status tuples"
+        # 2. proxy: SPX chain empty -> SPY chain rescaled by index price / ETF price, labelled
+        ch2 = {k: v for k, v in chains.items()}
+        ch2["SPX"] = {"spot": 5800.0, "options": []}
+        ch2["SPY"] = fake_chain("SPY", 580, 0.5, 500, 660, 600, 560, 0.15, 7)
+        install(ch2)
+        d2 = work / "d2"
+        with quiet():
+            res2 = ol.update(d2, fast=True)
+        s2 = json.loads((d2 / "options" / "SPX.json").read_text())
+        if not res2["SPX"][0] or s2.get("proxy") != "SPY" or abs((s2.get("proxy_ratio") or 0) - 10.0) > 1e-6: bad["proxy"] = f"{res2['SPX']} proxy {s2.get('proxy')} ratio {s2.get('proxy_ratio')}"
+        if abs(s2["spot"] - 5800) > 1e-6 or not (5000 <= (s2.get("call_wall") or 0) <= 6600) or "proxy" not in (res2["SPX"][3] or ""): bad["proxy scale"] = f"spot {s2['spot']} wall {s2.get('call_wall')} note {res2['SPX'][3]}"
+        if s2.get("source") != ol.SOURCE: bad["proxy source"] = str(s2.get("source"))
+        if json.loads((d2 / "options" / "GOLD.json").read_text()).get("proxy") is not None: bad["gold proxy"] = "GLD is its own chain, never a proxy"
+        ch2["SPX"] = {"options": []}   # index has no quote either: the last index close from Yahoo scales the proxy
+        install(ch2)
+        with quiet():
+            res2b = ol.update(work / "d2b", fast=True)
+        if not res2b["SPX"][0] or json.loads((work / "d2b" / "options" / "SPX.json").read_text()).get("proxy") != "SPY": bad["proxy no quote"] = str(res2b["SPX"])
+        del ch2["SPY"]   # empty index chain and no proxy chain: fails soft, others still run
+        install(ch2)
+        with quiet():
+            res2c = ol.update(work / "d2c", fast=True)
+        if res2c["SPX"][0] or not res2c["GOLD"][0]: bad["no proxy fail soft"] = str({k: v[:1] for k, v in res2c.items()})
+        # 3. no token: skip, nothing fetched, previous files kept, status says what to add
+        install(chains)
+        before = _tree_hashes(d1, (), ())
+        os.environ.pop("TRADIER_TOKEN", None)
+        calls: list = []
+        requests.get = lambda *a, **k: calls.append(a) or (_ for _ in ()).throw(OSError("no network expected"))
+        with quiet():
+            res3 = ol.update(d1, fast=True)
+        if calls: bad["no token calls"] = f"{len(calls)} requests made without a token"
+        if _tree_hashes(d1, (), ()) != before: bad["no token files"] = "files changed in a skipped run"
+        if any(v[0] or "not configured: add secret TRADIER_TOKEN" not in (v[2] or "") for v in res3.values()): bad["no token status"] = str({k: v[:3] for k, v in res3.items()})
+        if res3["SPX"][1] != snap["date"]: bad["no token last date"] = f"last_data_date {res3['SPX'][1]} want the kept snapshot date {snap['date']}"
+        # 4. 401: stop at the first call, other instruments not tried, files kept
+        log4: list = []
+        install(chains, log4)
+        os.environ["TRADIER_TOKEN"] = "wrong-" + FAKE_TOKEN
+        before = _tree_hashes(d1, (), ())
+        with quiet():
+            res4 = ol.update(d1, fast=True)
+        if len(log4) != 1 or any(v[0] for v in res4.values()) or "rejected" not in (res4["SPX"][2] or ""): bad["401"] = f"calls {len(log4)} {str({k: v[:3] for k, v in res4.items()})[:200]}"
+        if _tree_hashes(d1, (), ()) != before: bad["401 files"] = "files changed after a 401"
+        if "wrong-" in json.dumps({k: list(v) for k, v in res4.items()}): bad["401 leak"] = "token text in status tuples"
+        # 5. 429 on the first chains call: stop, the rest skipped
+        log5: list = []
+        install(chains, log5, {"/chains": 429})
+        with quiet():
+            res5 = ol.update(d1, fast=True)
+        n_chain = sum(1 for u, _, _ in log5 if u.endswith("/chains"))
+        if n_chain != 1 or any(v[0] for v in res5.values()) or "429" not in (res5["SPX"][2] or "") or "skipped" not in (res5["NDX"][2] or ""): bad["429"] = f"chain calls {n_chain} {str({k: v[:3] for k, v in res5.items()})[:240]}"
+        if _tree_hashes(d1, (), ()) != before: bad["429 files"] = "files changed after a 429"
+    finally:
+        requests.get, ol.MIN_INTERVAL = saved_get, saved_iv
+        if saved_tok is None:
+            os.environ.pop("TRADIER_TOKEN", None)
+        else:
+            os.environ["TRADIER_TOKEN"] = saved_tok
+    return bad
+
+
 def guard_out(path: Path) -> Path:
     """Only write under /tmp, the scratchpad or $TEAM_DIR (never $TEAM_DIR itself or the repo)."""
     p = path.resolve()
@@ -435,7 +570,7 @@ def guard_out(path: Path) -> Path:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Write fake Cboe-shaped option feeds into OUT_DIR/options (offline test data, never market data).")
+    ap = argparse.ArgumentParser(description="Write fake Tradier-shaped option feeds into OUT_DIR/options (offline test data, never market data).")
     ap.add_argument("out_dir", help="directory to write options/ into (copy the real data/ in first for a full page)")
     out = guard_out(Path(ap.parse_args().out_dir))
     res = run(out)
@@ -456,6 +591,11 @@ def main() -> int:
     for k, v in fred_key_checks().items():
         bad["fred_key " + k] = v
         print("FAIL fred_key " + k + ": " + v)
+    for k, v in tradier_checks(out / "tradier-run").items():
+        bad["tradier " + k] = v
+        print("FAIL tradier " + k + ": " + v)
+    if not any(k.startswith("tradier") for k in bad):
+        print("OK   tradier (parse, source/proxy fields, ETF proxy rescale, no-token skip, 401/429 stop early, token header-only)")
     for k, v in fast_mode_checks(out / "fast-run").items():
         bad["fast_mode " + k] = v
         print("FAIL fast_mode " + k + ": " + v)
