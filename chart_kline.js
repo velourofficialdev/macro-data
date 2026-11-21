@@ -292,7 +292,6 @@
     r3.appendChild(exB); r3.appendChild(imB);
     var fileIn = el("input"); fileIn.type = "file"; fileIn.accept = "application/json,.json"; fileIn.hidden = true; fileIn.setAttribute("aria-label", "Layout file"); r3.appendChild(fileIn);
     var helpB = btn("Shortcuts", "Keyboard shortcuts"); helpB.setAttribute("aria-haspopup", "true"); helpB.setAttribute("aria-expanded", "false"); r3.appendChild(helpB);
-    if (hasDesk()) { var lvB = btn("Options levels (coming next)", "Phase 2: options levels on the chart"); lvB.disabled = true; r3.appendChild(lvB); }
     root.appendChild(r3);
 
     chipsEl = el("div", "kl-chips"); root.appendChild(chipsEl);
@@ -836,19 +835,15 @@
     li.appendChild(sel); li.appendChild(ab); pop.appendChild(li);
     pop.appendChild(el("h4", "", "Needs data we do not have"));
     ["VOL", "VWAP"].forEach(function (n) { var r = el("div", "kl-li"); r.appendChild(el("span", "", n)); r.appendChild(el("span", "kl-why", "needs volume data the dashboard does not have")); r.setAttribute("aria-disabled", "true"); pop.appendChild(r); });
-    if (hasDesk()) {
-      pop.appendChild(el("h4", "", "Options levels"));
-      var lv = el("div", "kl-li"); lv.appendChild(el("span", "", "Options levels (coming next)")); lv.appendChild(el("span", "kl-why", "disabled")); lv.setAttribute("aria-disabled", "true"); pop.appendChild(lv);
-    }
   }
   function addRow(pop, n, label, tip) {
     var r = el("div", "kl-li"), s = el("span"); s.appendChild(document.createTextNode(label)); s.appendChild(el("div", "kl-why", tip)); r.appendChild(s);
     var b = btn("Add", "Add " + label); b.addEventListener("click", function () { addInd(n); closePop(pop, indBtn); }); r.appendChild(b); pop.appendChild(r);
   }
-  /* Phase 2 hook: options levels for a symbol. Empty unless the page carries the internal options payload. */
+  /* Phase 2 hook: desk levels for a symbol (internal build only). Empty until Phase 2. */
   function levelsFor(symbol) {
     try { if (!(window.P && window.P.opt)) return []; } catch (e) { return []; }
-    return [];   // Phase 2 fills this in from P.opt[feed symbol .opt_key]
+    return [];   // Phase 2 fills this from the internal desk payload
   }
 
   /* ---------- keyboard ---------- */
