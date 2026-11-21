@@ -323,6 +323,81 @@
   .dlgbox .odprompt { min-height: 240px; }
   body.dlock { overflow: hidden; }
   @media (max-width: 760px) { .dbox2 { height: 320px; } .dpanel.dfull .odbox { height: calc(100vh - var(--tvtop, 0px) - 170px); } .odbar .btn.ghost { margin-left: 0; } }
+  /* ---- options terminal: dense block, four columns on desktop (ladder | greeks + magnet | walls + hedging over price chart | skew + surface), stacked on tablet and phone ---- */
+  .dterm { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 0 0 14px; }
+  .dterm .dcol, .dterm .drow2 { display: contents; }
+  .dterm .dpanel { min-height: 0; min-width: 0; height: 440px; }
+  .dterm .dpanel[data-panel="ladder"] { order: 1; height: 460px; } .dterm .dpanel[data-panel="greeks_view"] { order: 2; } .dterm .dpanel[data-panel="walls"] { order: 3; height: 320px; }
+  .dterm .dpanel[data-panel="hedging"] { order: 4; height: 300px; } .dterm .dpanel[data-panel="magnet"] { order: 5; height: 360px; } .dterm .dpanel[data-panel="pchart"] { order: 6; height: 480px; }
+  .dterm .dpanel[data-panel="skew"] { order: 7; height: 420px; } .dterm .dpanel[data-panel="surface"] { order: 8; height: 440px; }
+  .dterm .dpanel.dcollapsed { height: auto; }
+  .dterm .dpanel.dfull { height: auto; }
+  .dterm .dpanel:not(.dfull) .dguide { display: none; }
+  .dterm .dpanel:not(.dfull) .card-h { padding: 6px 6px 4px 8px; min-height: 30px; gap: 4px 6px; flex-wrap: nowrap; }
+  .dterm .dpanel:not(.dfull) .card-h h3 { flex: 0 0 auto; max-width: 100%; } .dterm .dpanel[data-panel="magnet"]:not(.dfull) .card-h h3 { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .dterm .dpanel:not(.dfull) .card-h .ranges { flex: 0 1 auto; min-width: 0; justify-content: flex-end; }
+  .dterm .dpanel:not(.dfull) .card-h h3 { font-size: 10px; letter-spacing: .09em; white-space: nowrap; }
+  .dterm .dpanel:not(.dfull) .ranges { gap: 1px; } .dterm .dpanel:not(.dfull) .ranges button { font-size: 10.5px; padding: 2px 6px; }
+  .dterm .dpanel:not(.dfull) .dtools button { min-width: 20px; height: 20px; padding: 0 4px; font-size: 11px; }
+  .dterm .dpanel:not(.dfull) .dfresh { padding: 0 8px 3px; font-size: 10px; gap: 4px 6px; }
+  .dterm .dpanel:not(.dfull) .dfresh > span:first-of-type { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dterm .dpanel:not(.dfull) .dfresh i { width: 6px; height: 6px; margin-top: 3px; }
+  .dterm .dpanel:not(.dfull) .odcap { padding: 0 8px; font-size: 10px; min-height: 0; line-height: 1.35; }
+  .dterm .dpanel:not(.dfull) .dctl { padding: 0 8px 2px; gap: 3px 8px; }
+  .dterm .dpanel:not(.dfull) .odbox { margin: 0 2px 2px; }
+  .dterm .dpanel:not(.dfull) .odlegend { padding: 0 8px 6px; font-size: 10px; flex-wrap: wrap; gap: 2px 8px; } .dterm .odlegend i { width: 80px; }
+  .dterm .dlad { margin: 2px 4px 4px; flex: 1 1 0; min-height: 0; max-height: none; }
+  .dterm .dpanel:not(.dfull) .dlad table, .dterm .dpanel:not(.dfull) .dsk table { font-size: 10.5px; } .dterm .dlad th, .dterm .dlad td { padding: 2px 5px; }
+  .dterm .dbox2, .dterm .dbox3 { flex: 1 1 0; min-height: 0; height: auto; overflow: hidden; }
+  .dterm .dpanel[data-panel="surface"] .odbox { flex: 1 1 0; min-height: 0; height: auto; }
+  .dterm .dpanel[data-panel="surface"] .odbox.odterr { height: auto; }
+  .dterm .dwalls { padding: 2px 8px 6px; gap: 6px; overflow: auto; flex: 1 1 0; min-height: 0; grid-template-columns: 1fr 1fr; align-content: start; }
+  .dterm .dpanel:not(.dfull) .dwalls h4 { font-size: 9.5px; margin: 0 0 2px; letter-spacing: .05em; }
+  .dterm .dpanel:not(.dfull) .dwrow { grid-template-columns: 1fr auto; font-size: 11px; padding: 1px 0; gap: 4px; }
+  .dterm .dpanel:not(.dfull) .dwrow .bar, .dterm .dpanel:not(.dfull) .dwrow small, .dterm .dpanel:not(.dfull) .dshare, .dterm .dpanel:not(.dfull) .dwalls > .note, .dterm .dpanel:not(.dfull) .dwalls .note { display: none; }
+  .dterm .dpanel:not(.dfull) .dwrow > div:last-child { white-space: nowrap; font-size: 10.5px; }
+  .dterm .dpanel:not(.dfull) .dwalls > div:last-child:not(:only-child) { }
+  .dterm .dgauge { padding: 0 8px 6px; flex: 1 1 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; }
+  .dterm .dpanel:not(.dfull) .dgauge svg { max-height: 104px; flex: none; } .dterm .dpanel:not(.dfull) .dgauge .gs { margin-top: 0; } .dterm .dpanel:not(.dfull) .dgauge .gs div + div { display: none; }
+  .dterm .dpanel:not(.dfull) .dgauge .gs div { font-size: 10.5px; }
+  .dterm .dmag { padding: 2px 8px 6px; flex: 1 1 0; min-height: 0; overflow: auto; }
+  .dterm .dpanel:not(.dfull) .dmag .dm { gap: 4px 14px; } .dterm .dpanel:not(.dfull) .dmag .dm > div { min-width: 80px; } .dterm .dpanel:not(.dfull) .dmag .v { font-size: 15px; }
+  .dterm .dpanel:not(.dfull) .dmag .sub { margin: 8px 0 3px; font-size: 10px; } .dterm .dpanel:not(.dfull) .dmag .meth { display: none; } .dterm .dpanel:not(.dfull) .dmag svg { max-height: 52px; }
+  .dterm .dsk { margin: 0 4px 4px; max-height: 92px; overflow: auto; flex: none; } .dterm .dpanel:not(.dfull) .dsk .note { display: none; } .dterm .dpanel:not(.dfull) .legend { padding: 0 8px 4px; font-size: 10px; }
+  .dterm .dbadge { font-size: 9px; padding: 0 6px; }
+  .dterm #sf-reset { font-size: 10.5px; padding: 2px 8px; }
+  .dpc { flex: 1 1 0; min-height: 120px; margin: 0 2px 2px; position: relative; } .dpmsg { flex: 1 1 0; padding: 12px; font-size: 12px; color: var(--muted); } .dpmsg b { color: var(--text); display: block; margin-bottom: 4px; font-size: 13px; } .dpc .dpmsg { padding: 12px; font-size: 12px; color: var(--muted); }
+  .dpc .dpmsg b { color: var(--text); display: block; margin-bottom: 4px; font-size: 13px; }
+  .dpclg { display: flex; flex-wrap: wrap; gap: 2px 12px; padding: 2px 8px 6px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .dpclg span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex: none; } .dpclg i { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--c, var(--muted)); } .dpclg i.dsh { border-top-style: dashed; } .dpclg i.dot { border-top-style: dotted; }
+  .dpanel.dfull .dpc { flex: none; height: calc(100vh - var(--tvtop, 0px) - 170px); min-height: 260px; }
+  @media (min-width: 760px) and (max-width: 1199px) {
+    .dterm { grid-template-columns: 1fr 1fr; }
+    .dterm .dpanel[data-panel="pchart"] { grid-column: 1 / -1; order: 5; } .dterm .dpanel[data-panel="magnet"] { order: 6; } .dterm .dpanel[data-panel="skew"] { order: 7; }
+    .dterm .dpanel[data-panel="ladder"], .dterm .dpanel[data-panel="greeks_view"] { height: 520px; } .dterm .dpanel[data-panel="walls"], .dterm .dpanel[data-panel="hedging"] { height: 270px; }
+    .dterm .dpanel[data-panel="magnet"], .dterm .dpanel[data-panel="skew"] { height: 420px; } .dterm .dpanel[data-panel="surface"] { grid-column: 1 / -1; height: 440px; }
+  }
+  @media (min-width: 1200px) {
+    .dterm { grid-template-columns: 19fr 20fr 36fr 25fr; gap: 6px; height: clamp(860px, calc(100vh - 40px), 920px); }
+    .dterm .dcol { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
+    .dterm .drow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex: none; height: 226px; min-height: 0; }
+    .dterm .dpanel, .dterm .dpanel[data-panel] { height: auto; order: 0; }
+    .dterm .dcol > .dpanel, .dterm .drow2 > .dpanel { flex: 1 1 0; }
+    .dterm .dcol.c2 > .dpanel[data-panel="greeks_view"] { flex: 3 1 0; } .dterm .dcol.c2 > .dpanel[data-panel="magnet"] { flex: 2 1 0; }
+    .dterm .dcol.c4 > .dpanel[data-panel="skew"] { flex: 5 1 0; } .dterm .dcol.c4 > .dpanel[data-panel="surface"] { flex: 6 1 0; }
+    .dterm .dpanel.dcollapsed { flex: none !important; height: auto; }
+    .dterm .dpanel.dfull { flex: none; height: auto; }
+    .dterm .dpanel[data-panel="surface"] .odbox { min-height: 160px; }
+  }
+  .dterm .dpanel[data-panel="walls"]:not(.dfull) .card-h { flex-wrap: wrap; } .dterm .dpanel[data-panel="walls"]:not(.dfull) .card-h .ranges { flex: 1 1 100%; order: 10; justify-content: flex-start; }
+  .dterm .dpanel[data-panel="hedging"]:not(.dfull) .gs b { font-size: 12.5px !important; }
+  @media (min-width: 1200px) {
+    .odctl { margin-bottom: 8px; } .odctl .odbar { padding: 8px 12px 2px; gap: 4px 12px; } .odctl .ranges button { padding: 3px 8px; font-size: 11.5px; }
+    .odctl .odbar .btn.ghost { padding: 4px 10px; font-size: 12px; } .odctl .odmode { padding: 2px 12px 4px; font-size: 11px; }
+    .odctl .card-b.odstats { padding: 0 12px 6px; gap: 4px 18px; } .odctl .odstats div { min-width: 84px; } .odctl .odstats .v { font-size: 15px; margin-top: 0; } .odctl .odstats .m { font-size: 10px; } .odctl .odstats .kl { font-size: 9.5px; }
+    .odctl .odreg { margin: 0 12px 8px; padding: 3px 8px; font-size: 11.5px; }
+  }
+  @media (max-width: 759px) { .dterm .dpanel[data-panel="pchart"] { height: 420px; } }
   /*OPTDESK:END*/
   .fpprof { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; margin: 0 0 10px; color: var(--muted); }
   .fpprof b { color: var(--text); font-weight: 600; } .fpprof i { font-style: normal; font-size: 11px; }
@@ -843,20 +918,34 @@
       </div>
       <p class="odmode" id="od-mnote"></p>
       <div class="card-b odstats" id="od-stats"></div><div class="odreg" id="od-reg"></div></div>
+      <div class="dterm" id="dterm" role="group" aria-label="Options terminal">
+        <div class="dcol c1">
+          <div class="card dpanel" data-panel="ladder"><div class="card-h"><h3>Strike ladder</h3><div class="ranges" id="dl-mode" role="group" aria-label="Ladder columns"></div></div>
+            <div class="odcap" id="dl-cap"></div><div class="dlad" id="dl-body"></div></div>
+        </div>
+        <div class="dcol c2">
+          <div class="card dpanel" data-panel="greeks_view"><div class="card-h"><h3>Greeks view</h3><div class="ranges" id="gv-type" role="group" aria-label="Bars or line"></div></div>
+            <div class="dctl"><div class="ranges" id="gv-ex" role="group" aria-label="Expiry"></div><div class="ranges" id="gv-greek" role="group" aria-label="Greek"></div><div class="ranges" id="gv-opts" role="group" aria-label="Options"></div></div>
+            <div class="odcap" id="gv-cap"></div><div class="odbox dbox2" id="gv-box" role="img" aria-label="Exposure by strike, horizontal bars"></div></div>
+          <div class="card dpanel" data-panel="magnet"><div class="card-h"><h3>0DTE magnet · expected range · IV rank</h3></div><div class="dmag" id="mg-body"></div></div>
+        </div>
+        <div class="dcol c3">
+          <div class="drow2">
+            <div class="card dpanel" data-panel="walls"><div class="card-h"><h3>Major walls</h3><div class="ranges" id="wl-sw" role="group" aria-label="Wall measure"></div></div>
+              <div class="dwalls" id="wl-body"></div></div>
+            <div class="card dpanel" data-panel="hedging"><div class="card-h"><h3>Hedging pressure</h3></div><div class="dgauge" id="hp-body"></div></div>
+          </div>
+          <div class="card dpanel" data-panel="pchart"><div class="card-h"><h3>Price chart with levels</h3><div class="ranges" id="pc-rng" role="group" aria-label="Chart range"></div></div>
+            <div class="odcap" id="pc-cap"></div><div class="dpmsg" id="pc-msg" hidden></div><div class="dpc" id="pc-box" role="img" aria-label="Daily price chart of the selected market with the call wall, put wall, gamma flip, max pain and one-sigma range drawn as horizontal lines"></div><div class="dpclg" id="pc-leg"></div></div>
+        </div>
+        <div class="dcol c4">
+          <div class="card dpanel" data-panel="skew"><div class="card-h"><h3>IV skew by expiry</h3><span class="dbadge" title="Net drift needs hourly snapshots of the book; the dashboard stores one per day. It arrives in Phase 2.">Net drift: Phase 2</span></div>
+            <div class="odbox dbox3" id="sk-chart" role="img" aria-label="Implied volatility against moneyness, one line per expiry"></div><div class="legend" id="sk-leg"></div><div class="scroll dsk" id="sk-tab"></div></div>
+          <div class="card dpanel" data-panel="surface"><div class="card-h"><h3>IV surface</h3><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:none"><div class="ranges" id="sf-col" role="group" aria-label="Surface colouring"></div><button type="button" class="btn ghost odgcols" id="sf-reset" style="display:inline-block;margin:0">Reset view</button></div></div>
+            <div class="odcap" id="sf-cap"></div><div class="odbox odterr"><canvas id="sf-cv" aria-label="3D surface of implied volatility by expiry and moneyness"></canvas></div><div class="odlegend" id="sf-leg"></div></div>
+        </div>
+      </div>
       <div class="grid dgrid" id="dpanels">
-        <div class="card dpanel" data-panel="ladder" style="--w:4"><div class="card-h"><h3>Strike ladder</h3><div class="ranges" id="dl-mode" role="group" aria-label="Ladder columns"></div></div>
-          <div class="odcap" id="dl-cap"></div><div class="dlad" id="dl-body"></div></div>
-        <div class="card dpanel" data-panel="greeks_view" style="--w:4"><div class="card-h"><h3>Greeks view</h3><div class="ranges" id="gv-type" role="group" aria-label="Bars or line"></div></div>
-          <div class="dctl"><div class="ranges" id="gv-ex" role="group" aria-label="Expiry"></div><div class="ranges" id="gv-greek" role="group" aria-label="Greek"></div><div class="ranges" id="gv-opts" role="group" aria-label="Options"></div></div>
-          <div class="odcap" id="gv-cap"></div><div class="odbox dbox2" id="gv-box" role="img" aria-label="Exposure by strike, horizontal bars"></div></div>
-        <div class="card dpanel" data-panel="walls" style="--w:4"><div class="card-h"><h3>Major walls</h3><div class="ranges" id="wl-sw" role="group" aria-label="Wall measure"></div></div>
-          <div class="dwalls" id="wl-body"></div></div>
-        <div class="card dpanel" data-panel="hedging" style="--w:4"><div class="card-h"><h3>Hedging pressure</h3></div><div class="dgauge" id="hp-body"></div></div>
-        <div class="card dpanel" data-panel="magnet" style="--w:4"><div class="card-h"><h3>0DTE magnet · expected range · IV rank</h3></div><div class="dmag" id="mg-body"></div></div>
-        <div class="card dpanel" data-panel="skew" style="--w:4"><div class="card-h"><h3>IV skew by expiry</h3></div>
-          <div class="odbox dbox3" id="sk-chart" role="img" aria-label="Implied volatility against moneyness, one line per expiry"></div><div class="legend" id="sk-leg"></div><div class="scroll dsk" id="sk-tab"></div></div>
-        <div class="card dpanel" data-panel="surface" style="--w:8"><div class="card-h"><h3>IV surface</h3><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:none"><div class="ranges" id="sf-col" role="group" aria-label="Surface colouring"></div><button type="button" class="btn ghost odgcols" id="sf-reset" style="display:inline-block;margin:0">Reset view</button></div></div>
-          <div class="odcap" id="sf-cap"></div><div class="odbox odterr"><canvas id="sf-cv" aria-label="3D surface of implied volatility by expiry and moneyness"></canvas></div><div class="odlegend" id="sf-leg"></div></div>
         <div class="card dpanel" data-panel="order_flow" style="--w:4"><div class="card-h"><h3>Order flow</h3><span class="dbadge">not connected</span></div><div class="dflow" id="of-body"></div></div>
         <div class="card dpanel" data-panel="spine" style="--w:6"><div class="card-h"><h3>01 · Spine</h3><div class="ranges" id="od-sv" role="group" aria-label="Spine style"><button type="button" data-v="spine" aria-pressed="true">Spine</button><button type="button" data-v="bars" aria-pressed="false">Bars</button></div></div>
           <div class="odcap" id="od-cap1"></div><div class="odbox" id="od-spine" role="img" aria-label="Exposure by strike with walls, gamma flip and price"></div></div>
@@ -2232,18 +2321,19 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     else if (id === "order_flow") { text = "No feed connected · nothing shown here is simulated"; age = 0; }
     else if (id === "magnet" && X().ivr) text += ` · IV rank from FRED ${X().ivr.series_name || "30-day index"}`;
     else if (id === "replay") text += " · daily snapshots saved by the dashboard";
-    return { text, stale: (age > 4 || isStale(st.inst)) && id !== "guide" && id !== "method" && id !== "order_flow", approx: approx && ["guide", "method", "order_flow", "vix", "volidx"].indexOf(id) < 0 };
+    const short = s && s.fetched_utc && TERM.has(id) ? `${String(s.source || "Cboe delayed").replace(/ chain$/, "")} · ${String(s.fetched_utc).slice(0, 10)} · ${age}d old${s.approx ? " · approx." : ""}` : null;
+    return { text, short, stale: (age > 4 || isStale(st.inst)) && id !== "guide" && id !== "method" && id !== "order_flow", approx: approx && ["guide", "method", "order_flow", "vix", "volidx"].indexOf(id) < 0 };
   }
   function freshAll() {
-    document.querySelectorAll("#dpanels .dpanel").forEach(p => {
+    document.querySelectorAll("#odesk .dpanel").forEach(p => {
       const id = p.dataset.panel, f = freshInfo(id); let b = p.querySelector(".dfresh");
       if (!b) { b = document.createElement("div"); b.className = "dfresh"; const h = p.querySelector(".card-h"); h.insertAdjacentElement("afterend", b); }
       b.classList.toggle("stale", f.stale); b.title = (GD.freshness && GD.freshness.meaning) || "Where this panel's numbers come from, how delayed they are and when they were fetched";
-      b.innerHTML = `<i aria-hidden="true"></i><span>${esc(f.text)}</span>` + (f.stale ? '<span class="dbadge warn">stale</span>' : "") + (f.approx && !/approx/i.test(f.text) ? '<span class="dbadge">approximate</span>' : "");
+      b.innerHTML = `<i aria-hidden="true"></i><span title="${esc(f.text)}">${esc(f.short || f.text)}</span>` + (f.stale ? '<span class="dbadge warn">stale</span>' : "") + (f.approx && !/approx/i.test(f.text) ? '<span class="dbadge">approximate</span>' : "");
     });
   }
   function guides() {
-    document.querySelectorAll("#dpanels .dpanel").forEach(p => {
+    document.querySelectorAll("#odesk .dpanel").forEach(p => {
       const g = GD[p.dataset.panel]; if (!g || p.querySelector(".dguide")) return;
       const d = document.createElement("details"); d.className = "dguide";
       d.innerHTML = `<summary>${esc(g.label || "What this shows")}</summary>` + (g.meaning ? `<p><b>What it shows.</b> ${esc(g.meaning)}</p>` : "") + (g.so_what ? `<p><b>How to read it.</b> ${esc(g.so_what)}</p>` : "");
@@ -2252,14 +2342,17 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   }
 
   /* ---------- panel layout: collapse, move, drag, full screen, saved order ---------- */
-  const DEF = ["ladder", "greeks_view", "walls", "hedging", "magnet", "skew", "surface", "order_flow", "spine", "terrain", "grid", "smile", "stack", "guide", "vol", "vix", "volidx", "replay", "prompt", "method"];
+  const DEF = ["order_flow", "spine", "terrain", "grid", "smile", "stack", "guide", "vol", "vix", "volidx", "replay", "prompt", "method"];
   const LKEY = "macro-desk-layout", dp = $("dpanels"), PN = {};
+  const TERM = new Set();   // terminal panels: fixed positions (collapse and full screen only); the lower grid can be reordered
+  $("dterm").querySelectorAll(".dpanel").forEach(p => { PN[p.dataset.panel] = p; TERM.add(p.dataset.panel); });
   dp.querySelectorAll(".dpanel").forEach(p => { PN[p.dataset.panel] = p; });
-  const defLay = () => ({ v: 1, order: DEF.filter(x => PN[x]).concat(Object.keys(PN).filter(x => DEF.indexOf(x) < 0)), collapsed: [] });
+  const LOWER = () => Object.keys(PN).filter(x => !TERM.has(x));
+  const defLay = () => ({ v: 1, order: DEF.filter(x => PN[x] && !TERM.has(x)).concat(LOWER().filter(x => DEF.indexOf(x) < 0)), collapsed: [] });
   function loadLay() {
     try {
       const o = JSON.parse(localStorage.getItem(LKEY) || "null");
-      if (o && o.v === 1 && Array.isArray(o.order)) { const order = o.order.filter((x, i, a) => PN[x] && a.indexOf(x) === i); defLay().order.forEach(x => { if (order.indexOf(x) < 0) order.push(x); }); return { v: 1, order, collapsed: (Array.isArray(o.collapsed) ? o.collapsed : []).filter(x => PN[x]) }; }
+      if (o && o.v === 1 && Array.isArray(o.order)) { const order = o.order.filter((x, i, a) => PN[x] && !TERM.has(x) && a.indexOf(x) === i); /* older saves listed the terminal panels too: ignore those */ defLay().order.forEach(x => { if (order.indexOf(x) < 0) order.push(x); }); return { v: 1, order, collapsed: (Array.isArray(o.collapsed) ? o.collapsed : []).filter(x => PN[x]) }; }
     } catch (e) {}
     return defLay();
   }
@@ -2268,11 +2361,11 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   const kick = () => window.dispatchEvent(new Event("resize"));
   function applyLay() {
     lay.order.forEach(id => dp.appendChild(PN[id]));
-    lay.order.forEach((id, i) => {
-      const p = PN[id], c = lay.collapsed.indexOf(id) >= 0, q = a => p.querySelector(`.dtools [data-a="${a}"]`);
+    Object.keys(PN).forEach(id => {
+      const p = PN[id], c = lay.collapsed.indexOf(id) >= 0, i = lay.order.indexOf(id), q = a => p.querySelector(`.dtools [data-a="${a}"]`);
       p.classList.toggle("dcollapsed", c);
       const cb = q("col"); cb.textContent = c ? "+" : "–"; cb.setAttribute("aria-expanded", String(!c)); cb.title = c ? "Expand panel" : "Collapse panel";
-      q("up").disabled = i === 0; q("down").disabled = i === lay.order.length - 1;
+      if (q("up")) { q("up").disabled = i === 0; q("down").disabled = i === lay.order.length - 1; }
     });
   }
   function move(id, to) { const o = lay.order, i = o.indexOf(id); o.splice(i, 1); o.splice(Math.max(0, Math.min(o.length, to)), 0, id); saveLay(); applyLay(); }
@@ -2294,7 +2387,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   let dragId = null;
   Object.keys(PN).forEach(id => {
     const p = PN[id], h = p.querySelector(".card-h"), t = document.createElement("span"); t.className = "dtools"; t.setAttribute("role", "group"); t.setAttribute("aria-label", "Panel controls");
-    t.innerHTML = '<button type="button" data-a="up" title="Move up" aria-label="Move panel up">↑</button><button type="button" data-a="down" title="Move down" aria-label="Move panel down">↓</button>'
+    t.innerHTML = (TERM.has(id) ? "" : '<button type="button" data-a="up" title="Move up" aria-label="Move panel up">↑</button><button type="button" data-a="down" title="Move down" aria-label="Move panel down">↓</button>')
       + '<button type="button" data-a="col" aria-label="Collapse or expand panel">–</button><button type="button" data-a="full" title="Full screen" aria-label="Full screen">⤢</button>';
     h.insertBefore(t, h.firstChild);   // first in the DOM, shown last (flex order)
     t.addEventListener("click", e => {
@@ -2303,7 +2396,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       else if (a === "col") { const c = lay.collapsed.indexOf(id); if (c >= 0) lay.collapsed.splice(c, 1); else lay.collapsed.push(id); saveLay(); applyLay(); kick(); }
       else if (a === "full") setFull(id);
     });
-    if (canDrag) {
+    if (canDrag && !TERM.has(id)) {
       h.classList.add("dgrab");
       h.addEventListener("mousedown", e => { if (!e.target.closest("button, select, a, input")) p.draggable = true; });
       p.addEventListener("dragstart", e => { if (!p.draggable) return; dragId = id; p.classList.add("dragging"); try { e.dataTransfer.setData("text/plain", id); e.dataTransfer.effectAllowed = "move"; } catch (x) {} });
@@ -2318,17 +2411,19 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   applyLay();
 
   /* ---------- strike ladder ---------- */
+  const ONE = () => window.matchMedia && window.matchMedia("(min-width: 1200px)").matches;   // the terminal's ladder column is narrow: one Greek at a time, the one chosen in the Greeks view
   const LCOLS = [["gamma", "GEX"], ["delta", "DEX"], ["vanna", "VEX"], ["charm", "CHEX"], ["theta", "TEX"], ["vega", "Vega"]];
   function ladder() {
     const s = S(), ks = s.strikes, spot = I().spot, w = win(st.inst), n = ks.length;
     const hasOI = !!(s.oi && s.oi.c && s.oi.p && s.oi.c.length === n), hasVol = !!(s.volu && s.volu.c && s.volu.p && s.volu.c.length === n);
     if ((st.lmode === "oi" && !hasOI) || (st.lmode === "vol" && !hasVol)) st.lmode = "greeks";
-    buttons($("dl-mode"), [["greeks", "Greeks"], ["oi", "Open interest"], ["vol", "Volume"]], st.lmode, v => { st.lmode = v; ladder(); }, v => (v === "oi" && !hasOI) || (v === "vol" && !hasVol));
+    buttons($("dl-mode"), [["greeks", "Greeks"], ["oi", "OI"], ["vol", "Vol"]], st.lmode, v => { st.lmode = v; ladder(); }, v => (v === "oi" && !hasOI) || (v === "vol" && !hasVol));
     $("dl-mode").querySelectorAll("button[disabled]").forEach(b => { b.title = NOTE_NEEDS; });
+    if (hasOI) $("dl-mode").querySelector('[data-v="oi"]').title = "Open interest, contracts"; if (hasVol) $("dl-mode").querySelector('[data-v="vol"]').title = "Volume, contracts";
     let cols;
     if (st.lmode === "oi") cols = [["Call OI", s.oi.c, "var(--call)"], ["Put OI", s.oi.p, "var(--put)"]];
     else if (st.lmode === "vol") cols = [["Call vol", s.volu.c, "var(--call)"], ["Put vol", s.volu.p, "var(--put)"]];
-    else cols = LCOLS.filter(c => s.greeks[c[0]] && s.greeks[c[0]].all).map(c => [c[1], s.greeks[c[0]].all, null, S().units[c[0]]]);
+    else cols = LCOLS.filter(c => s.greeks[c[0]] && s.greeks[c[0]].all && (!ONE() || c[0] === st.gv.greek)).map(c => [c[1], s.greeks[c[0]].all, null, S().units[c[0]]]);
     const L = levels({ inst: st.inst, greek: "gamma", ex: -1, mode: "trad", mv: null }, s.greeks.gamma.all), mk = {};
     const put = (k, html) => { if (k == null) return; const j = nearIdx(ks, k); (mk[j] = mk[j] || []).push(html); };
     put(spot, '<span class="dmk" style="color:var(--text)">PRICE</span>');
@@ -2346,7 +2441,8 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const host = $("dl-body"), keep = host.scrollTop; host.innerHTML = html + "</tbody></table>";
     host.querySelectorAll("tr[data-k]").forEach(tr => tr.addEventListener("click", () => { const k = +tr.dataset.k; st.pin = st.pin === k ? null : k; pinChanged(); }));
     const sr = host.querySelector("tr.spot"); host.scrollTop = keep || (sr ? sr.offsetTop - host.clientHeight / 2 : 0);
-    $("dl-cap").textContent = (st.lmode === "greeks" ? "All expiries ≤60d · signed exposure per strike (+ calls side, − puts side) · " : (st.lmode === "oi" ? "Open interest per strike, contracts · " : "Volume per strike, contracts · ")) + winTxt(st.inst, w)
+    if (ONE()) { $("dl-cap").textContent = (st.lmode === "greeks" ? `${cap(st.gv.greek)} (follows the Greeks view) · signed, all expiries ≤60d` : st.lmode === "oi" ? "Open interest per strike, contracts" : "Volume per strike, contracts") + " · click a row to pin"; return; }
+    $("dl-cap").textContent = (st.lmode === "greeks" ? (ONE() ? cap(st.gv.greek) + " (follows the Greeks view) · " : "") + "All expiries ≤60d · signed exposure per strike (+ calls side, − puts side) · " : (st.lmode === "oi" ? "Open interest per strike, contracts · " : "Volume per strike, contracts · ")) + winTxt(st.inst, w)
       + (!hasOI || !hasVol ? " · " + (!hasOI && !hasVol ? "Open interest and volume per strike: " : !hasOI ? "Open interest per strike: " : "Volume per strike: ") + NOTE_NEEDS.toLowerCase() : "") + " · click a row to pin a strike";
   }
 
@@ -2358,7 +2454,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const exI = g.ex === "all" ? -1 : gvIndex(g.ex);
     if (g.src === "oi" && !hasOI) g.src = "greek";
     buttons($("gv-ex"), GV_EX.map(x => [x[0], x[1]]), g.ex, v => { g.ex = v; greeksView(); });
-    buttons($("gv-greek"), GREEKS.map(x => [x, cap(x)]), g.greek, v => { g.greek = v; greeksView(); }, () => g.src !== "greek");
+    buttons($("gv-greek"), GREEKS.map(x => [x, cap(x)]), g.greek, v => { g.greek = v; greeksView(); safe("ladder", ladder); }, () => g.src !== "greek");
     buttons($("gv-type"), [["bars", "Bars"], ["line", "Line"]], g.type, v => { g.type = v; greeksView(); });
     buttons($("gv-opts"), [["log", "Log scale"], ["greek", "Greeks"], ["oi", "OI"], ["vol", "VOL"]], g.log ? "log" : g.src, v => { if (v === "log") g.log = !g.log; else g.src = v; greeksView(); }, v => v === "vol" || (v === "oi" && !hasOI));
     $("gv-opts").querySelector('[data-v="log"]').setAttribute("aria-pressed", String(g.log)); $("gv-opts").querySelectorAll("button").forEach(b => { if (b.dataset.v !== "log") b.setAttribute("aria-pressed", String(b.dataset.v === g.src)); });
@@ -2366,8 +2462,8 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const vals = g.src === "oi" ? s.oi.c.map((c, i) => c - s.oi.p[i]) : (exI < 0 ? s.greeks[g.greek].all : s.greeks[g.greek].ex[exI]);
     const host = $("gv-box"); host.innerHTML = "";
     const exLab = exI < 0 ? "all expiries ≤60d" : `${s.expiries[exI].e} (${s.expiries[exI].dte === 0 ? "0DTE" : s.expiries[exI].dte + "d"})`;
-    $("gv-cap").textContent = (g.src === "oi" ? "Open interest, calls minus puts, contracts" : `${cap(g.greek)} · ${s.units[g.greek]}`) + ` · ${exLab}${g.log ? " · log scale" : ""} · ${winTxt(st.inst, w)}`
-      + (!hasOI ? " · OI and VOL: " + NOTE_NEEDS.toLowerCase() : "");
+    $("gv-cap").textContent = (g.src === "oi" ? "Open interest, calls minus puts, contracts" : `${cap(g.greek)} · ${s.units[g.greek]}`) + ` · ${exLab}${g.log ? " · log scale" : ""}` + (ONE() ? "" : ` · ${winTxt(st.inst, w)}`)
+      + (!hasOI && !ONE() ? " · OI and VOL: " + NOTE_NEEDS.toLowerCase() : "");
     const idx = []; for (let i = w.i0; i <= w.i1; i++) idx.push(i);
     const nz = idx.map(i => Math.abs(vals[i] || 0)).filter(x => x > 0), mxA = Math.max(0, ...nz), mnA = Math.min(Infinity, ...nz);
     if (!nz.length) { host.innerHTML = '<p class="quiet">No exposure in this range for the chosen expiry.</p>'; return; }
@@ -2400,15 +2496,15 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
   }
 
   /* ---------- major walls ---------- */
-  const WSW = [["gamma", "GEX"], ["delta", "DEX"], ["vanna", "VEX"], ["charm", "CHEX"], ["conc", "Concentration"]];
+  const WSW = [["gamma", "GEX"], ["delta", "DEX"], ["vanna", "VEX"], ["charm", "CHEX"], ["conc", "Conc."]];
   function walls() {
-    buttons($("wl-sw"), WSW, st.wl, v => { st.wl = v; walls(); });
+    buttons($("wl-sw"), WSW, st.wl, v => { st.wl = v; walls(); }); $("wl-sw").querySelector('[data-v="conc"]').title = "Concentration: the largest gross gamma strikes";
     const W = (X().walls || {})[st.wl], host = $("wl-body");
     if (!X().walls || !W) { host.innerHTML = na("Major walls are not available for this instrument yet."); return; }
     const mxS = Math.max(0.0001, ...(W.pos || []).concat(W.neg || []).map(r => r.share || 0));
     const list = (rows, pos) => !rows || !rows.length ? '<p class="quiet" style="margin:0">None in the data.</p>' : rows.map(r => {
-      const m = fm(r.k), sp = I().spot, side = sp == null ? "" : r.k > sp ? "above spot" : r.k < sp ? "below spot" : "at spot"; return `<div class="dwrow" style="--c:${pos ? "var(--call)" : "var(--put)"}"><div><b>${pos ? "▲" : "▼"} ${fk(r.k)}</b><small>${esc([side, m].filter(Boolean).join(" · "))}</small></div><div class="bar" role="img" aria-label="${(r.share * 100).toFixed(1)}% of the total"><i style="width:${Math.max(2, r.share / mxS * 100).toFixed(0)}%"></i></div><div>${st.wl === "conc" ? "" : smoney(r.v) + " · "}${(r.share * 100).toFixed(1)}%</div></div>`; }).join("");
-    host.innerHTML = `<div><h4>${st.wl === "conc" ? "Largest gross gamma strikes" : "Positive side (calls)"}</h4>${list(W.pos, true)}</div>` + (st.wl === "conc" ? "" : `<div><h4>Negative side (puts)</h4>${list(W.neg, false)}</div>`)
+      const m = fm(r.k), sp = I().spot, side = sp == null ? "" : r.k > sp ? "above spot" : r.k < sp ? "below spot" : "at spot"; return `<div class="dwrow" style="--c:${pos ? "var(--call)" : "var(--put)"}"><div><b>${pos ? "▲" : "▼"} ${fk(r.k)}</b><small>${esc([side, m].filter(Boolean).join(" · "))}</small></div><div class="bar" role="img" aria-label="${(r.share * 100).toFixed(1)}% of the total"><i style="width:${Math.max(2, r.share / mxS * 100).toFixed(0)}%"></i></div><div title="${(r.share * 100).toFixed(1)}% of the total">${st.wl === "conc" ? "" : smoney(r.v)}<span class="dshare">${st.wl === "conc" ? "" : " · "}${(r.share * 100).toFixed(1)}%</span></div></div>`; }).join("");
+    host.innerHTML = `<div><h4>${st.wl === "conc" ? "Largest gross gamma strikes" : "Calls (+)"}</h4>${list(W.pos, true)}</div>` + (st.wl === "conc" ? "" : `<div><h4>Puts (−)</h4>${list(W.neg, false)}</div>`)
       + `<p class="note" style="margin:0">Share = this strike's size as a fraction of the total across all strikes. Rankings span all strikes, so a wall can sit above or below spot. ${S().units[st.wl === "conc" ? "gamma" : st.wl] || ""}.</p>`;
   }
 
@@ -2464,6 +2560,10 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     host.innerHTML = ""; $("sk-leg").innerHTML = ""; $("sk-tab").innerHTML = "";
     if (!rows || !rows.length || !rows.some(r => (r.iv || []).some(x => x != null))) { host.innerHTML = '<p class="quiet">IV skew is not available for this instrument yet.</p>'; return; }
     const use = rows.filter(r => (r.iv || []).some(x => x != null)).slice(0, 6), pal = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--s1)"], dsh = ["", "", "", "", "", "5 3"];
+    $("sk-leg").innerHTML = use.map((r, k) => `<span><i style="border-color:${pal[k]};border-top-style:${dsh[k] ? "dashed" : "solid"}"></i>${esc(r.e.slice(5))} · ${r.dte === 0 ? "0DTE" : r.dte + "d"}</span>`).join("");
+    const at = (r, m) => { const j = r.m.findIndex(x => Math.abs(x - m) < 1e-6); return j < 0 ? null : r.iv[j]; }, p1 = v => v == null ? "n/a" : v.toFixed(1) + "%";
+    $("sk-tab").innerHTML = `<table><thead><tr><th>Expiry</th><th>DTE</th><th title="IV at 95% of price (put side)">IV 95%</th><th title="IV at 105% of price (call side)">IV 105%</th><th title="IV at 95% minus IV at 105%, in vol points">Skew</th></tr></thead><tbody>`
+      + use.map(r => { const s = r.skew_95_105; return `<tr><td>${esc(r.e)}</td><td>${r.dte == null ? "" : r.dte}</td><td>${p1(at(r, 0.95))}</td><td>${p1(at(r, 1.05))}</td><td>${s == null ? "n/a" : `<span class="${s > 0 ? "neg" : s < 0 ? "pos" : ""}">${s > 0 ? "▼ puts richer " : s < 0 ? "▲ calls richer " : ""}${s > 0 ? "+" : s < 0 ? "−" : ""}${Math.abs(s).toFixed(1)}</span>`}</td></tr>`; }).join("") + `</tbody></table><p class="note" style="margin:6px 0 0">Skew = IV at 95% of price minus IV at 105%, in vol points, from the out-of-the-money quotes (puts below price, calls above). Blank = outside the quoted strikes.</p>`;
     const ms = use[0].m, all = [].concat(...use.map(r => r.iv.filter(x => x != null))), lo0 = Math.min(...all), hi0 = Math.max(...all), yl = Math.max(0, Math.floor(lo0 * 0.9)), yh = Math.ceil(hi0 * 1.08) || 1;
     const W = Math.max(240, host.clientWidth), H = host.clientHeight || 250, pl = 36, pr = 20, pt = 8, pb = 22, X_ = m => pl + (m - ms[0]) / (ms[ms.length - 1] - ms[0] || 1) * (W - pl - pr), Y = v => pt + (1 - (v - yl) / (yh - yl || 1)) * (H - pt - pb);
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: "display:block;font:10px Inter,system-ui,sans-serif" }, host);
@@ -2475,15 +2575,56 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       if (d) el("path", { d, fill: "none", stroke: pal[k], "stroke-width": 1.6, "stroke-linejoin": "round", "stroke-dasharray": dsh[k] || null }, svg);
       r.iv.forEach((v, j) => { if (v == null) return; const c = el("circle", { cx: X_(r.m[j]), cy: Y(v), r: 2.4, fill: pal[k] }, svg); el("title", {}, c).textContent = `${r.e} · ${Math.round(r.m[j] * 100)}% of price: IV ${v.toFixed(1)}%`; });
     });
-    $("sk-leg").innerHTML = use.map((r, k) => `<span><i style="border-color:${pal[k]};border-top-style:${dsh[k] ? "dashed" : "solid"}"></i>${esc(r.e.slice(5))} · ${r.dte === 0 ? "0DTE" : r.dte + "d"}</span>`).join("");
-    const at = (r, m) => { const j = r.m.findIndex(x => Math.abs(x - m) < 1e-6); return j < 0 ? null : r.iv[j]; }, p1 = v => v == null ? "n/a" : v.toFixed(1) + "%";
-    $("sk-tab").innerHTML = `<table><thead><tr><th>Expiry</th><th>DTE</th><th title="IV at 95% of price (put side)">IV 95%</th><th title="IV at 105% of price (call side)">IV 105%</th><th title="IV at 95% minus IV at 105%, in vol points">Skew</th></tr></thead><tbody>`
-      + use.map(r => { const s = r.skew_95_105; return `<tr><td>${esc(r.e)}</td><td>${r.dte == null ? "" : r.dte}</td><td>${p1(at(r, 0.95))}</td><td>${p1(at(r, 1.05))}</td><td>${s == null ? "n/a" : `<span class="${s > 0 ? "neg" : s < 0 ? "pos" : ""}">${s > 0 ? "▼ puts richer " : s < 0 ? "▲ calls richer " : ""}${s > 0 ? "+" : s < 0 ? "−" : ""}${Math.abs(s).toFixed(1)}</span>`}</td></tr>`; }).join("") + `</tbody></table><p class="note" style="margin:6px 0 0">Skew = IV at 95% of price minus IV at 105%, in vol points, from the out-of-the-money quotes (puts below price, calls above). Blank = outside the quoted strikes.</p>`;
   }
 
   /* ---------- IV surface (3D, same projection and drag/zoom as the terrain) ---------- */
   const sfc = $("sf-cv"), sfx = sfc.getContext("2d");
   const SFC = [["iv", "IV"], ["diff", "IV − RV20"], ["flat", "Neutral"]];
+  /* smooth mesh: monotone cubic (PCHIP) along strike inside each expiry's quoted range, then along sqrt(time) between expiries.
+     Nothing is extrapolated and gaps wider than two steps stay blank (NaN). Built once per snapshot, drawn many times. */
+  function pchip(x, y) {
+    const n = x.length, h = [], d = [], m = new Array(n);
+    for (let i = 0; i < n - 1; i++) { h[i] = x[i + 1] - x[i]; d[i] = (y[i + 1] - y[i]) / h[i]; }
+    if (n === 2) { m[0] = m[1] = d[0]; }
+    else {
+      for (let i = 1; i < n - 1; i++) { if (d[i - 1] * d[i] <= 0) m[i] = 0; else { const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1]; m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]); } }
+      const end = (h0, h1, d0, d1) => { let v = ((2 * h0 + h1) * d0 - h0 * d1) / (h0 + h1); if (v * d0 <= 0) v = 0; else if (d0 * d1 <= 0 && Math.abs(v) > 3 * Math.abs(d0)) v = 3 * d0; return v; };
+      m[0] = end(h[0], h[1], d[0], d[1]); m[n - 1] = end(h[n - 2], h[n - 3], d[n - 2], d[n - 3]);
+    }
+    let k = 0;
+    return q => { while (k > 0 && q < x[k]) k--; while (k < n - 2 && q > x[k + 1]) k++; const t = (q - x[k]) / h[k], t2 = t * t, t3 = t2 * t;
+      return (2 * t3 - 3 * t2 + 1) * y[k] + (t3 - 2 * t2 + t) * h[k] * m[k] + (-2 * t3 + 3 * t2) * y[k + 1] + (t3 - t2) * h[k] * m[k + 1]; };
+  }
+  const SMESH = new WeakMap();
+  function ivMesh(S3) {
+    const hit = SMESH.get(S3); if (hit) return hit;
+    const ne = S3.iv.length, nc = S3.m.length, NU = 150, NT = 64, GAP = 3;
+    let cmin = nc, cmax = -1; S3.iv.forEach(row => row.forEach((v, c) => { if (v != null && isFinite(v)) { if (c < cmin) cmin = c; if (c > cmax) cmax = c; } })); if (cmax < cmin) { cmin = 0; cmax = nc - 1; }
+    const m0 = S3.m[cmin], m1 = S3.m[cmax], tt = S3.dte.map(d => Math.sqrt(Math.max(0, d)));
+    const t0 = tt[0], t1 = tt[ne - 1], us = [], ts = [];
+    for (let j = 0; j < NU; j++) us.push(m0 + (m1 - m0) * j / (NU - 1));
+    for (let i = 0; i < NT; i++) ts.push(t0 + (t1 - t0) * i / (NT - 1));
+    // 1. along strike, one pass per quoted expiry
+    const rowv = S3.iv.map(row => {
+      const ix = []; row.forEach((v, c) => { if (v != null && isFinite(v)) ix.push(c); });
+      const out = new Float64Array(NU).fill(NaN); if (ix.length < 2) return out;
+      const segs = []; let cur = [ix[0]]; for (let a = 1; a < ix.length; a++) { if (ix[a] - ix[a - 1] <= GAP) cur.push(ix[a]); else { segs.push(cur); cur = [ix[a]]; } } segs.push(cur);
+      segs.forEach(sg => { if (sg.length < 2) return; const f = pchip(sg.map(c => S3.m[c]), sg.map(c => row[c])), lo = S3.m[sg[0]], hi = S3.m[sg[sg.length - 1]];
+        for (let j = 0; j < NU; j++) if (us[j] >= lo - 1e-9 && us[j] <= hi + 1e-9) out[j] = f(Math.min(hi, Math.max(lo, us[j]))); });
+      return out;
+    });
+    // 2. along sqrt(time), one pass per fine strike
+    const vals = new Float64Array(NT * NU).fill(NaN);
+    for (let j = 0; j < NU; j++) {
+      const ix = []; for (let r = 0; r < ne; r++) if (isFinite(rowv[r][j]) && (!ix.length || tt[r] > tt[ix[ix.length - 1]] + 1e-9)) ix.push(r);
+      if (ix.length < 2) continue;
+      const segs = []; let cur = [ix[0]]; for (let a = 1; a < ix.length; a++) { if (ix[a] - ix[a - 1] <= GAP) cur.push(ix[a]); else { segs.push(cur); cur = [ix[a]]; } } segs.push(cur);
+      segs.forEach(sg => { if (sg.length < 2) return; const f = pchip(sg.map(r => tt[r]), sg.map(r => rowv[r][j])), lo = tt[sg[0]], hi = tt[sg[sg.length - 1]];
+        for (let i = 0; i < NT; i++) if (ts[i] >= lo - 1e-9 && ts[i] <= hi + 1e-9) vals[i * NU + j] = f(Math.min(hi, Math.max(lo, ts[i]))); });
+    }
+    const res = { NU, NT, us, ts, vals, t0, t1, m0, m1 }; SMESH.set(S3, res); return res;
+  }
+  const SBUF = { n: 0, x: null, y: null, z: null, c: null };
   function ivsurf() {
     const S3 = X().ivs, dpr = window.devicePixelRatio || 1, W = sfc.clientWidth, H = sfc.clientHeight, rv = (I().vol || {}).rv20;
     if (st.sf.col === "diff" && rv == null) st.sf.col = "iv";
@@ -2492,46 +2633,62 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     sfc.width = Math.max(1, W * dpr); sfc.height = Math.max(1, H * dpr); sfx.setTransform(dpr, 0, 0, dpr, 0, 0); sfx.clearRect(0, 0, W, H);
     const msg = t => { sfx.fillStyle = css("--muted"); sfx.font = "12px Inter, system-ui, sans-serif"; sfx.fillText(t, 12, 24); $("sf-leg").innerHTML = ""; $("sf-cap").textContent = ""; };
     if (!S3 || !S3.iv || S3.iv.length < 2 || !S3.m || S3.m.length < 3) { msg("IV surface is not available for this instrument yet (needs at least two expiries)."); return; }
-    const rows = S3.iv, ne = rows.length, nc = S3.m.length, col = st.sf.col;
-    const val = (r, c) => { const v = rows[r][c]; return v == null ? null : (col === "diff" ? v - rv : v); };
-    let lo = Infinity, hi = -Infinity; rows.forEach((_, r) => rows[r].forEach((_, c) => { const v = val(r, c); if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }));
+    const M = ivMesh(S3), NU = M.NU, NT = M.NT, col = st.sf.col, V = M.vals;
+    const val = i => { const v = V[i]; return isNaN(v) ? NaN : (col === "diff" ? v - rv : v); };
+    let lo = Infinity, hi = -Infinity; for (let i = 0; i < V.length; i++) { const v = val(i); if (v === v) { if (v < lo) lo = v; if (v > hi) hi = v; } }
     if (!isFinite(lo)) { msg("IV surface has no quotes in range."); return; }
-    const ab = Math.max(Math.abs(lo), Math.abs(hi)) || 1, hgt = (r, c) => { const v = val(r, c); return v == null ? null : (col === "diff" ? v / ab : (v - lo) / ((hi - lo) || 1)) * 0.9; };
-    const bg = rgb(css("--surface")), dark = bg[0] + bg[1] + bg[2] < 384, base = mix(rgb(css("--surface-2")), rgb(css("--muted")), dark ? 0.25 : 0.45), cU = rgb(css("--call")), cD = rgb(css("--put")), line = css("--border-strong"), txt = css("--muted");
+    const ab = Math.max(Math.abs(lo), Math.abs(hi)) || 1, hOf = v => (col === "diff" ? v / ab : (v - lo) / ((hi - lo) || 1)) * 0.9 * HS;
+    const bg = rgb(css("--surface")), dark = bg[0] + bg[1] + bg[2] < 384, base = mix(rgb(css("--surface-2")), rgb(css("--muted")), dark ? 0.25 : 0.45), cU = rgb(css("--call")), cD = rgb(css("--put")), line = css("--border-strong"), txt = css("--muted"), tx = rgb(css("--text"));
     const heat = [base, rgb(css("--primary")), rgb(css("--secondary")), rgb(css("--warn"))], heatAt = t => { t = Math.min(1, Math.max(0, t)) * 3; const k = Math.min(2, Math.floor(t)); return mix(heat[k], heat[k + 1], t - k); };
-    const XS = 2.0, ZS = 0.85, FL = col === "diff" ? -1 : -0.05, CE = 1.0, phone = W < 520;
+    const HS = Math.min(2.6, Math.max(1, (H - 70) / (W * 0.5))), XS = 2.0, ZS = 0.85, FL = col === "diff" ? -HS : -0.05, CE = HS, phone = W < 520;   // tall, narrow panels: stretch the height a little so the relief fills the space
     const view = (X0, Y0, Z0, yaw, pitch) => { const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch), x1 = X0 * cy - Z0 * sy, z1 = X0 * sy + Z0 * cy; return [x1, Y0 * cp - z1 * sp, Y0 * sp + z1 * cp]; };
     const { yaw, pitch, zoom } = st.sf; let bx0 = 1e9, bx1 = -1e9, by0 = 1e9, by1 = -1e9;
     [-1, 1].forEach(u => [-1, 1].forEach(z => [FL, CE].forEach(h => { const p = view(u * XS, h, z * ZS, yaw, pitch); bx0 = Math.min(bx0, p[0]); bx1 = Math.max(bx1, p[0]); by0 = Math.min(by0, p[1]); by1 = Math.max(by1, p[1]); })));
     const sidePad = phone ? 10 : 18, topPad = 14, botPad = 34, aw = W - 2 * sidePad - (phone ? 30 : 46), ah = H - topPad - botPad, sc = Math.min(aw / (bx1 - bx0), ah / (by1 - by0)) * zoom;
     const ox = sidePad + aw / 2 - (bx0 + bx1) / 2 * sc, oy = topPad + ah / 2 + (by0 + by1) / 2 * sc;
     const P3 = (u, z, h) => { const p = view(u * XS, h, z * ZS, yaw, pitch); return [ox + p[0] * sc, oy - p[1] * sc, p[2]]; };
-    const U = c => c / (nc - 1) * 2 - 1, Z = r => 1 - r / (ne - 1) * 2;   // nearest expiry at the front
+    const Uf = j => j / (NU - 1) * 2 - 1, Zf = i => 1 - i / (NT - 1) * 2;   // nearest expiry at the front
+    const tz = d => 1 - (Math.sqrt(Math.max(0, d)) - M.t0) / ((M.t1 - M.t0) || 1) * 2;
     sfx.strokeStyle = line; sfx.lineWidth = 0.6; sfx.globalAlpha = 0.8;
     for (let a = -1; a <= 1.001; a += 0.25) { let p = P3(a, -1, FL), q = P3(a, 1, FL); sfx.beginPath(); sfx.moveTo(p[0], p[1]); sfx.lineTo(q[0], q[1]); sfx.stroke(); p = P3(-1, a, FL); q = P3(1, a, FL); sfx.beginPath(); sfx.moveTo(p[0], p[1]); sfx.lineTo(q[0], q[1]); sfx.stroke(); }
     sfx.globalAlpha = 1;
-    const quads = [];
-    for (let r = 0; r < ne - 1; r++) for (let c = 0; c < nc - 1; c++) {
-      const h = [hgt(r, c), hgt(r, c + 1), hgt(r + 1, c + 1), hgt(r + 1, c)]; if (h.some(x => x == null)) continue;
-      const pts = [P3(U(c), Z(r), h[0]), P3(U(c + 1), Z(r), h[1]), P3(U(c + 1), Z(r + 1), h[2]), P3(U(c), Z(r + 1), h[3])], hv = (h[0] + h[1] + h[2] + h[3]) / 4;
-      quads.push({ pts, z: (pts[0][2] + pts[1][2] + pts[2][2] + pts[3][2]) / 4, hv, slope: (h[1] - h[0] + h[2] - h[3]) / 2 });
+    // vertices: projected position, then a colour that blends the height colour with light from the surface slope (smooth, per vertex)
+    const N = NU * NT; if (SBUF.n < N) { SBUF.n = N; SBUF.x = new Float32Array(N); SBUF.y = new Float32Array(N); SBUF.z = new Float32Array(N); SBUF.c = new Uint8ClampedArray(N * 3); }
+    const bx = SBUF.x, by = SBUF.y, bz = SBUF.z, bc = SBUF.c, hs = new Float32Array(N), dU = 2 * XS / (NU - 1), dZ = 2 * ZS / (NT - 1);
+    for (let i = 0; i < N; i++) { const v = val(i); hs[i] = v === v ? hOf(v) : NaN; }
+    const cy_ = Math.cos(yaw), sy_ = Math.sin(yaw), cp_ = Math.cos(pitch), sp_ = Math.sin(pitch), LX = -0.38, LY = 0.72, LZ = 0.58, ll = Math.hypot(LX, LY, LZ);
+    for (let i = 0; i < NT; i++) for (let j = 0; j < NU; j++) {
+      const k = i * NU + j, h = hs[k]; if (h !== h) { bx[k] = NaN; continue; }
+      const p = P3(Uf(j), Zf(i), h); bx[k] = p[0]; by[k] = p[1]; bz[k] = p[2];
+      const hl = hs[j > 0 ? k - 1 : k], hr = hs[j < NU - 1 ? k + 1 : k], hb = hs[i > 0 ? k - NU : k], hf = hs[i < NT - 1 ? k + NU : k];
+      const gx = ((hr === hr ? hr : h) - (hl === hl ? hl : h)) / (dU * ((j > 0 ? 1 : 0) + (j < NU - 1 ? 1 : 0))), gz = ((hf === hf ? hf : h) - (hb === hb ? hb : h)) / (dZ * ((i > 0 ? 1 : 0) + (i < NT - 1 ? 1 : 0)));   // dh/dx, dh/d(row): row index grows toward the back (Zf falls), so z-slope is -gz
+      const nx0 = -gx, ny0 = 1, nz0 = gz, nl = Math.hypot(nx0, ny0, nz0), nx = nx0 / nl, ny = ny0 / nl, nz = nz0 / nl;
+      const cx = nx * cy_ - nz * sy_, cz0 = nx * sy_ + nz * cy_, cyy = ny * cp_ - cz0 * sp_, czz = ny * sp_ + cz0 * cp_;
+      const dif = Math.max(0, (cx * LX + cyy * LY + czz * LZ) / ll), kk = (dark ? 0.62 : 0.78) + (dark ? 0.62 : 0.5) * dif;
+      let cl; const hv = h / HS; if (col === "iv") cl = heatAt(hv / 0.9); else if (col === "diff") cl = mix(base, hv >= 0 ? cU : cD, Math.min(1, Math.abs(hv) / 0.9 * 1.2)); else cl = mix(base, tx, 0.18 + 0.25 * hv / 0.9);
+      bc[k * 3] = cl[0] * kk; bc[k * 3 + 1] = cl[1] * kk; bc[k * 3 + 2] = cl[2] * kk;
     }
-    quads.sort((a, b) => a.z - b.z);
-    quads.forEach(q => {
-      let cl; if (col === "iv") cl = heatAt(q.hv / 0.9); else if (col === "diff") cl = mix(base, q.hv >= 0 ? cU : cD, Math.min(1, Math.abs(q.hv) / 0.9 * 1.2)); else cl = mix(base, rgb(css("--text")), 0.18 + 0.25 * q.hv / 0.9);
-      const k = (dark ? 0.8 : 0.9) + Math.max(-0.25, Math.min(0.25, -q.slope * 1.2)), f = cl.map(v => Math.min(255, Math.round(v * k)));
-      sfx.fillStyle = `rgb(${f})`; sfx.strokeStyle = `rgb(${f})`; sfx.lineWidth = 1; sfx.lineJoin = "round"; sfx.beginPath(); q.pts.forEach((p, i) => i ? sfx.lineTo(p[0], p[1]) : sfx.moveTo(p[0], p[1])); sfx.closePath(); sfx.fill(); sfx.stroke();
-    });
+    // painter's order: walk away-to-near along the axis the camera looks along most
+    const dzu = P3(1, 0, FL)[2] - P3(-1, 0, FL)[2], dzt = P3(0, -1, FL)[2] - P3(0, 1, FL)[2];   // depth change toward growing column / growing row
+    const iA = [], jA = []; for (let i = 0; i < NT - 1; i++) iA.push(i); for (let j = 0; j < NU - 1; j++) jA.push(j);
+    if (dzt < 0) iA.reverse(); if (dzu < 0) jA.reverse();
+    sfx.lineJoin = "round"; sfx.lineWidth = 0.8;
+    const quad = (i, j) => {
+      const a = i * NU + j, b = a + 1, c = b + NU, d = a + NU; if (bx[a] !== bx[a] || bx[b] !== bx[b] || bx[c] !== bx[c] || bx[d] !== bx[d]) return;
+      const r = (bc[a * 3] + bc[b * 3] + bc[c * 3] + bc[d * 3]) >> 2, g = (bc[a * 3 + 1] + bc[b * 3 + 1] + bc[c * 3 + 1] + bc[d * 3 + 1]) >> 2, bl = (bc[a * 3 + 2] + bc[b * 3 + 2] + bc[c * 3 + 2] + bc[d * 3 + 2]) >> 2, s = `rgb(${r},${g},${bl})`;
+      sfx.fillStyle = s; sfx.strokeStyle = s; sfx.beginPath(); sfx.moveTo(bx[a], by[a]); sfx.lineTo(bx[b], by[b]); sfx.lineTo(bx[c], by[c]); sfx.lineTo(bx[d], by[d]); sfx.closePath(); sfx.fill(); sfx.stroke();
+    };
+    if (Math.abs(dzt) >= Math.abs(dzu)) iA.forEach(i => jA.forEach(j => quad(i, j))); else jA.forEach(j => iA.forEach(i => quad(i, j)));
     sfx.font = "10px Inter, system-ui, sans-serif"; sfx.lineJoin = "round"; sfx.lineWidth = 3; sfx.strokeStyle = css("--surface");
     const lab = (t, x, y) => { sfx.strokeText(t, x, y); sfx.fillStyle = txt; sfx.fillText(t, x, y); };
-    const near = P3(0, 1, FL)[1] > P3(0, -1, FL)[1] ? 1 : -1;
-    [0, Math.floor((nc - 1) / 2), nc - 1].forEach(c => { const p = P3(U(c), near * 1.14, FL), t = Math.round(S3.m[c] * 100) + "% of price", tw = sfx.measureText(t).width; lab(t, Math.max(2, Math.min(W - tw - 2, p[0] - tw / 2)), Math.min(H - 6, p[1] + 10)); });
+    const near = P3(0, 1, FL)[1] > P3(0, -1, FL)[1] ? 1 : -1, nc = S3.m.length, ne = S3.dte.length;
+    [0, 0.5, 1].forEach(f => { const p = P3(f * 2 - 1, near * 1.14, FL), t = Math.round((M.m0 + (M.m1 - M.m0) * f) * 100) + "% of price", tw = sfx.measureText(t).width; lab(t, Math.max(2, Math.min(W - tw - 2, p[0] - tw / 2)), Math.min(H - 6, p[1] + 10)); });
     const side = P3(1, 0, FL)[0] > P3(-1, 0, FL)[0] ? 1 : -1;
-    [0, Math.floor((ne - 1) / 2), ne - 1].forEach((r, ii, a) => { if (ii && a[ii - 1] === r) return; const t = (S3.dte[r] === 0 ? "0DTE" : S3.dte[r] + "d"), p = P3(side * 1.3, Z(r), FL), tw = sfx.measureText(t).width; lab(t, Math.max(2, Math.min(W - tw - 2, side > 0 ? p[0] : p[0] - tw)), p[1] + 3); });
+    [0, Math.floor((ne - 1) / 2), ne - 1].forEach((r, ii, a) => { if (ii && a[ii - 1] === r) return; const t = (S3.dte[r] === 0 ? "0DTE" : S3.dte[r] + "d"), p = P3(side * 1.3, tz(S3.dte[r]), FL), tw = sfx.measureText(t).width; lab(t, Math.max(2, Math.min(W - tw - 2, side > 0 ? p[0] : p[0] - tw)), p[1] + 3); });
     $("sf-leg").innerHTML = col === "iv" ? `<span>${lo.toFixed(1)}%</span><i style="background:linear-gradient(90deg, ${heat.map(c => `rgb(${c})`).join(",")})"></i><span>${hi.toFixed(1)}% implied vol</span>`
       : col === "diff" ? `<span>${lo < 0 ? "−" : ""}${Math.abs(lo).toFixed(1)} pts puts-colour: IV below RV20</span><i style="background:linear-gradient(90deg, rgb(${cD}), rgb(${base}), rgb(${cU}))"></i><span>+${hi.toFixed(1)} pts calls-colour: IV above RV20</span>` : `<span>height = implied vol ${lo.toFixed(1)}% to ${hi.toFixed(1)}%</span>`;
-    $("sf-leg").innerHTML += `<span style="margin-left:auto">depth: expiry, nearest at front · width: % of price · drag to rotate, wheel to zoom</span>`;
-    $("sf-cap").textContent = `Implied vol on out-of-the-money quotes, interpolated between strikes, blank where there are none${col === "diff" ? ` · minus 20-day realised vol ${rv.toFixed(1)}%` : ""}`;
+    $("sf-leg").innerHTML += `<span style="margin-left:auto">depth: √time to expiry, nearest at front · width: % of price · drag to rotate, wheel to zoom</span>`;
+    $("sf-cap").textContent = `Implied vol on out-of-the-money quotes, smoothed between quoted strikes and expiries (monotone cubic, nothing drawn outside the quotes)${col === "diff" ? ` · minus 20-day realised vol ${rv.toFixed(1)}%` : ""}`;
   }
   { let dg = null;
     sfc.addEventListener("pointerdown", e => { dg = [e.clientX, e.clientY, st.sf.yaw, st.sf.pitch]; sfc.setPointerCapture(e.pointerId); });
@@ -2584,9 +2741,46 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       else if (e.key === "Tab") { const f = [...dlg.querySelectorAll("button:not(:disabled), textarea")]; if (!f.length) return; const i = f.indexOf(document.activeElement); if (i < 0 || (e.shiftKey && i === 0) || (!e.shiftKey && i === f.length - 1)) { e.preventDefault(); (e.shiftKey ? f[f.length - 1] : f[0]).focus(); } } });
   }
 
+  /* ---------- price chart with levels (the Velour chart engine, a second instance; levels in the chart's own price units) ---------- */
+  st.pc = { range: "6M", h: null, sym: null, failed: false };
+  const PC_R = [["1M", "1M"], ["3M", "3M"], ["6M", "6M"], ["1Y", "1Y"], ["All", "All"]];
+  function pcUnits(sym, k) {   // option-chain price -> the chart's price units, the same mapping the stat strip uses (COMEX ratio for gold; index options are already in index points; DJX is quoted at 1/100 of the Dow)
+    if (k == null || !isFinite(k)) return null;
+    if (sym.optUnits === "index") return k;
+    if (sym.optUnits === "x100") return k * 100;
+    if (sym.optUnits === "mapped") { const v = mapI(st.inst, k); return v == null ? null : v; }
+    return null;
+  }
+  function deskChart() {
+    const host = $("pc-box"), msg = $("pc-msg"), cap = $("pc-cap"), leg = $("pc-leg"), VC = window.VelourChart;
+    buttons($("pc-rng"), PC_R, st.pc.range, v => { st.pc.range = v; deskChart(); });
+    if (!$("dterm").offsetWidth) return;   // desk page not showing: mount when it opens
+    const show = (title, sub) => { msg.hidden = false; host.style.display = "none"; msg.innerHTML = `<b>${esc(title)}</b>${esc(sub || "")}`; };
+    const sym = VC && VC.deskSymbol ? VC.deskSymbol(st.inst) : null, i = I(), cfg = cfgNow(), ser = series(cfg), L = levels(cfg, ser.vals), src = SRC();
+    leg.innerHTML = ""; msg.hidden = true; host.style.display = "";
+    if (!VC || !VC.mountDesk) { cap.textContent = ""; show(document.readyState === "complete" ? "Chart not available in this build." : "Loading chart…", ""); return; }
+    if (!sym) { cap.textContent = ""; show(`No price series for ${i.title} in the dashboard.`, " The levels are still on the stat strip, the ladder and the Replay panel."); return; }
+    const sg = i.day_move, defs = [["cw", "Call wall", L.cw, "primary", "solid", 1.5], ["pw", "Put wall", L.pw, "secondary", "solid", 1.5], ["flip", "Gamma flip", L.flip, "warn", "dash", 1.5], ["mp", "Max pain", i.max_pain, "text", "dash", 1],
+      ["s1u", "+1σ", sg != null && i.spot != null ? i.spot + sg : null, "muted", "dot", 1], ["s1d", "−1σ", sg != null && i.spot != null ? i.spot - sg : null, "muted", "dot", 1]];
+    const lv = defs.map(d => ({ id: d[0], label: d[1], raw: d[2], value: pcUnits(sym, d[2]), ck: d[3], dash: d[4], w: d[5] })).filter(d => d.value != null);
+    const cv = { primary: "var(--primary)", secondary: "var(--secondary)", warn: "var(--warn)", text: "var(--text)", muted: "var(--muted)" }, nf = v => Number(v).toLocaleString("en-US", { minimumFractionDigits: sym.dec, maximumFractionDigits: sym.dec });
+    leg.innerHTML = lv.map(d => `<span style="--c:${cv[d.ck]}"><i class="${d.dash === "solid" ? "" : d.dash === "dot" ? "dot" : "dsh"}"></i>${esc(d.label)} ${nf(d.value)}</span>`).join("") + (lv.length ? "" : '<span>No levels for this selection.</span>');
+    const srcTxt = src && src.fetched_utc ? `${String(src.source || "Cboe delayed").replace(/ chain$/, "")} · fetched ${src.fetched_utc}${src.approx ? " · approximate" : ""}` : `fetched ${i.updated_utc || i.date}`;
+    cap.textContent = `${sym.name} · daily closes (${sym.src || sym.delay}) · last close ${sym.lastDate}${sym.partial ? ", latest point may be intraday" : ""} · levels from ${srcTxt}, drawn across the whole chart, not at the dates they applied`;
+    cap.title = cap.textContent;
+    if (st.pc.failed) { show("The chart library could not be loaded.", " It comes from a CDN and needs internet; the levels are listed below."); return; }
+    if (!st.pc.h) {
+      st.pc.h = VC.mountDesk(host, sym.id, lv, { range: st.pc.range });
+      st.pc.h.ready.catch(() => { st.pc.failed = true; st.pc.h = null; try { deskChart(); } catch (e) {} });
+    } else st.pc.h.update(sym.id, lv, { range: st.pc.range });
+  }
+  window.addEventListener("hashchange", () => setTimeout(() => safe("price chart", deskChart), 60));
+  window.addEventListener("load", () => safe("price chart", deskChart));   // the chart script is inlined after this one
+
   function desk2() {
     if (st.pin != null && S().strikes.indexOf(st.pin) < 0) st.pin = null;
-    [["ladder", ladder], ["greeks", greeksView], ["walls", walls], ["hedging", hedging], ["magnet", magnet], ["skew", skew], ["surface", ivsurf], ["order flow", orderFlow], ["method", method], ["freshness", freshAll]].forEach(([n, f]) => safe(n, f));
+    [["freshness", freshAll], ["ladder", ladder], ["greeks", greeksView], ["walls", walls], ["hedging", hedging], ["magnet", magnet], ["skew", skew], ["surface", ivsurf], ["price chart", deskChart], ["order flow", orderFlow], ["method", method]].forEach(([n, f]) => safe(n, f));
+    if (!desk2.r) desk2.r = requestAnimationFrame(() => { desk2.r = 0; [["greeks", greeksView], ["skew", skew], ["surface", ivsurf], ["price chart", deskChart]].forEach(([n, f]) => safe(n, f)); });   // panels sized from flex space: draw again once the freshness bars have taken theirs
   }
   guides();
 

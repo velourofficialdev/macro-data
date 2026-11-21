@@ -21,7 +21,9 @@
     exportJSON: function () { snapshotCur(); return JSON.stringify(exportObj(), null, 1); },
     importJSON: function (text) { return doImport(text); },
     cloudSave: function (/* state */) { /* Phase 2 hook: intentionally does nothing */ },
-    levelsFor: function (symbol) { return levelsFor(symbol); }
+    levelsFor: function (symbol) { return levelsFor(symbol); },
+    deskSymbol: function (optKey) { return deskSymbol(optKey); },
+    mountDesk: function (host, symbol, levels, opts) { return mountDesk(host, symbol, levels, opts); }
   };
   if (!root) { rejectReady(new Error("no #kl-root")); return; }
 
@@ -116,7 +118,8 @@
 
   /* ---------- feed ---------- */
   var feed = [], byId = {};
-  function parseFeed() {
+  function parseFeed(force) {
+    if (feed.length && !force) return;   // already parsed (the options desk chart may have done it before the card opened)
     var node = document.getElementById("chart-feed"), j = null;
     try { j = node ? JSON.parse(node.textContent || "{}") : null; } catch (e) { j = null; }
     feed = []; byId = {};
@@ -128,7 +131,7 @@
       for (i = 0; i < s.c.length; i++) { t += (+s.dd[i] || 0) * DAY; ts[i] = t; if (!fin(s.c[i])) ok = false; }
       if (!ok) return;
       var o = { id: s.id, name: s.name || s.id, src: s.src || "", delay: s.delay || "Daily close", partial: !!s.last_partial, unit: s.unit || "", dec: fin(s.dec) ? clamp(s.dec, 0, 6) : 2,
-                ohlc: !!s.ohlc, ts: ts, c: s.c, o: s.o, h: s.h, l: s.l, cache: {} };
+                optKey: typeof s.opt_key === "string" ? s.opt_key : "", optUnits: typeof s.opt_units === "string" ? s.opt_units : "", ohlc: !!s.ohlc, ts: ts, c: s.c, o: s.o, h: s.h, l: s.l, cache: {} };
       feed.push(o); byId[o.id] = o;
     });
   }
@@ -844,6 +847,94 @@
   function levelsFor(symbol) {
     try { if (!(window.P && window.P.opt)) return []; } catch (e) { return []; }
     return [];   // Phase 2 fills this from the internal desk payload
+  }
+
+
+  /* ---------- options desk price chart (internal build): a second, separate chart instance. It never touches the main chart's
+     state, drawings or saved layout. Levels are drawn as labelled horizontal lines in the chart's own price units. ---------- */
+  function deskSymbol(optKey) {
+    try {
+      parseFeed();
+      for (var i = 0; i < feed.length; i++) {
+        var o = feed[i]; if (o.optKey && o.optKey === optKey) {
+          var n = o.c.length; return { id: o.id, name: o.name, src: o.src, delay: o.delay, unit: o.unit, dec: o.dec, optUnits: o.optUnits, n: n, lastDate: iso(o.ts[n - 1]), lastClose: o.c[n - 1], partial: o.partial };
+        }
+      }
+    } catch (e) { /* no series */ }
+    return null;
+  }
+  var DESK_BARS = { "1M": 22, "3M": 66, "6M": 132, "1Y": 264, "All": 1e9 };
+  var DESK_SLOT = { cw: 0, pw: 1, flip: 2, mp: 3 };
+  function registerLevel(k) {
+    regOverlay(k, {
+      name: "vlLevel", totalStep: 2, lock: true, needDefaultPointFigure: false, needDefaultXAxisFigure: false, needDefaultYAxisFigure: true,
+      createPointFigures: function (p) {
+        var c = p.coordinates[0], ex = p.overlay.extendData || {}; if (!c || !p.bounding) return [];
+        var w = p.bounding.width, h = p.bounding.height, y = c.y, off = "";
+        if (y < 9) { y = 9; off = " ▲"; } else if (y > h - 9) { y = h - 9; off = " ▼"; }
+        var col = T[ex.ck] || T.text, solid = ex.dash === "solid", dot = ex.dash === "dot", slot = DESK_SLOT[ex.id], tx = slot == null ? 6 : w - 6 - slot * 74;
+        var label = String(ex.label || "") + off;
+        return [
+          { type: "line", attrs: { coordinates: [{ x: 0, y: y }, { x: w, y: y }] }, styles: { style: solid ? "solid" : "dashed", dashedValue: dot ? [2, 3] : [7, 4], color: col, size: ex.w || 1 }, ignoreEvent: true },
+          { type: "text", attrs: { x: tx, y: y - 2, text: label, align: slot == null ? "left" : "right", baseline: "bottom" }, styles: { style: "fill", color: col, size: 10, family: T.font, backgroundColor: "transparent", borderSize: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, paddingBottom: 0 }, ignoreEvent: true }
+        ];
+      }
+    });
+  }
+  function mountDesk(host, symbol, levels, opts) {
+    var h = { dead: false, chart: null, sym: symbol, levels: levels || [], range: (opts && opts.range) || "6M", ids: [], tries: 0, err: null };
+    h.ready = new Promise(function (res, rej) { h._res = res; h._rej = rej; }); h.ready.catch(function () {});
+    function lastBars() { return h.chart ? h.chart.getDataList() : []; }
+    function drawLevels() {
+      if (!h.chart) return;
+      h.ids.forEach(function (id) { try { h.chart.removeOverlay({ id: id }); } catch (e) {} }); h.ids = [];
+      var d = lastBars(); if (!d.length) return;
+      var ts = d[d.length - 1].timestamp;
+      readTokens();
+      h.levels.forEach(function (L) {
+        if (!fin(L.value)) return;
+        try {
+          var id = h.chart.createOverlay({ name: "vlLevel", lock: true, visible: true, points: [{ timestamp: ts, value: L.value }], extendData: { id: L.id, label: L.label, ck: L.ck, dash: L.dash, w: L.w },
+            styles: { text: { color: T.onp, backgroundColor: T[L.ck] || T.text, borderColor: T[L.ck] || T.text, family: T.font, size: 11 } } });
+          if (id) h.ids.push(id);
+        } catch (e) { /* skip one level */ }
+      });
+    }
+    function applyRange() {
+      var d = lastBars(); if (!d.length || !h.chart) return;
+      var n = Math.min(d.length, DESK_BARS[h.range] || DESK_BARS["6M"]), w = Math.max(120, host.clientWidth - 70);
+      try { h.chart.setBarSpace(Math.max(1.5, Math.min(30, w / n))); h.chart.scrollToRealTime(); } catch (e) {}
+    }
+    function afterData() {
+      if (h.dead || !h.chart) return;
+      if (!lastBars().length) { if (++h.tries < 20) setTimeout(afterData, 50); return; }
+      applyRange(); drawLevels(); h._res(h);
+    }
+    h.update = function (sym, lv, o) {
+      if (h.dead || !h.chart) { h.sym = sym; h.levels = lv || []; if (o && o.range) h.range = o.range; return; }
+      try { h.chart.resize(); } catch (e) {}
+      var changed = sym !== h.sym; h.sym = sym; h.levels = lv || []; if (o && o.range) h.range = o.range;
+      readTokens(); try { h.chart.setStyles(themeStyles()); h.chart.setStyles({ candle: { type: "area" } }); } catch (e) {}
+      if (changed) { var s = byId[sym]; if (!s) return; h.tries = 0; try { h.chart.setSymbol({ ticker: sym, pricePrecision: s.dec, volumePrecision: 0 }); h.chart.setPeriod({ type: "day", span: 1 }); } catch (e) {} setTimeout(afterData, 0); }
+      else { applyRange(); drawLevels(); }
+    };
+    h.resize = function () { if (h.chart && !h.dead) { try { h.chart.resize(); } catch (e) {} applyRange(); drawLevels(); } };
+    h.destroy = function () { h.dead = true; ids_clear(); try { if (h.chart && window.klinecharts) window.klinecharts.dispose(host); } catch (e) {} h.chart = null; };
+    function ids_clear() { h.ids = []; }
+    h.getChart = function () { return h.chart; };
+    parseFeed();
+    if (!byId[symbol]) { h.err = "no series"; h._rej(new Error("no series")); return h; }
+    loadLib().then(function () {
+      if (h.dead) return;
+      var k = window.klinecharts; readTokens(); registerCustom(k); registerLevel(k);
+      var c = k.init(host, { timezone: "UTC", styles: themeStyles() }); if (!c) throw new Error("init failed");
+      h.chart = c;
+      try { c.setStyles({ candle: { type: "area" } }); c.setOffsetRightDistance(16); } catch (e) {}
+      c.setDataLoader({ getBars: function (p) { var s = byId[p.symbol.ticker]; p.callback(s ? barsFor(s, "D") : [], false); } });
+      var s0 = byId[h.sym]; c.setSymbol({ ticker: h.sym, pricePrecision: s0.dec, volumePrecision: 0 }); c.setPeriod({ type: "day", span: 1 });
+      setTimeout(afterData, 0);
+    }).catch(function (err) { h.err = String(err && err.message || err); h._rej(err); });
+    return h;
   }
 
   /* ---------- keyboard ---------- */

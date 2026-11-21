@@ -1,6 +1,6 @@
 """Screenshots and layout heuristics for the design review.
 
-    python tools/shots.py PAGE.html OUT_DIR [--only main|options] [--sections overview,fx]
+    python tools/shots.py PAGE.html OUT_DIR [--only main|options] [--sections overview,fx] [--klib PATH_TO_klinecharts.min.js]
 
 For dark desktop, light desktop and dark phone it saves one PNG per section of the main page, one per
 panel (.dpanel) of the options desk (internal build only; the public build has no desk) and the chart card on both
@@ -9,6 +9,8 @@ tabs (Velour chart, Live) into OUT_DIR, and writes OUT_DIR/layout.md listing mac
   - text clipped by its own box (overflow hidden and content taller or wider)
   - two labels overlapping inside an SVG chart
   - horizontal page scroll on phone
+For the internal build it also saves the whole options terminal block (#dterm) at 1440x900 and 1600x900, dark and light
+(terminal-<theme>-<width>.png). --klib answers the chart library request from a local copy so the price chart draws offline.
 The suspects are hints, not verdicts: the design reviewer looks at the PNGs and decides.
 """
 from __future__ import annotations
@@ -70,13 +72,43 @@ def chart_shots(pg, out: Path, tag: str) -> None:
         print(f"chart screenshots skipped: {type(exc).__name__}: {exc}", file=sys.stderr)
 
 
+def route_lib(pg, klib: Path | None) -> None:
+    if klib and klib.is_file():
+        pg.route("**/klinecharts*.js", lambda r: r.fulfill(path=str(klib), content_type="application/javascript"))
+
+
+def terminal_shots(b, url: str, out: Path, klib: Path | None) -> list[str]:
+    """The options terminal block as one picture at the sizes the owner uses; returns notes for the report."""
+    notes = []
+    for theme in ("dark", "light"):
+        for w in (1440, 1600):
+            pg = b.new_page(viewport={"width": w, "height": 900}, color_scheme=theme)
+            try:
+                route_lib(pg, klib)
+                pg.goto(url + "#options")
+                pg.wait_for_timeout(2200)
+                pg.evaluate("(() => { const h = document.querySelector('.stickyhead'); if (h) h.style.position = 'static' })()")
+                blk = pg.locator("#dterm")
+                if not blk.count() or not blk.first.is_visible():
+                    notes.append(f"terminal {theme} {w}: no #dterm block")
+                    continue
+                blk.first.screenshot(path=str(out / f"terminal-{theme}-{w}.png"))
+                bb = blk.first.bounding_box() or {}
+                notes.append(f"terminal {theme} {w}: block {round(bb.get('width', 0))}x{round(bb.get('height', 0))} px")
+            finally:
+                pg.close()
+    return notes
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("page")
     ap.add_argument("out")
     ap.add_argument("--only", choices=["main", "options"])
     ap.add_argument("--sections", default="")
+    ap.add_argument("--klib", default="", help="local klinecharts.min.js used to answer the CDN request (offline price chart shots)")
     a = ap.parse_args()
+    klib = Path(a.klib).resolve() if a.klib else None
     from playwright.sync_api import sync_playwright
     out = Path(a.out).resolve()
     roots = [Path("/tmp").resolve()] + [Path(os.environ[v]).resolve() for v in ("TEAM_DIR", "CLAUDE_SCRATCHPAD") if os.environ.get(v)]
@@ -96,6 +128,7 @@ def main() -> int:
                 if a.only and a.only != page_name:
                     continue
                 pg = b.new_page(viewport={"width": w, "height": 1000}, color_scheme=theme)
+                route_lib(pg, klib)
                 pg.goto(url + frag)
                 pg.wait_for_timeout(1200)
                 pg.evaluate("(() => { const h = document.querySelector('.stickyhead'); if (h) h.style.position = 'static' })()")
@@ -127,6 +160,8 @@ def main() -> int:
                 report.append(f"## {tag} {page_name}: {len(sus)} suspect(s)")
                 report += [f"- {s}" for s in sus[:40]]
                 pg.close()
+        if a.only != "main":
+            report += ["", "## terminal block"] + [f"- {n}" for n in terminal_shots(b, url, out, klib)]
         b.close()
     (out / "layout.md").write_text("\n".join(report))
     print("\n".join(report))
