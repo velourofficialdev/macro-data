@@ -4,7 +4,13 @@ on:
   schedule:
     # Weekdays 22:30 UTC (after US close; FRED yields post with ~1 day lag, CFTC publishes Fridays)
     - cron: "30 22 * * 1-5"
-  workflow_dispatch: {}          # "Run workflow" button
+  workflow_dispatch:             # "Run workflow" button, and the hourly Cloudflare trigger
+    inputs:
+      mode:
+        description: "full = everything, fast = news, Fed odds, options, prices only"
+        type: choice
+        options: [full, fast]
+        default: full
   push:
     branches: [main]
   pull_request:                  # build-only check for the dev branch, never publishes
@@ -36,6 +42,7 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          FAST_RUN: ${{ github.event.inputs.mode == 'fast' && '1' || '' }}
         run: python update_data.py
 
       - name: Build dashboard
@@ -49,6 +56,7 @@ jobs:
           git add data docs
           if git diff --cached --quiet; then echo "No changes"; else
             git commit -m "Auto-update data and dashboard"
+            git pull --rebase origin main
             git push
           fi
 
