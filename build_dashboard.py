@@ -1711,7 +1711,9 @@ def build_options(data: dict, today: date) -> str:
 # Options desk switch: False = public build (no desk, no options numbers anywhere); True = internal build.
 # Env OPTIONS_DESK_PUBLIC in {1,true,on} turns it on; the CLI flag --options-desk on|off wins over the env.
 # NOTE: the name is historical (kept from the brief). True = INTERNAL desk build (options desk shown); False = public build.
-OPTIONS_DESK_PUBLIC = False
+# TEMPORARY (owner request 2026-11-21 20:53, "public for a short check"): the published page shows the desk.
+# Set back to False when the owner says the check is done. Licensing (Cboe permission, Tradier internal-use terms) is the owner's call.
+OPTIONS_DESK_PUBLIC = True
 
 
 def _truthy(v: str | None) -> bool:
