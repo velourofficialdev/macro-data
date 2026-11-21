@@ -1,6 +1,6 @@
 {
  "meta": {
-  "disclaimer": "These are rules of thumb used by macro traders to frame what the data is saying. They describe conditions, not predictions or trading advice. The wording and thresholds come from playbook.json in the data repo; the dashboard rebuilds from that file.",
+  "disclaimer": "These are rules of thumb used by macro traders to frame what the data is saying. They describe conditions, not predictions or trading advice. Not investment advice.",
   "how_bands_work": "A band applies when the value is below its 'lt' number. Bands are checked top to bottom; the last band has no 'lt' and catches everything above."
  },
  "spreads": {
@@ -43,7 +43,7 @@
   "10y-3m": {
    "title": "10Y - 3M",
    "unit": "pp",
-   "what": "Compares the 10-year yield with the current policy rate (3-month bill). The NY Fed's recession-probability model uses this spread.",
+   "what": "Compares the 10-year yield with the current policy rate (3-month bill). A widely used recession-probability model relies on this spread.",
    "bands": [
     {
      "lt": -0.5,
@@ -157,7 +157,7 @@
   }
  },
  "zscore": {
-  "note": "Z-score scale: below -2 extremely low, -2 to -1 below normal, -1 to +1 normal, +1 to +2 above normal, above +2 extremely high. Compared with the past 252 trading days (52 reports for COT).",
+  "note": "Z-score scale: below -2 extremely low, -2 to -1 below normal, -1 to +1 normal, +1 to +2 above normal, above +2 extremely high. Compared with the past 252 trading days (52 weekly reports for positioning).",
   "bands": [
    {
     "lt": -2.0,
@@ -252,8 +252,8 @@
  },
  "cot": {
   "usd_index": {
-   "title": "USD Index positioning (CFTC COT)",
-   "what": "ICE US Dollar Index futures, Legacy report, Non-Commercial (large speculators). Net = longs minus shorts. The COT Index scales today's net position between its 52-week low (0) and high (100).",
+   "title": "USD Index positioning",
+   "what": "US Dollar Index futures, weekly positioning report, large speculators. Net = longs minus shorts. The COT Index scales today's net position between its 52-week low (0) and high (100).",
    "bands": [
     {
      "lt": 10,
@@ -287,8 +287,8 @@
    ]
   },
   "gold": {
-   "title": "Gold positioning (CFTC COT)",
-   "what": "COMEX Gold futures, Legacy Futures Only report, Non-Commercial traders (large speculators). This is the same report type as the USD Index figures, so the two can be compared with each other.",
+   "title": "Gold positioning",
+   "what": "Gold futures, weekly positioning report, large speculators. This is the same report type as the USD Index figures, so the two can be compared with each other.",
    "bands": [
     {
      "lt": 10,
@@ -509,7 +509,7 @@
    },
    "magnet": {
     "label": "0DTE magnet, expected range and IV rank",
-    "meaning": "The magnet is the strike with the largest absolute gamma in the nearest expiry within two expected moves of spot. The expected range is spot plus or minus one day-move, taken from at-the-money implied volatility over one trading day. IV rank is a proxy: the 30-day implied vol index (for example VIX) ranked against its own last 252 trading days, 0 lowest and 100 highest. These are approximate.",
+    "meaning": "The magnet is the strike with the largest absolute gamma in the nearest expiry within two expected moves of spot. The expected range is spot plus or minus one day-move, taken from at-the-money implied volatility over one trading day. IV rank is a proxy: the 30-day implied vol index (a broad implied volatility index) ranked against its own last 252 trading days, 0 lowest and 100 highest. These are approximate.",
     "so_what": "The range is a statistical guide, not a limit; price can finish outside it. A high IV rank means options are expensive compared with the past year, a low rank means cheap."
    },
    "skew": {
@@ -524,17 +524,17 @@
    },
    "freshness": {
     "label": "Freshness bar",
-    "meaning": "One line on each panel: the data source, its delay, whether a proxy instrument was scaled (marked approximate), how IV was obtained, and when the data was fetched.",
+    "meaning": "One line on each panel: how the data was sourced, its delay, whether a proxy instrument was scaled (marked approximate), how IV was obtained, and when the data was fetched.",
     "so_what": "Check the age before reading any panel. Options data here is delayed and may be days old; proxy-based levels are approximate."
    },
    "order_flow": {
     "label": "Order flow",
     "meaning": "A placeholder for trade and order-book data. It needs a live feed the dashboard does not have, so nothing is shown or simulated.",
-    "so_what": "Nothing to read yet. When a feed is added, its source and delay will be labelled like every other panel."
+    "so_what": "Nothing to read yet. When a feed is added, its delay will be labelled like every other panel."
    },
    "tv_levels": {
-    "label": "Copy levels for TradingView",
-    "meaning": "Copies the call wall, put wall, gamma flip and max pain as a Pine v5 script or a CSV, in the units of the mapped chart symbol, with the source and time in the header.",
+    "label": "Copy levels for your chart",
+    "meaning": "Copies the call wall, put wall, gamma flip and max pain as a Pine v5 script or a CSV, in the units of the mapped chart symbol, with the time in the header.",
     "so_what": "Levels are for reference lines on your own chart. They are delayed and, for proxies, approximate; this is educational, not advice."
    }
   },
@@ -558,11 +558,11 @@
   "methodology": [
    {
     "title": "Data source and delay",
-    "text": "Each panel reads its source, delay and fetch time from the saved snapshot and shows them in its freshness bar. Option data is delayed, not live. When a proxy instrument is used (for example GLD for gold, or SPY for the S&P 500) its levels are scaled to the index or metal and are approximate."
+    "text": "Each panel shows its delay and fetch time in its freshness bar. Option data comes from a delayed option chain, not a live feed. When a proxy instrument is used (for example a related fund standing in for gold or an index) its levels are scaled to the index or metal and are approximate."
    },
    {
     "title": "Licence notes",
-    "text": "Each snapshot carries a licence note. Cboe data is shown here only while permission for public display is pending; Tradier sandbox data is for personal or internal use only. The desk is off in the public build."
+    "text": "Option levels are delayed and shown for education only."
    },
    {
     "title": "Dealer-side assumption and units",
@@ -578,7 +578,7 @@
    },
    {
     "title": "IV-rank proxy",
-    "text": "A proxy, not the instrument's own option history. It uses the 30-day implied vol index from FRED (VIX, VXN, VXD, RVX or GVZ) and ranks the latest value against its own last 252 trading days: (last - min) / (max - min) x 100. The percentile is the share of those days below the latest value. Shown only with at least 60 days of data."
+    "text": "A proxy, not the instrument's own option history. It uses a published 30-day implied volatility index matched to the instrument and ranks the latest value against its own last 252 trading days: (last - min) / (max - min) x 100. The percentile is the share of those days below the latest value. Shown only with at least 60 days of data."
    },
    {
     "title": "Skew and surface",
