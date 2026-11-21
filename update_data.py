@@ -961,7 +961,7 @@ def main(fast: bool | None = None) -> int:
             except Exception as exc2:  # noqa: BLE001
                 record("FX_MACRO", False, error=f"own build: {own_err}; fallback: {type(exc2).__name__}: {exc2}; {fred_route_note()}"[:300])
 
-    try:   # options positioning levels (SPX -> ES, GLD -> gold) from Cboe's free delayed chains; see options_levels.py
+    try:   # options positioning levels (SPX -> ES, GLD -> gold) from Tradier sandbox chains (token TRADIER_TOKEN, skipped if unset); see options_levels.py
         import options_levels
         for key, (ok, last, err, note) in options_levels.update(DATA, fast=fast).items():
             record(f"OPT_{key}", ok, last, error=err, note=note)

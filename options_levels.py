@@ -1,10 +1,10 @@
 """Options positioning levels for SPX (mapped to ES) and gold (GLD options mapped to the gold future).
 
-Source: Cboe's free delayed option chains (no key, no account):
-    https://cdn.cboe.com/api/global/delayed_quotes/options/<SYMBOL>.json
-Delayed Cboe chains are refreshed during the session (hourly in fast mode) from update_data.py;
-open interest is the figure Cboe last published (updated once per day, from the prior session)
-and prices are the last delayed prices, not a close.
+Source: Tradier sandbox option chains (free developer account, token in env TRADIER_TOKEN, sent only in the
+Authorization header): https://sandbox.tradier.com/v1/markets/options/{expirations,chains}. Data is 15 minutes delayed.
+Refreshed hourly in fast mode from update_data.py; open interest is the figure last published (once per day, from the
+prior session) and prices are delayed last prices, not a close. If the token is missing the desk is skipped and the previous
+files stay. If Tradier has no index chain, the ETF proxy (SPY/QQQ/DIA/IWM) is rescaled to the index price and labelled "proxy".
 
 What is computed (from open interest and delayed last prices, so a positioning map, not a live trade tape):
 - Net gamma exposure (GEX) by strike, in $ per 1% move of the underlying. Uses the common
@@ -24,7 +24,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,7 +34,10 @@ import numpy as np
 import pandas as pd
 import requests
 
-CBOE_URL = "https://cdn.cboe.com/api/global/delayed_quotes/options/{sym}.json"
+TRADIER_URL = "https://sandbox.tradier.com/v1"   # sandbox: 15 min delayed; the token is read from env TRADIER_TOKEN only
+SOURCE = "Tradier sandbox, 15 min delayed"
+SOURCE_DELAY = "15 min"
+MIN_INTERVAL = 1.05   # seconds between Tradier calls (about 57 a minute, under the sandbox limit)
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
 HEADERS = {"User-Agent": "Mozilla/5.0 (macro-dashboard; personal research)"}
 TIMEOUT = 60
@@ -48,42 +53,123 @@ RV_SOURCE = {   # realised vol of the underlying: (Yahoo symbol, fallback file u
     "GOLD": ("GC=F", "GOLD.csv", "Gold", "COMEX gold future closes (GC=F)"),
 }
 INSTRUMENTS = {
-    # key: (Cboe symbol, label, mapped instrument label, Yahoo symbol of the mapped instrument, strike window around price)
-    "SPX": ("_SPX", "SPX", "ES (E-mini S&P 500 future)", "ES=F", 0.06),
-    "NDX": ("_NDX", "NDX", "NQ (E-mini Nasdaq-100 future)", "NQ=F", 0.07),
-    "DJX": ("_DJX", "DJX", "YM (E-mini Dow future)", "YM=F", 0.06),
-    "RUT": ("_RUT", "RUT", "RTY (E-mini Russell 2000 future)", "RTY=F", 0.08),
+    # key: (Tradier symbol, label, mapped instrument label, Yahoo symbol of the mapped instrument, strike window around price)
+    "SPX": ("SPX", "SPX", "ES (E-mini S&P 500 future)", "ES=F", 0.06),
+    "NDX": ("NDX", "NDX", "NQ (E-mini Nasdaq-100 future)", "NQ=F", 0.07),
+    "DJX": ("DJX", "DJX", "YM (E-mini Dow future)", "YM=F", 0.06),
+    "RUT": ("RUT", "RUT", "RTY (E-mini Russell 2000 future)", "RTY=F", 0.08),
     "GOLD": ("GLD", "GLD", "Gold future (GC)", "GC=F", 0.08),
 }
+PROXY = {"SPX": "SPY", "NDX": "QQQ", "DJX": "DIA", "RUT": "IWM", "GOLD": None}   # ETF stand-in when Tradier has no index chain
 MAX_STRIKES = 150   # bigger chains are grouped into wider strike buckets so the page stays light
 
 
 # ---------------------------------------------------------------- fetch
+class TradierHalt(Exception):
+    """Token missing/rejected (401/403) or rate limited (429): stop asking Tradier for the rest of this run."""
+
+
+class TradierEmpty(ValueError):
+    """Tradier answered but has no chain / price for this symbol (index coverage in the sandbox is not guaranteed)."""
+
+
+_last_call = [0.0]
+
+
+def _tradier_get(path: str, params: dict) -> dict:
+    """GET one Tradier endpoint. The token goes only in the Authorization header, never in the URL, a message or a log."""
+    token = (os.environ.get("TRADIER_TOKEN") or "").strip()
+    if not token:
+        raise TradierHalt("not configured: add secret TRADIER_TOKEN")
+    wait = _last_call[0] + MIN_INTERVAL - time.monotonic()   # sandbox allows about 60 requests a minute
+    if wait > 0:
+        time.sleep(wait)
+    _last_call[0] = time.monotonic()
+    r = requests.get(TRADIER_URL + path, params=params,
+                     headers={"Authorization": f"Bearer {token}", "Accept": "application/json"}, timeout=TIMEOUT)
+    code = getattr(r, "status_code", 200)
+    if code in (401, 403):
+        raise TradierHalt(f"Tradier rejected the token (HTTP {code}); check the TRADIER_TOKEN secret")
+    if code == 429:
+        raise TradierHalt("Tradier rate limit (HTTP 429); stopped for this run")
+    if code >= 400:
+        raise requests.HTTPError(f"Tradier HTTP {code} for {path}")
+    return r.json() or {}
+
+
+def _as_list(x) -> list:
+    """Tradier returns a bare object when there is exactly one row and null when there are none."""
+    return [] if x is None else x if isinstance(x, list) else [x]
+
+
+def fetch_quote(sym: str) -> tuple[float, str]:
+    js = _tradier_get("/markets/quotes", {"symbols": sym, "greeks": "false"})
+    q = _as_list((js.get("quotes") or {}).get("quote"))
+    q = next((x for x in q if isinstance(x, dict) and str(x.get("symbol", "")).upper() == sym.upper()), None) or {}
+    px = float(q.get("last") or q.get("close") or q.get("prevclose") or 0)
+    if px <= 0:
+        raise TradierEmpty(f"Tradier returned no price for {sym}")
+    ms = q.get("trade_date")
+    stamp = pd.Timestamp(int(ms), unit="ms").strftime("%Y-%m-%d %H:%M:%S UTC") if ms else ""
+    return px, stamp
+
+
 def fetch_chain(sym: str) -> tuple[pd.DataFrame, float, str]:
-    r = requests.get(CBOE_URL.format(sym=sym), headers=HEADERS, timeout=TIMEOUT)
-    r.raise_for_status()
-    js = r.json()
-    d = js.get("data") or {}
-    spot = float(d.get("current_price") or d.get("close") or 0)
-    if spot <= 0:
-        raise ValueError("Cboe returned no underlying price")
+    """Tradier sandbox chain for one symbol: (rows with root/expiry/type/strike/oi/volume/iv/bid/ask/last, spot, timestamp)."""
+    spot, stamp = fetch_quote(sym)
+    js = _tradier_get("/markets/options/expirations", {"symbol": sym, "includeAllRoots": "true", "strikes": "false"})
+    today = pd.Timestamp.now("UTC").normalize().tz_localize(None)
+    exps = sorted(pd.Timestamp(d) for d in _as_list((js.get("expirations") or {}).get("date")))
+    near = [e for e in exps if 0 <= (e - today).days <= MAX_DTE]
+    far = [e for e in exps if MAX_DTE < (e - today).days <= 120][:2]   # two more for the volatility term structure
     rows = []
-    for o in d.get("options") or []:
-        m = OPT_RE.match(str(o.get("option", "")))
-        if not m:
-            continue
-        rows.append({
-            "root": m["root"], "expiry": pd.Timestamp("20" + m["ymd"]), "type": m["cp"],
-            "strike": int(m["k"]) / 1000.0,
-            "oi": float(o.get("open_interest") or 0), "volume": float(o.get("volume") or 0),
-            "iv": float(o.get("iv") or 0), "bid": float(o.get("bid") or 0), "ask": float(o.get("ask") or 0),
-            "last": float(o.get("last_trade_price") or 0),
-        })
+    for e in near + far:
+        cj = _tradier_get("/markets/options/chains", {"symbol": sym, "expiration": e.strftime("%Y-%m-%d"), "greeks": "true"})
+        for o in _as_list((cj.get("options") or {}).get("option")):
+            if not isinstance(o, dict) or str(o.get("option_type", "")).lower() not in ("call", "put"):
+                continue
+            g = o.get("greeks") or {}
+            m = OPT_RE.match(str(o.get("symbol", "")))
+            rows.append({
+                "root": str(o.get("root_symbol") or (m["root"] if m else sym)), "expiry": pd.Timestamp(o.get("expiration_date") or e),
+                "type": "C" if str(o["option_type"]).lower() == "call" else "P", "strike": float(o.get("strike") or 0),
+                "oi": float(o.get("open_interest") or 0), "volume": float(o.get("volume") or 0),
+                "iv": float(g.get("smv_vol") or g.get("mid_iv") or 0), "bid": float(o.get("bid") or 0), "ask": float(o.get("ask") or 0),
+                "last": float(o.get("last") or 0),
+            })
     df = pd.DataFrame(rows)
-    if df.empty:
-        raise ValueError("Cboe returned no option rows")
-    stamp = str(js.get("timestamp") or d.get("last_trade_time") or "")
+    if df.empty or (df["strike"] <= 0).all():
+        raise TradierEmpty(f"Tradier returned no option rows for {sym}")
     return df, spot, stamp
+
+
+def fetch_with_proxy(key: str, sym: str, proxy: str | None) -> tuple[pd.DataFrame, float, str, dict]:
+    """Chain for the instrument itself; if Tradier has none and an ETF proxy exists, use the ETF chain rescaled to the
+    instrument's price (strikes, prices and spot multiplied by index / ETF; open interest and IV unchanged)."""
+    meta = {"proxy": None, "proxy_ratio": None}
+    try:
+        df, spot, stamp = fetch_chain(sym)
+        return df, spot, stamp, meta
+    except TradierHalt:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        if not proxy:
+            raise
+        first = f"{type(exc).__name__}: {exc}"[:120]
+    df, etf_spot, stamp = fetch_chain(proxy)
+    try:
+        idx_spot, _ = fetch_quote(sym)
+    except TradierHalt:
+        raise
+    except Exception:  # noqa: BLE001 - index quote missing too: fall back to the last index close from Yahoo
+        idx_spot = fetch_last_close(RV_SOURCE[key][0])
+    if not idx_spot or idx_spot <= 0:
+        raise TradierEmpty(f"no {sym} price to scale the {proxy} proxy ({first})")
+    ratio = float(idx_spot) / etf_spot
+    for c in ("strike", "bid", "ask", "last"):
+        df[c] = df[c] * ratio
+    meta = {"proxy": proxy, "proxy_ratio": round(ratio, 6)}
+    return df, float(idx_spot), stamp, meta
 
 
 def fetch_last_close(sym: str) -> float | None:
@@ -521,9 +607,20 @@ def update(data_dir: Path, fast: bool = False) -> dict[str, tuple[bool, str | No
     outdir.mkdir(parents=True, exist_ok=True)
     asof = pd.Timestamp(datetime.now(timezone.utc).replace(tzinfo=None))
     result = {}
+    halt = None   # set when the token is missing/rejected or Tradier rate-limits: the other instruments are not tried
+    if not (os.environ.get("TRADIER_TOKEN") or "").strip():
+        halt = "not configured: add secret TRADIER_TOKEN (skipped, previous files kept)"
     for key, (sym, label, mlabel, ysym, window) in INSTRUMENTS.items():
+        if halt:
+            prev = None
+            try:
+                prev = json.loads((outdir / f"{key}.json").read_text()).get("date")
+            except Exception:  # noqa: BLE001
+                pass
+            result[key] = (False, prev, halt[:200], None)
+            continue
         try:
-            raw, spot, stamp = fetch_chain(sym)
+            raw, spot, stamp, pmeta = fetch_with_proxy(key, sym, PROXY.get(key))
             a = analyse(raw, spot, asof, window)
             hp = outdir / f"{key}_history.csv"
             day = asof.strftime("%Y-%m-%d")
@@ -540,7 +637,7 @@ def update(data_dir: Path, fast: bool = False) -> dict[str, tuple[bool, str | No
             mapped = fetch_last_close(ysym)
             snap = {"key": key, "label": label, "mapped_label": mapped and mlabel, "mapped_price": mapped,
                     "mapped_ratio": round(mapped / spot, 6) if mapped else None,
-                    "date": day, "source_time": stamp, "updated_utc": asof.strftime("%Y-%m-%d %H:%M UTC"),
+                    "date": day, "source": SOURCE, "source_delay": SOURCE_DELAY, **pmeta, "source_time": stamp, "updated_utc": asof.strftime("%Y-%m-%d %H:%M UTC"),
                     "oi_changes": changes, **a}
             try:   # the interactive Greek views; the level table above still works if this part fails
                 snap["surface"] = build_surface(raw, spot, asof, window)
@@ -570,8 +667,11 @@ def update(data_dir: Path, fast: bool = False) -> dict[str, tuple[bool, str | No
                                  "iv30": (snap.get("vol") or {}).get("iv30"), "rv20": (snap.get("vol") or {}).get("rv20")}])
             hist = pd.concat([pd.read_csv(hp), row], ignore_index=True) if hp.exists() else row
             hist.drop_duplicates("date", keep="last").sort_values("date").tail(400).to_csv(hp, index=False)
-            note = f"Cboe delayed chain {sym}, {a['contracts']} contracts in {a['expiries']} expiries" + ("; OI change held from the first run of the day" if carry is not None else "") + ("" if mapped else f"; {ysym} price unavailable, levels shown in {label} units only")
+            note = f"{SOURCE} chain {pmeta['proxy'] or sym}" + (f" (proxy for {sym}, rescaled x{pmeta['proxy_ratio']})" if pmeta["proxy"] else "") + f", {a['contracts']} contracts in {a['expiries']} expiries" + ("; OI change held from the first run of the day" if carry is not None else "") + ("" if mapped else f"; {ysym} price unavailable, levels shown in {label} units only")
             result[key] = (True, day, None, note)
+        except TradierHalt as exc:   # token rejected or rate limited: keep previous files, skip the rest
+            halt = f"{exc}; remaining instruments skipped this run"
+            result[key] = (False, None, str(exc)[:200], None)
         except Exception as exc:  # noqa: BLE001 - keep the previous files, report in status
             result[key] = (False, None, f"{type(exc).__name__}: {exc}"[:200], None)
     if fast:   # FRED daily series: left to the full run, status entries stay as saved
