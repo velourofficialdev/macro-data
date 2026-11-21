@@ -545,10 +545,21 @@ def desk_unit_tests() -> dict:
           and 'input.bool(false, "Show in ES (E-mini S&P 500 future) units")' in pine and "Educational, not advice" in pine and "Cboe delayed chain" in pine, pine[:300])
     check("pine levels", pine.count("hline(") == 3 and "#90BFF9" in pine and "#B96AC9" in pine and "color.gray" in pine and "hline.style_dotted" in pine
           and "Gamma flip" not in pine.split("indicator(")[1], pine)
-    check("pine ratio", "ratio = 1.00701" in pine and "7400.00 * ratio" in pine)
+    check("pine ratio (no mode: ratio rule)", "ratio = 1.00701" in pine and "7400.00 * ratio" in pine)
     check("csv", rows[0] == ["level", "instrument", "value", "mapped_symbol", "mapped_value", "source", "fetched_utc"]
           and len(rows) == 4 and rows[1] == ["call_wall", "SPX", "7400.00", "ES1!", "7451.90", "Cboe delayed chain", "2026-11-19 03:45 UTC"]
           and all(r[0] != "gamma_flip" for r in rows), str(rows))
+    # mapped values follow the template rule: add -> k + basis, otherwise k * ratio (2 dp)
+    spot_ = 7450.0
+    for key_, mode_, mp_ in (("SPX", "add", 7498.25), ("DJX", "mul", 441.8)):
+        basis_, ratio_ = round(mp_ - spot_, 4), round(mp_ / spot_, 6)
+        sn_ = {**snap, "key": key_, "label": key_, "mapped_ratio": ratio_}
+        t_ = ol.tv_levels(key_, sn_, {"symbol": "X1!", "label": "X", "mode": mode_, "basis": basis_, "ratio": ratio_})
+        r_ = list(csv.reader(io.StringIO(t_["csv"])))[1:]
+        want = [f"{(float(r[2]) + basis_) if mode_ == 'add' else (float(r[2]) * ratio_):.2f}" for r in r_]
+        check(f"tv mapped rule {key_}", r_ and [r[4] for r in r_] == want, str((mode_, [r[4] for r in r_], want)))
+        check(f"tv pine rule {key_}", ("+ basis" in t_["pine"] and "basis = " in t_["pine"]) if mode_ == "add" else ("* ratio" in t_["pine"] and "+ basis" not in t_["pine"]), t_["pine"])
+    check("tv gold header", "GLD price units" in ol.tv_levels("GOLD", {"call_wall": 400.0}, {"mode": "mul", "ratio": 10.0, "label": "GC"})["pine"])
     tv0 = ol.tv_levels("SPX", {**snap, "mapped_ratio": None}, None)
     check("pine no ratio", "ratio = 1.0" in tv0["pine"] and tv0["csv"].splitlines()[1].split(",")[3] == "", tv0["pine"])
     check("tv_levels empty", ol.tv_levels("GOLD", {}, None)["pine"].count("hline(") == 0)
@@ -597,6 +608,7 @@ def desk_unit_tests() -> dict:
 
     # chart feed round trip
     import chart_feed as cf
+    from datetime import datetime, timezone
     tmp = Path(tempfile.mkdtemp(prefix="feed-"))
     try:
         (tmp / "idx").mkdir()
@@ -618,7 +630,15 @@ def desk_unit_tests() -> dict:
         g, spx, us = feed["symbols"]
         check("feed dates", decode(g) == dts and decode(spx) == dts and decode(us) == [d for d in dts if d != "2026-11-06"], str(decode(us)))
         check("feed values", g["c"] == [4000.12, 4010.46, 4020.5, 4030.0, 4041.0] and g["src"] == "Yahoo GC=F" and spx["src"] == "Yahoo ^GSPC" and us["src"] == "FRED DGS10, daily", str(g["c"]))
-        check("feed shape", all(x["ohlc"] is False and x["intervals"] == ["D", "W"] and x["delay"] and len(x["dd"]) == len(x["c"]) for x in feed["symbols"]) and g["opt_key"] == "GOLD" and g["opt_units"] == "mapped" and spx["opt_units"] == "index" and feed["v"] == 1)
+        check("feed shape", all(x["ohlc"] is False and x["intervals"] == ["D", "W"] and x["delay"] and len(x["dd"]) == len(x["c"]) for x in feed["symbols"]) and feed["v"] == 1)
+        check("feed opt keys off by default", all("opt_key" not in x and "opt_units" not in x for x in feed["symbols"]))
+        g, spx, us = cf.build_chart_feed(tmp, include_opt_keys=True)["symbols"]
+        check("feed opt keys opt-in", g["opt_key"] == "GOLD" and g["opt_units"] == "mapped" and spx["opt_units"] == "index")
+        check("feed last_partial false for old data", all(x["last_partial"] is False and x["delay"] == "Daily close" for x in feed["symbols"]))
+        _today = datetime.now(timezone.utc)
+        pd.DataFrame({"Date": ["2026-11-02", _today.strftime("%Y-%m-%d")], "Gold": [1.0, 2.0]}).to_csv(tmp / "GOLD.csv", index=False)
+        gp = cf.build_chart_feed(tmp)["symbols"][0]
+        check("feed last_partial today", gp["last_partial"] is (_today.weekday() < 5) and (("intraday" in gp["delay"]) is (_today.weekday() < 5)), str(gp["delay"]))
         check("feed max_points", len(cf.build_chart_feed(tmp, max_points=2)["symbols"][0]["c"]) == 2)
         check("feed empty dir", cf.build_chart_feed(tmp / "nope") ["symbols"] == [])
     finally:

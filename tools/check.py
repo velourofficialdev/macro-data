@@ -358,7 +358,8 @@ def public_absence(html: Path, label: str, fixture_snap: dict | None) -> list[st
     errs = []
     h = html.read_text(errors="ignore")
     for pat, what in ((r'id="options"', 'id="options"'), (r'href="#options"', 'href="#options" nav link'), (r'"opt"\s*:', '"opt": key in the payload'),
-                      (r"odesk", "odesk"), (r'id="od-', 'id="od-..." elements'), (r"OPT_[A-Z_]+", "OPT_* status rows"), (r"\.dpanel|data-panel=", "desk panels")):
+                      (r"odesk", "odesk"), (r'id="od-', 'id="od-..." elements'), (r"OPT_[A-Z_]+", "OPT_* status rows"), (r"\.dpanel|data-panel=", "desk panels"),
+                      (r"(?i)options levels", "'options levels' text"), (r"(?i)opt_key|opt_units", "opt_key/opt_units in the chart feed")):
         if re.search(pat, h):
             errs.append(f"[{label}] public build still contains {what}")
     if fixture_snap:   # fixture numbers must not be in the visible text (tags and scripts stripped)
@@ -467,6 +468,7 @@ def desk_grid_browser(html: Path) -> list[str]:
 
 
 KL_URL = "https://cdn.jsdelivr.net/npm/klinecharts@10.1.1/dist/umd/klinecharts.min.js"
+KL_REASON = {"why": ""}   # "mismatch" when the downloaded bytes failed the SRI check; "unreachable" otherwise
 KL_SRI = "sha384-xkC4/84Bj5cSxBeqZuaHxfU6OGkQpaAtTHc5gwE/kJd4vt7vRtFvslHtVTEq11Zl"
 
 
@@ -486,9 +488,11 @@ def cached_klinecharts(out: Path) -> Path | None:
         got = "sha384-" + base64.b64encode(hashlib.sha384(f.read_bytes()).digest()).decode()
         if got != KL_SRI:
             f.unlink(missing_ok=True)
+            KL_REASON["why"] = "mismatch"
             return None
         return f
     except Exception:  # noqa: BLE001
+        KL_REASON["why"] = "unreachable"
         return None
 
 
@@ -525,8 +529,11 @@ def chart_browser(html: Path, out: Path) -> tuple[list[str], list[str]]:
                 pg.wait_for_timeout(500)
                 if any("tradingview" in u.lower() for u in reqs):
                     errs.append("chart: TradingView was requested although only the Velour tab was chosen")
+                if lib is None and KL_REASON["why"] == "mismatch":
+                    errs.append("chart: pinned KLineChart failed its SRI hash check (downloaded bytes differ from KL_SRI): FAIL, not skipped")
+                    return errs, warns
                 if lib is None:
-                    warns.append("chart: SKIPPED (CDN unreachable): pinned KLineChart could not be downloaded or did not match its SRI hash; draw/persist/export checks not run")
+                    warns.append("chart: SKIPPED (CDN unreachable): pinned KLineChart could not be downloaded; draw/persist/export checks not run")
                     errs += [f"chart: console: {m[:160]}" for m in log if "jsdelivr" not in m.lower() and "klinecharts" not in m.lower() and "ERR_" not in m and "Failed to load resource" not in m]
                     return errs, warns
                 get_state = """async () => {
@@ -758,7 +765,7 @@ def main() -> int:
 
     passed = all(not v["errors"] for v in res.values())
     (out / "check.json").write_text(json.dumps({"passed": passed, "steps": res}, indent=1))
-    md = [f"# check: {'PASS' if passed else 'FAIL'}", ""]
+    md = [f"# check: {'PASS' if passed else 'FAIL'}" + (f" (with {len(warns)} WARN: " + "; ".join(w[:70] for w in warns) + ")" if warns else ""), ""]
     for k, v in res.items():
         md.append(f"- **{k}**: {'ok' if not v['errors'] else str(len(v['errors'])) + ' problem(s)'}")
         md += [f"  - {e}" for e in v["errors"][:20]]

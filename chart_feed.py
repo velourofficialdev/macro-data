@@ -32,7 +32,7 @@ def _gold_label(data_dir: Path) -> str:
         return "Yahoo GC=F"
 
 
-def build_chart_feed(data_dir: Path, max_points: int = 2600) -> dict:
+def build_chart_feed(data_dir: Path, max_points: int = 2600, include_opt_keys: bool = False) -> dict:
     data_dir = Path(data_dir)
     out = []
     for sid, name, rel, col, unit, dec, fixed, opt_key, opt_units in SYMBOLS:
@@ -56,9 +56,15 @@ def build_chart_feed(data_dir: Path, max_points: int = 2600) -> dict:
             days = df[dcol].dt.normalize()
             t0 = days.iloc[0]
             dd = [0] + [int(x) for x in days.diff().dt.days.iloc[1:]]
-            out.append({"id": sid, "name": name, "src": src, "delay": "Daily close", "unit": unit, "dec": dec,
+            now = datetime.now(timezone.utc)
+            partial = bool(days.iloc[-1].date() == now.date() and now.weekday() < 5)
+            row = ({"id": sid, "name": name, "src": src, "delay": "Daily close; latest point may be intraday" if partial else "Daily close",
+                        "last_partial": partial, "unit": unit, "dec": dec,
                         "ohlc": False, "intervals": ["D", "W"], "t0": t0.strftime("%Y-%m-%d"), "dd": dd,
-                        "c": [round(float(x), dec) for x in df[col]], "opt_key": opt_key, "opt_units": opt_units})
+                        "c": [round(float(x), dec) for x in df[col]]})
+            if include_opt_keys:
+                row["opt_key"], row["opt_units"] = opt_key, opt_units
+            out.append(row)
         except Exception:  # noqa: BLE001 - a missing or broken file only drops that symbol
             continue
     return {"v": 1, "built": datetime.now(timezone.utc).strftime("%Y-%m-%d"), "symbols": out}

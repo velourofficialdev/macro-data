@@ -828,9 +828,9 @@ def desk_extras(snap: dict, today) -> dict:
 
 def tv_levels(key: str, snap: dict, mapping: dict | None = None) -> dict:
     """Pine v5 script and CSV of the call wall, put wall, gamma flip and max pain for TradingView.
-    mapping (optional): {"symbol": TradingView symbol, "label": text for the toggle, "ratio": mapped/index}; defaults
+    mapping (optional): {"symbol": TradingView symbol, "label": text for the toggle, "ratio": mapped/index, "mode": "add"|"mul", "basis": mapped-index}; defaults
     come from the snapshot's mapped_ratio and TV_SYMBOL. Values are in the options' own units; the Pine toggle
-    multiplies by the ratio. Levels that are None are skipped."""
+    adds the basis (mode add) or multiplies by the ratio. Levels that are None are skipped."""
     import csv
     import io
     snap = snap or {}
@@ -838,6 +838,14 @@ def tv_levels(key: str, snap: dict, mapping: dict | None = None) -> dict:
     sym = _one_line(mapping.get("symbol") or TV_SYMBOL.get(key, key))
     ratio = mapping.get("ratio") if mapping.get("ratio") is not None else snap.get("mapped_ratio")
     ratio = float(ratio) if isinstance(ratio, (int, float)) and ratio else None
+    basis = mapping.get("basis")
+    basis = float(basis) if isinstance(basis, (int, float)) and math.isfinite(basis) else None
+    add = mapping.get("mode") == "add"          # same rule as the page: add -> level + basis, otherwise level * ratio
+    ok_map = (basis is not None) if add else (ratio is not None)
+    unit = "GLD price units" if key == "GOLD" else f"{snap.get('label') or key} index units"
+
+    def mapped(v):
+        return v + basis if add else v * ratio
     label = _one_line(mapping.get("label") or sym)
     today = datetime.now(timezone.utc).date()
     src = source_info(snap, key, today)
@@ -851,17 +859,17 @@ def tv_levels(key: str, snap: dict, mapping: dict | None = None) -> dict:
             f"// Velour options levels {key}. Educational, not advice.",
             f"// Source: {src['text']}",
             f"// As of: {asof}. Levels are from delayed open interest, not live prices.",
-            f"// Values are in {snap.get('label') or key} index units" + (f"; the toggle multiplies by {ratio:.6g} ({label})." if ratio else "; no mapped price was available."),
+            f"// Values are in {unit}" + ((f"; the toggle adds the futures basis {basis:.2f} ({label}): level + basis." if add else f"; the toggle multiplies by {ratio:.6g} ({label}): level * ratio.") if ok_map else "; no mapped price was available."),
             f'indicator("Velour options levels {key}", overlay=true)',
             f'useMapped = input.bool(false, "Show in {label} units")',
-            f"ratio = {ratio:.6g}" if ratio else "ratio = 1.0"]
+            (f"basis = {basis:.2f}" if add else f"ratio = {ratio:.6g}") if ok_map else "ratio = 1.0"]
     for _id, title, v, col, style in lv:
-        pine.append(f'hline(useMapped ? {v:.2f} * ratio : {v:.2f}, "{title}", color={col}, linestyle={style}, linewidth=2)')
+        pine.append(f'hline(useMapped ? {v:.2f} {"+ basis" if add and ok_map else "* ratio"} : {v:.2f}, "{title}", color={col}, linestyle={style}, linewidth=2)')
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\n")
     w.writerow(["level", "instrument", "value", "mapped_symbol", "mapped_value", "source", "fetched_utc"])
     for _id, _t, v, _c, _s in lv:
-        w.writerow([_id, key, f"{v:.2f}", sym if ratio else "", f"{v * ratio:.2f}" if ratio else "", src["source"], src["fetched_utc"] or ""])
+        w.writerow([_id, key, f"{v:.2f}", sym if ok_map else "", f"{mapped(v):.2f}" if ok_map else "", src["source"], src["fetched_utc"] or ""])
     return {"pine": "\n".join(pine) + "\n", "csv": buf.getvalue()}
 
 
