@@ -273,8 +273,11 @@
   .dpanel.dfull { position: fixed; inset: var(--tvtop, 0px) 0 0 0; z-index: 25; border-radius: 0; overflow: auto; background: var(--surface); grid-column: auto !important; }
   .dpanel.dfull .odbox { height: calc(100vh - var(--tvtop, 0px) - 150px); min-height: 260px; }
   .dpanel.dfull .dlad, .dpanel.dfull .odgrid { max-height: none; height: calc(100vh - var(--tvtop, 0px) - 150px); }
-  .dfresh { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 8px; padding: 0 16px 6px; font-size: 11px; color: var(--muted); }
+  .dfresh { display: flex; align-items: flex-start; gap: 4px 8px; padding: 0 16px 6px; font-size: 11px; color: var(--muted); }
   .dfresh i { width: 7px; height: 7px; border-radius: 50%; background: var(--call); display: inline-block; flex: none; margin-top: 4px; }
+  .dfresh > span:first-of-type { flex: 1 1 0; min-width: 0; }
+  .dfresh .dbadge { flex: none; }
+  .dpanel[data-panel="order_flow"] { align-self: start; }
   .dfresh.stale i { background: var(--warn); }
   .dbadge { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; flex: none; }
   .dbadge.warn { color: var(--warn); border-color: var(--warn); }
