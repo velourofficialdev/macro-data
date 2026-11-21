@@ -273,8 +273,8 @@
   .dpanel.dfull { position: fixed; inset: var(--tvtop, 0px) 0 0 0; z-index: 25; border-radius: 0; overflow: auto; background: var(--surface); grid-column: auto !important; }
   .dpanel.dfull .odbox { height: calc(100vh - var(--tvtop, 0px) - 150px); min-height: 260px; }
   .dpanel.dfull .dlad, .dpanel.dfull .odgrid { max-height: none; height: calc(100vh - var(--tvtop, 0px) - 150px); }
-  .dfresh { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 0 16px 6px; font-size: 11px; color: var(--muted); }
-  .dfresh i { width: 7px; height: 7px; border-radius: 50%; background: var(--call); display: inline-block; flex: none; }
+  .dfresh { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 8px; padding: 0 16px 6px; font-size: 11px; color: var(--muted); }
+  .dfresh i { width: 7px; height: 7px; border-radius: 50%; background: var(--call); display: inline-block; flex: none; margin-top: 4px; }
   .dfresh.stale i { background: var(--warn); }
   .dbadge { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; flex: none; }
   .dbadge.warn { color: var(--warn); border-color: var(--warn); }
@@ -299,15 +299,17 @@
   .dwrow small { color: var(--muted); display: block; font-size: 10px; }
   .dgauge, .dmag, .dflow { padding: 4px 16px 14px; }
   .dgauge svg { width: 100%; max-width: 360px; display: block; margin: 0 auto; }
-  .dgauge .gs { text-align: center; } .dgauge .gs b { font-size: 24px; } .dgauge .gs div { font-size: 12px; color: var(--muted); }
+  .dgauge .gs { text-align: center; margin-top: 4px; } .dgauge .gs b { font-size: 24px; } .dgauge .gs div { font-size: 12px; color: var(--muted); }
   .dmag .dm { display: flex; flex-wrap: wrap; gap: 8px 22px; } .dmag .dm > div { min-width: 96px; flex: none; }
   .dmag .kl { font-size: 10px; } .dmag .v { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; } .dmag .m { font-size: 11px; color: var(--muted); }
   .dmag .sub { margin: 14px 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
   .dmag .meth { font-size: 11px; color: var(--muted); margin: 10px 0 0; }
   .dmag svg { width: 100%; display: block; }
   .dsk { margin: 0 8px 10px; } .dsk table { font-size: 11px; width: 100%; border-collapse: collapse; } .dsk th, .dsk td { padding: 3px 6px; text-align: right; } .dsk th:first-child, .dsk td:first-child { text-align: left; }
-  .dflow .sketch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
-  .dflow .sketch div { border: 1px dashed var(--border-strong); border-radius: 6px; padding: 14px 6px; text-align: center; font-size: 11px; color: var(--muted); }
+  .srctab { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; } .srctab th, .srctab td { white-space: normal; overflow-wrap: anywhere; text-align: left; vertical-align: top; padding: 4px 8px 4px 0; }
+  @media (max-width: 560px) { .srctab, .srctab tbody, .srctab tr, .srctab td { display: block; width: 100%; } .srctab thead { display: none; } .srctab tr { padding: 6px 0; border-bottom: 1px solid var(--border); } .srctab td { padding: 1px 0; } .srctab td::before { content: attr(data-l) ": "; color: var(--muted); } .srctab td:first-child { font-weight: 600; } }
+  .dflow .sketch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; } .dflow details { margin: 4px 0 0; } .dflow summary { cursor: pointer; }
+  .dflow .sketch div { border: 1px dashed var(--border-strong); border-radius: 6px; padding: 8px 6px; text-align: center; font-size: 11px; color: var(--muted); }
   .dflow .sketch div:first-child { grid-column: 1 / -1; }
   .dmeth { font-size: 12px; line-height: 1.55; } .dmeth h4 { margin: 10px 0 2px; font-size: 12px; } .dmeth p { margin: 0 0 6px; color: var(--muted); }
   .dlg { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; padding: 12px; }
@@ -1795,7 +1797,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       + cell("P/C", i.pcr_oi == null ? "n/a" : i.pcr_oi.toFixed(2), i.pcr_vol == null ? "open interest" : "volume " + i.pcr_vol.toFixed(2))
       + cell("ATM IV", i.atm_iv == null ? "n/a" : i.atm_iv.toFixed(1) + "%", (i.vol && i.vol.iv30 != null) ? "30-day " + i.vol.iv30.toFixed(1) + "%" : "");
     const reg = $("od-reg"); reg.style.setProperty("--c", R.pos ? "var(--call)" : "var(--put)");
-    reg.innerHTML = `<b>● ${R.name}</b><span>${R.pos ? "Positive" : "Negative"} gamma: ${R.why}.</span>`;
+    reg.innerHTML = `<b>● ${esc(R.name)}</b><span>${R.pos ? "Positive" : "Negative"} gamma: ${esc(R.why)}.</span>`;
     const age = i.date ? Math.round((Date.now() - Date.parse(i.date)) / 864e5) : 0, feed = $("od-feed");
     const fst = age > 4 || isStale(st.inst);
     feed.className = "odfeed" + (fst ? " stale" : ""); feed.innerHTML = `<i></i>${fst ? "Stale · " : ""}${i.src && i.src.text ? esc(i.src.text) : "Cboe delayed chain, fetched " + esc(i.updated_utc || i.date)}`;
@@ -2402,9 +2404,9 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     if (!X().walls || !W) { host.innerHTML = na("Major walls are not available for this instrument yet."); return; }
     const mxS = Math.max(0.0001, ...(W.pos || []).concat(W.neg || []).map(r => r.share || 0));
     const list = (rows, pos) => !rows || !rows.length ? '<p class="quiet" style="margin:0">None in the data.</p>' : rows.map(r => {
-      const m = fm(r.k); return `<div class="dwrow" style="--c:${pos ? "var(--call)" : "var(--put)"}"><div><b>${pos ? "▲" : "▼"} ${fk(r.k)}</b>${m ? `<small>${esc(m)}</small>` : ""}</div><div class="bar" role="img" aria-label="${(r.share * 100).toFixed(1)}% of the total"><i style="width:${Math.max(2, r.share / mxS * 100).toFixed(0)}%"></i></div><div>${st.wl === "conc" ? "" : smoney(r.v) + " · "}${(r.share * 100).toFixed(1)}%</div></div>`; }).join("");
+      const m = fm(r.k), sp = I().spot, side = sp == null ? "" : r.k > sp ? "above spot" : r.k < sp ? "below spot" : "at spot"; return `<div class="dwrow" style="--c:${pos ? "var(--call)" : "var(--put)"}"><div><b>${pos ? "▲" : "▼"} ${fk(r.k)}</b><small>${esc([side, m].filter(Boolean).join(" · "))}</small></div><div class="bar" role="img" aria-label="${(r.share * 100).toFixed(1)}% of the total"><i style="width:${Math.max(2, r.share / mxS * 100).toFixed(0)}%"></i></div><div>${st.wl === "conc" ? "" : smoney(r.v) + " · "}${(r.share * 100).toFixed(1)}%</div></div>`; }).join("");
     host.innerHTML = `<div><h4>${st.wl === "conc" ? "Largest gross gamma strikes" : "Positive side (calls)"}</h4>${list(W.pos, true)}</div>` + (st.wl === "conc" ? "" : `<div><h4>Negative side (puts)</h4>${list(W.neg, false)}</div>`)
-      + `<p class="note" style="margin:0">Share = this strike's size as a fraction of the total across all strikes. ${S().units[st.wl === "conc" ? "gamma" : st.wl] || ""}.</p>`;
+      + `<p class="note" style="margin:0">Share = this strike's size as a fraction of the total across all strikes. Rankings span all strikes, so a wall can sit above or below spot. ${S().units[st.wl === "conc" ? "gamma" : st.wl] || ""}.</p>`;
   }
 
   /* ---------- hedging pressure gauge ---------- */
@@ -2439,7 +2441,11 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
         + `<line x1="${X_(m.points[2])}" y1="16" x2="${X_(m.points[2])}" y2="42" stroke="var(--text)" stroke-width="2"/>`
         + (m.magnet >= lo && m.magnet <= hi ? `<path d="M${X_(m.magnet) - 5},50 L${X_(m.magnet) + 5},50 L${X_(m.magnet)},40 Z" fill="var(--warn)"><title>Magnet ${fk(m.magnet)}</title></path>` : "")
         + lab(m.points[0], "−2σ", "start", 58) + lab(m.points[1], "−1σ", "middle", 58) + lab(m.points[2], "price", "middle", 12) + lab(m.points[3], "+1σ", "middle", 58) + lab(m.points[4], "+2σ", "end", 58) + `</svg>`;
-    } else html += na("0DTE magnet and expected range are not available for this instrument yet.");
+    } else {
+      const sg = i.day_move || (i.spot && i.atm_iv ? i.spot * i.atm_iv / 100 * Math.sqrt(1 / 252) : null);
+      if (i.spot != null && sg) html += `<div class="sub" style="margin-top:0">Expected range</div><div class="dm"><div><div class="kl">Expected range ±1σ</div><div class="v">${fk(i.spot - sg)} – ${fk(i.spot + sg)}</div><div class="m">σ ${fk(sg)} · ATM IV, 1 trading day</div></div></div>` + na("No 0DTE or nearest-expiry magnet strike was found within ±2σ.");
+      else html += na("0DTE magnet and expected range are not available for this instrument yet.");
+    }
     html += `<div class="sub">IV rank (proxy)</div>`;
     if (v) {
       html += `<div class="dm"><div><div class="kl">IV rank</div><div class="v">${Math.round(v.rank)}<small> /100</small></div><div class="m">${ord(v.pct)} percentile</div></div><div><div class="kl">${esc(v.series_name || "30-day index")} (30-day)</div><div class="v">${v.last.toFixed(2)}</div><div class="m">${v.n}-day range ${v.lo.toFixed(1)} – ${v.hi.toFixed(1)}</div></div></div>`
@@ -2454,7 +2460,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const rows = X().skew, host = $("sk-chart");
     host.innerHTML = ""; $("sk-leg").innerHTML = ""; $("sk-tab").innerHTML = "";
     if (!rows || !rows.length || !rows.some(r => (r.iv || []).some(x => x != null))) { host.innerHTML = '<p class="quiet">IV skew is not available for this instrument yet.</p>'; return; }
-    const use = rows.filter(r => (r.iv || []).some(x => x != null)).slice(0, 6), pal = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--warn)"];
+    const use = rows.filter(r => (r.iv || []).some(x => x != null)).slice(0, 6), pal = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--s1)"], dsh = ["", "", "", "", "", "5 3"];
     const ms = use[0].m, all = [].concat(...use.map(r => r.iv.filter(x => x != null))), lo0 = Math.min(...all), hi0 = Math.max(...all), yl = Math.max(0, Math.floor(lo0 * 0.9)), yh = Math.ceil(hi0 * 1.08) || 1;
     const W = Math.max(240, host.clientWidth), H = host.clientHeight || 250, pl = 36, pr = 20, pt = 8, pb = 22, X_ = m => pl + (m - ms[0]) / (ms[ms.length - 1] - ms[0] || 1) * (W - pl - pr), Y = v => pt + (1 - (v - yl) / (yh - yl || 1)) * (H - pt - pb);
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: "display:block;font:10px Inter,system-ui,sans-serif" }, host);
@@ -2463,10 +2469,10 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     el("line", { x1: X_(1), y1: pt, x2: X_(1), y2: H - pb, stroke: "var(--text)", "stroke-dasharray": "3 3", opacity: 0.5 }, svg);
     use.forEach((r, k) => {
       let d = "", on = false; r.iv.forEach((v, j) => { if (v == null) { on = false; return; } d += (on ? "L" : "M") + X_(r.m[j]).toFixed(1) + "," + Y(v).toFixed(1); on = true; });
-      if (d) el("path", { d, fill: "none", stroke: pal[k], "stroke-width": 1.6, "stroke-linejoin": "round" }, svg);
+      if (d) el("path", { d, fill: "none", stroke: pal[k], "stroke-width": 1.6, "stroke-linejoin": "round", "stroke-dasharray": dsh[k] || null }, svg);
       r.iv.forEach((v, j) => { if (v == null) return; const c = el("circle", { cx: X_(r.m[j]), cy: Y(v), r: 2.4, fill: pal[k] }, svg); el("title", {}, c).textContent = `${r.e} · ${Math.round(r.m[j] * 100)}% of price: IV ${v.toFixed(1)}%`; });
     });
-    $("sk-leg").innerHTML = use.map((r, k) => `<span><i style="border-color:${pal[k]}"></i>${esc(r.e.slice(5))} · ${r.dte === 0 ? "0DTE" : r.dte + "d"}</span>`).join("");
+    $("sk-leg").innerHTML = use.map((r, k) => `<span><i style="border-color:${pal[k]};border-top-style:${dsh[k] ? "dashed" : "solid"}"></i>${esc(r.e.slice(5))} · ${r.dte === 0 ? "0DTE" : r.dte + "d"}</span>`).join("");
     const at = (r, m) => { const j = r.m.findIndex(x => Math.abs(x - m) < 1e-6); return j < 0 ? null : r.iv[j]; }, p1 = v => v == null ? "n/a" : v.toFixed(1) + "%";
     $("sk-tab").innerHTML = `<table><thead><tr><th>Expiry</th><th>DTE</th><th title="IV at 95% of price (put side)">IV 95%</th><th title="IV at 105% of price (call side)">IV 105%</th><th title="IV at 95% minus IV at 105%, in vol points">Skew</th></tr></thead><tbody>`
       + use.map(r => { const s = r.skew_95_105; return `<tr><td>${esc(r.e)}</td><td>${r.dte == null ? "" : r.dte}</td><td>${p1(at(r, 0.95))}</td><td>${p1(at(r, 1.05))}</td><td>${s == null ? "n/a" : `<span class="${s > 0 ? "neg" : s < 0 ? "pos" : ""}">${s > 0 ? "▼ puts richer " : s < 0 ? "▲ calls richer " : ""}${s > 0 ? "+" : s < 0 ? "−" : ""}${Math.abs(s).toFixed(1)}</span>`}</td></tr>`; }).join("") + `</tbody></table><p class="note" style="margin:6px 0 0">Skew = IV at 95% of price minus IV at 105%, in vol points, from the out-of-the-money quotes (puts below price, calls above). Blank = outside the quoted strikes.</p>`;
@@ -2542,7 +2548,7 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
     const a = window.VelourOrderFlow.adapters();
     $("of-body").innerHTML = `<p class="note">Needs a trade/order-book feed we do not have; nothing here is simulated.</p>`
       + `<div class="sketch" aria-hidden="true"><div>Trade tape and flow imbalance: design sketch, no data</div><div>Book depth</div><div>Cumulative delta</div></div>`
-      + (a.length ? `<p class="note">Adapter registered: ${esc(a.map(x => `${x.name} (${x.source}, ${x.delay})`).join("; "))}. Drawing its data is not built in this version.</p>` : `<p class="note">No feed is connected. A future feed plugs in through <code>VelourOrderFlow.register({ name, source, delay, subscribe(cb) })</code>.</p>`);
+      + (a.length ? `<p class="note">Adapter registered: ${esc(a.map(x => `${x.name} (${x.source}, ${x.delay})`).join("; "))}. Drawing its data is not built in this version.</p>` : `<p class="note">No feed is connected.</p><details><summary class="note">For developers</summary><p class="note">A future feed plugs in through <code>VelourOrderFlow.register({ name, source, delay, subscribe(cb) })</code>.</p></details>`);
   }
 
   /* ---------- methodology and licence notes ---------- */
@@ -2552,9 +2558,9 @@ document.querySelectorAll("[data-embed]").forEach(b => b.addEventListener("click
       ["IV rank (proxy)", "Where the 30-day vol index from FRED (VIX, VXN, VXD, RVX, GVZ) sits in its own last 252 trading days."],
       ["Skew", "IV at 95% of price minus IV at 105%, in vol points, from out-of-the-money quotes."], ["Dealer side", "Dealers are assumed to hold the opposite side of customer positions: long customer calls and puts are dealer-short options. A common simplification, not a measurement."]];
     const rowsM = (M.length ? M.map(x => [x.title, x.text]) : built);
-    const src = keys.map(k => { const s = O[k].src; return `<tr><td>${esc(O[k].title)}</td><td>${esc(s ? s.text : "Cboe delayed chain · fetched " + (O[k].updated_utc || O[k].date))}</td><td>${esc(s ? s.licence_note : "Cboe data: permission for public display pending")}</td></tr>`; }).join("");
+    const src = keys.map(k => { const s = O[k].src; return `<tr><td data-l="Instrument">${esc(O[k].title)}</td><td data-l="Source">${esc(s ? s.text : "Cboe delayed chain · fetched " + (O[k].updated_utc || O[k].date))}</td><td data-l="Licence note">${esc(s ? s.licence_note : "Cboe data: permission for public display pending")}</td></tr>`; }).join("");
     $("mt-body").innerHTML = rowsM.map(r => `<h4>${esc(r[0])}</h4><p>${esc(r[1])}</p>`).join("")
-      + `<h4>Source and licence by instrument</h4><div class="scroll"><table><thead><tr><th>Instrument</th><th>Source</th><th>Licence note</th></tr></thead><tbody>${src}</tbody></table></div>`
+      + `<h4>Source and licence by instrument</h4><table class="srctab"><thead><tr><th>Instrument</th><th>Source</th><th>Licence note</th></tr></thead><tbody>${src}</tbody></table>`
       + `<p style="margin-top:8px">Educational context, not advice.</p>`;
   }
 
